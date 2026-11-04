@@ -1,12 +1,8 @@
 {
   "name": "kanban-board",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Kanban da empresa: contas, temas, modo escuro e gerador de diário",
+  "description": "Kanban da empresa: Supabase (login, banco, tempo real) + front estático",
   "type": "module",
-  "engines": { "node": ">=22.13" },
-  "scripts": {
-    "start": "node --disable-warning=ExperimentalWarning server.js",
-    "dev": "node --watch --disable-warning=ExperimentalWarning server.js"
-  }
+  "scripts": { "start": "node scripts/serve.js" }
 }

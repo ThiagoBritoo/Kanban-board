@@ -56,15 +56,7 @@ const fmtTime = (at) => new Date(at).toLocaleString('pt-BR', { day: '2-digit', m
 const initials = (n) => n.trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
 const hueOf = (s) => { let x = 0; for (const c of norm(s)) x = (x * 31 + c.charCodeAt(0)) % 360; return x; };
 
-async function api(method, url, body) {
-  const r = await fetch(url, { method, credentials: 'same-origin', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
-  let data = null; try { data = await r.json(); } catch { /* sem corpo */ }
-  if (!r.ok) {
-    if (r.status === 401 && S.me) { location.reload(); }
-    throw new Error((data && data.error) || `Erro ${r.status}`);
-  }
-  return data;
-}
+const api = (method, url, body) => KB.api(method, url, body);
 
 function toast(msg, err = false) {
   const el = h('div', { class: 'toast' + (err ? ' err' : '') }, !err && icon('check'), msg);
@@ -184,10 +176,7 @@ async function loadBoard() {
   const me = d.users.find((u) => u.id === S.me.id); if (me) S.me = { ...S.me, ...me };
   renderBoard();
 }
-function connectStream() {
-  const es = new EventSource('/api/stream');
-  es.onmessage = () => scheduleLoad();
-}
+function connectStream() { KB.subscribe(scheduleLoad); }
 const upsertTask = (t) => { const i = S.tasks.findIndex((x) => x.id === t.id); i >= 0 ? (S.tasks[i] = t) : S.tasks.push(t); };
 
 /* ================= criação rápida ================= */
@@ -264,31 +253,68 @@ function openQuickAdd() {
   setTimeout(() => input.focus(), 20);
 }
 
-/* ================= tela de login / instalação ================= */
-function renderAuth(needsSetup) {
-  const app = $('#app'); app.replaceChildren();
-  const err = h('div', { class: 'err-msg' });
+/* ================= login, cadastro e aprovação ================= */
+function themeDots() {
+  return h('div', { class: 'row', style: { justifyContent: 'center', gap: '6px' } }, THEMES.map(([id]) => h('button', { type: 'button', class: 'swatch', title: id, style: { background: 'var(--accent)', flex: '0 0 auto' }, 'data-theme': id, 'data-mode': resolvedMode(), onclick: () => setPrefs({ theme: id }, { refreshSettings: false }) })));
+}
+function authShell(...kids) {
+  const app = $('#app'); app.replaceChildren(h('div', { class: 'auth' }, h('div', { class: 'auth-card' },
+    h('div', { class: 'brand' }, h('span', { class: 'logo' }, icon('grid')), 'Kanban'), ...kids, themeDots())));
+}
+async function start() {
+  const s = await KB.getSession();
+  s.user ? await boot(s.user) : renderAuth('login');
+}
+function renderAuth(mode = 'login') {
+  const signup = mode === 'signup', forgot = mode === 'forgot';
+  const err = h('div', { class: 'err-msg' }), info = h('div', { class: 'help' });
   const name = h('input', { class: 'input', placeholder: 'Seu nome', autocomplete: 'name' });
   const email = h('input', { class: 'input', type: 'email', placeholder: 'voce@empresa.com', autocomplete: 'username' });
-  const pass = h('input', { class: 'input', type: 'password', placeholder: needsSetup ? 'Mínimo 6 caracteres' : 'Senha', autocomplete: needsSetup ? 'new-password' : 'current-password' });
+  const pass = h('input', { class: 'input', type: 'password', placeholder: signup ? 'Mínimo 6 caracteres' : 'Senha', autocomplete: signup ? 'new-password' : 'current-password' });
+  const go = (m) => h('button', { type: 'button', class: 'btn ghost sm', onclick: () => renderAuth(m) });
   const submit = async (e) => {
-    e && e.preventDefault(); err.textContent = '';
+    e.preventDefault(); err.textContent = ''; info.textContent = '';
     try {
-      const d = await api('POST', needsSetup ? '/api/setup' : '/api/login', { name: name.value, email: email.value, password: pass.value });
-      await boot(d.user);
+      if (forgot) { await KB.resetPassword(email.value); info.textContent = 'Enviamos um link para redefinir a senha no seu e-mail.'; return; }
+      if (signup) {
+        if (!name.value.trim()) throw new Error('Informe seu nome');
+        const r = await KB.signUp(name.value, email.value, pass.value);
+        if (r.needsConfirm) { info.textContent = 'Conta criada! Confirme seu e-mail (veja a caixa de entrada) e depois entre.'; return; }
+      } else await KB.signIn(email.value, pass.value);
+      await start();
     } catch (x) { err.textContent = x.message; }
   };
-  const form = h('form', { class: 'auth-card', onsubmit: submit },
-    h('div', { class: 'brand' }, h('span', { class: 'logo' }, icon('grid')), 'Kanban'),
-    h('h1', null, needsSetup ? 'Criar conta de administrador' : 'Entrar'),
-    h('p', null, needsSetup ? 'Primeiro acesso: essa conta administra o quadro e cria as contas da equipe.' : 'Acesse o quadro da equipe.'),
-    needsSetup && h('div', { class: 'field' }, h('label', null, 'Nome'), name),
+  authShell(h('form', { onsubmit: submit, style: { display: 'flex', flexDirection: 'column', gap: '14px' } },
+    h('h1', null, signup ? 'Criar conta' : forgot ? 'Recuperar senha' : 'Entrar'),
+    h('p', null, signup ? 'A primeira conta criada vira administradora. As demais precisam ser aprovadas por ela.' : forgot ? 'Informe o e-mail da conta.' : 'Acesse o quadro da equipe.'),
+    signup && h('div', { class: 'field' }, h('label', null, 'Nome'), name),
     h('div', { class: 'field' }, h('label', null, 'E-mail'), email),
-    h('div', { class: 'field' }, h('label', null, 'Senha'), pass),
-    err, h('button', { class: 'btn primary', type: 'submit', style: { padding: '11px' } }, needsSetup ? 'Criar e entrar' : 'Entrar'),
-    h('div', { class: 'row', style: { justifyContent: 'center', gap: '6px' } }, THEMES.slice(0, 8).map(([id]) => h('button', { type: 'button', class: 'swatch', title: id, style: { background: 'var(--accent)', flex: '0 0 auto' }, 'data-theme': id, 'data-mode': resolvedMode(), onclick: () => setPrefs({ theme: id }, { refreshSettings: false }) }))));
-  app.append(h('div', { class: 'auth' }, form));
-  (needsSetup ? name : email).focus();
+    !forgot && h('div', { class: 'field' }, h('label', null, 'Senha'), pass),
+    err, info,
+    h('button', { class: 'btn primary', type: 'submit', style: { padding: '11px' } }, signup ? 'Criar conta' : forgot ? 'Enviar link' : 'Entrar'),
+    h('div', { class: 'row', style: { justifyContent: 'center', gap: '4px', flexWrap: 'wrap' } },
+      mode !== 'login' && Object.assign(go('login'), { textContent: 'Já tenho conta' }),
+      mode !== 'signup' && Object.assign(go('signup'), { textContent: 'Criar conta' }),
+      mode === 'login' && Object.assign(go('forgot'), { textContent: 'Esqueci a senha' }))));
+  (signup ? name : email).focus();
+}
+let pendingTimer;
+function renderPending(user) {
+  clearInterval(pendingTimer);
+  pendingTimer = setInterval(async () => { try { const s = await KB.getSession(); if (s.user && s.user.approved) { clearInterval(pendingTimer); boot(s.user); } } catch { /* tenta de novo */ } }, 8000);
+  authShell(h('h1', null, 'Aguardando aprovação'),
+    h('p', null, `Sua conta (${user.email}) foi criada. Peça ao administrador para aprovar seu acesso — esta tela libera sozinha assim que ele aprovar.`),
+    h('button', { class: 'btn', onclick: guard(start) }, 'Verificar agora'),
+    h('button', { class: 'btn ghost', onclick: guard(async () => { clearInterval(pendingTimer); await KB.signOut(); location.reload(); }) }, 'Sair'));
+}
+function renderNotConfigured() {
+  authShell(h('h1', null, 'Falta conectar o Supabase'),
+    h('p', null, 'Abra ', h('b', null, 'public/config.js'), ' e preencha SUPABASE_URL e SUPABASE_ANON_KEY (Project Settings → API). Depois rode o SQL de ', h('b', null, 'supabase/migrations/0001_kanban.sql'), ' no SQL Editor. O README tem o passo a passo.'));
+}
+async function askNewPassword() {
+  const pw = await askText('Defina sua nova senha', '', { type: 'password', ok: 'Salvar senha', placeholder: 'Mínimo 6 caracteres' });
+  if (!pw) return;
+  try { await KB.setPassword(pw); toast('Senha atualizada'); } catch (e) { toast(e.message, true); }
 }
 
 /* ================= shell: topbar e quadro ================= */
@@ -312,7 +338,7 @@ function renderShell() {
     h('button', { class: 'btn ghost icon', title: S.me.name, style: { padding: '4px' }, id: 'meBtn', onclick: (e) => popover(e.currentTarget, [
       { label: 'Minha conta', icon: 'edit', onClick: () => openSettings('account') },
       ...(S.me.role === 'admin' ? [{ label: 'Equipe', icon: 'take', onClick: () => openSettings('team') }] : []),
-      'hr', { label: 'Sair', icon: 'logout', onClick: guard(async () => { await api('POST', '/api/logout'); location.reload(); }) }]) }, avatar(S.me, 30)));
+      'hr', { label: 'Sair', icon: 'logout', onClick: guard(async () => { await KB.signOut(); location.reload(); }) }]) }, avatar(S.me, 30)));
   app.append(top, h('div', { id: 'toolbar', class: 'toolbar' }), h('main', { id: 'board', class: 'board' }));
   renderTopbarMode();
 }
@@ -321,7 +347,7 @@ function matches(t) {
   const f = S.filter;
   if (f.who === 'me' && t.assignee_id !== S.me.id) return false;
   if (f.who === 'none' && t.assignee_id != null) return false;
-  if (typeof f.who === 'number' && t.assignee_id !== f.who) return false;
+  if (!['all', 'me', 'none'].includes(f.who) && t.assignee_id !== f.who) return false;
   if (f.q) { const hay = norm(t.title + ' ' + t.description + ' ' + t.labels.join(' ') + ' ' + (userById(t.assignee_id)?.name || '')); if (!norm(f.q).split(/\s+/).every((w) => hay.includes(w))) return false; }
   return true;
 }
@@ -469,7 +495,7 @@ function openTask(id) {
   const diary = h('input', { class: 'input', placeholder: 'Opcional: como isso deve aparecer no diário', value: t.diary, maxLength: 500, onchange: () => save({ diary: diary.value }) });
   const colSel = h('select', { class: 'select', onchange: guard(async () => { await moveTask(id, Number(colSel.value), null); loadEvents(); }) },
     S.columns.map((c) => h('option', { value: c.id, selected: c.id === t.column_id }, c.name)));
-  const own = h('select', { class: 'select', onchange: () => save({ assignee_id: own.value ? Number(own.value) : null }) },
+  const own = h('select', { class: 'select', onchange: () => save({ assignee_id: own.value || null }) },
     h('option', { value: '' }, 'Sem responsável'), S.users.map((u) => h('option', { value: u.id, selected: u.id === t.assignee_id }, u.id === S.me.id ? `${u.name} (eu)` : u.name)));
   const takeBtn = h('button', { class: 'btn sm', onclick: async () => { await save({ assignee_id: S.me.id }); own.value = String(S.me.id); } }, icon('take'), 'Pegar pra mim');
   const due = h('input', { class: 'input', type: 'date', value: t.due_date || '', onchange: () => save({ due_date: due.value || null }) });
@@ -607,23 +633,22 @@ function viewAccount() {
 }
 
 function viewTeam() {
-  const box = h('div', { class: 'modal-body' });
-  const draw = () => {
-    const name = h('input', { class: 'input', placeholder: 'Nome' }), email = h('input', { class: 'input', type: 'email', placeholder: 'E-mail' });
-    const pass = h('input', { class: 'input', type: 'text', placeholder: 'Senha inicial (mín. 6)', autocomplete: 'off' });
-    const role = h('select', { class: 'select' }, h('option', { value: 'member' }, 'Membro'), h('option', { value: 'admin' }, 'Administrador'));
+  const box = h('div', { class: 'modal-body' }, h('div', { class: 'help' }, 'Carregando…'));
+  const draw = guard(async () => {
+    const list = await api('GET', '/api/users');
+    const pending = list.filter((u) => !u.approved), active = list.filter((u) => u.approved);
+    const refresh = async () => { await loadBoard(); draw(); };
     box.replaceChildren(
-      h('div', { class: 'field' }, h('label', null, `Contas (${S.users.length})`),
-        S.users.map((u) => h('div', { class: 'user-row' }, avatar(u, 32), h('div', { class: 'who' }, u.name + (u.id === S.me.id ? ' (você)' : ''), h('small', null, u.email)),
-          h('select', { class: 'select', style: { width: 'auto' }, value: u.role, onchange: guard(async (e) => { try { await api('PATCH', `/api/users/${u.id}`, { role: e.target.value }); await loadBoard(); toast('Permissão atualizada'); } catch (x) { e.target.value = u.role; throw x; } }) },
+      pending.length > 0 && h('div', { class: 'field' }, h('label', null, `Aguardando aprovação (${pending.length})`),
+        pending.map((u) => h('div', { class: 'user-row' }, avatar(u, 32), h('div', { class: 'who' }, u.name, h('small', null, u.email)),
+          h('button', { class: 'btn sm primary', onclick: guard(async () => { await api('PATCH', `/api/users/${u.id}`, { approved: true }); toast(`${u.name} aprovado(a)`); await refresh(); }) }, icon('check'), 'Aprovar')))),
+      h('div', { class: 'field' }, h('label', null, `Equipe (${active.length})`),
+        active.map((u) => h('div', { class: 'user-row' }, avatar(u, 32), h('div', { class: 'who' }, u.name + (u.id === S.me.id ? ' (você)' : ''), h('small', null, u.email)),
+          h('select', { class: 'select', style: { width: 'auto' }, onchange: guard(async (e) => { try { await api('PATCH', `/api/users/${u.id}`, { role: e.target.value }); toast('Permissão atualizada'); await refresh(); } catch (x) { e.target.value = u.role; throw x; } }) },
             h('option', { value: 'member', selected: u.role === 'member' }, 'Membro'), h('option', { value: 'admin', selected: u.role === 'admin' }, 'Admin')),
-          h('button', { class: 'btn sm', onclick: guard(async () => { const pw = await askText(`Nova senha para ${u.name}`, '', { ok: 'Redefinir' }); if (pw) { await api('PATCH', `/api/users/${u.id}`, { password: pw }); toast('Senha redefinida'); } }) }, 'Senha'),
-          u.id !== S.me.id && h('button', { class: 'btn sm danger', title: 'Remover', onclick: guard(async () => { if (!(await confirmBox(`Remover a conta de ${u.name}? As tasks dela ficam sem responsável.`, 'Remover'))) return; await api('DELETE', `/api/users/${u.id}`); await loadBoard(); draw(); }) }, icon('trash'))))),
-      h('div', { class: 'field' }, h('label', null, 'Adicionar pessoa'),
-        h('div', { class: 'row' }, name, email), h('div', { class: 'row' }, pass, role),
-        h('div', null, h('button', { class: 'btn primary', onclick: guard(async () => { await api('POST', '/api/users', { name: name.value, email: email.value, password: pass.value, role: role.value }); await loadBoard(); toast('Conta criada'); draw(); }) }, icon('plus'), 'Criar conta')),
-        h('div', { class: 'help' }, 'Passe o e-mail e a senha inicial para a pessoa. Ela pode trocar a senha em Conta.')));
-  };
+          u.id !== S.me.id && h('button', { class: 'btn sm danger', title: 'Tirar o acesso desta pessoa', onclick: guard(async () => { if (!(await confirmBox(`Tirar o acesso de ${u.name}? As tasks dela ficam com ela até você reatribuir.`, 'Tirar acesso'))) return; await api('PATCH', `/api/users/${u.id}`, { approved: false }); await refresh(); }) }, 'Tirar acesso')))),
+      h('div', { class: 'help' }, 'Para adicionar alguém: a pessoa abre o endereço do quadro e clica em ', h('b', null, 'Criar conta'), '. Ela aparece aqui para você aprovar.'));
+  });
   draw();
   return box;
 }
@@ -645,6 +670,7 @@ document.addEventListener('keydown', (e) => {
 
 /* ================= inicialização ================= */
 async function boot(user) {
+  if (!user.approved) return renderPending(user);
   S.me = user;
   S.prefs = { ...DEFAULT_PREFS, ...loadLocalPrefs(), ...(user.prefs || {}) };
   applyPrefs();
@@ -656,9 +682,9 @@ async function boot(user) {
 (async function init() {
   S.prefs = { ...DEFAULT_PREFS, ...loadLocalPrefs() };
   applyPrefs();
-  try {
-    const s = await api('GET', '/api/session');
-    s.user ? await boot(s.user) : renderAuth(s.needsSetup);
-  } catch (e) { $('#app').append(h('div', { class: 'auth' }, h('div', { class: 'auth-card' }, h('h1', null, 'Sem conexão'), h('p', null, e.message)))); }
+  if (!KB.configured) return renderNotConfigured();
+  KB.onRecovery(askNewPassword);
+  try { await start(); }
+  catch (e) { $('#app').append(h('div', { class: 'auth' }, h('div', { class: 'auth-card' }, h('h1', null, 'Sem conexão'), h('p', null, e.message)))); }
 })();
 })();
