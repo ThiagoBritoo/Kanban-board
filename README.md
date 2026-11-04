@@ -36,6 +36,12 @@ Também serve Cloudflare Pages ou Netlify: conecte este repositório. **Sem coma
 - **Criar task**: `N` abre a criação rápida; ou digite direto no campo no fim de cada coluna.
   Atalhos no texto: `#etiqueta` `@nome` `!alta` (`!baixa` `!urgente`) `^amanhã` `^25/12`. `Ctrl+Enter` cria e continua.
 - **Menu do card** (`⋯`): mover de coluna, pegar/soltar, excluir. É a forma de mover tasks no celular.
+- **Vistas**: Quadro, Lista (ordenável) e Calendário (arraste a task para outro dia para mudar o prazo). Botões ao lado da busca.
+- **Paleta de comandos** (`Ctrl+K`): busca tasks e roda comandos (trocar tema, filtrar, ir para uma vista…). O menu `⋯` do topo tem Resumo, Atividade e exportações.
+- **Cronômetro** por task (só um rodando por pessoa), **anexos** (até 10 MB; cole um print com `Ctrl+V` ou arraste arquivos) e **limite de tasks por coluna** (menu `⋯` da coluna, também ordena a coluna).
+- **Resumo da equipe**: criadas × concluídas por dia, tempo médio até concluir e carga por pessoa. **Atividade recente**: quem fez o quê.
+- **Exportar** tasks em CSV (abre no Excel) e **backup completo** em JSON.
+- **No celular**: segure ~0,4 s num card e arraste para outra coluna (ou use o menu do card). Aviso na tela quando alguém te atribui uma task; opcionalmente notificação do sistema (Personalizar → Comportamento).
 - **Desfazer**: excluir e mover mostram um aviso com *Desfazer*. Excluir só manda para a lixeira (nada é apagado de verdade).
 - **Checklist e comentários** dentro de cada task. Mexer neles conta como trabalho no diário.
 - **Filtros**: Minhas / Sem dono / pessoa, *Atrasadas*, *Vencem hoje* e etiquetas (clique numa etiqueta do card).
@@ -43,12 +49,13 @@ Também serve Cloudflare Pages ou Netlify: conecte este repositório. **Sem coma
 - **Arrastar** cards entre colunas; no celular, abra o card e troque o *Status*.
 - **Gerar diário**: bullets do que você criou, moveu, editou, comentou ou marcou com *Trabalhei hoje* (mais suas tasks em andamento). Períodos: Hoje, Ontem, Semana (com o dia como título) ou um dia à escolha.
   O campo *Texto para o diário* da task define como a linha aparece.
-- **Personalizar** (paleta): 10 temas, claro/escuro/sistema, cor de destaque, fonte, cantos, densidade, animações. Cor por coluna no menu `⋯` da coluna. Segue a sua conta.
+- **Personalizar** (paleta): 10 temas, claro/escuro/sistema, fundo (gradientes ou imagem por link https), cor de destaque, fonte, cantos, densidade, animações. Cor por coluna no menu `⋯` da coluna. Segue a sua conta.
 - **Instalar no celular**: abra o site no Chrome/Safari e use *Adicionar à tela inicial*.
 - Atalhos: `N` nova task · `/` buscar · `Esc` fecha.
 
 ## Estrutura
 
-- `public/` site estático (`index.html`, `app.js`, `backend.js` = camada Supabase, `app.css` = temas, `_headers` = segurança)
+- `public/` site estático: `app.js` (núcleo), `views.js` (lista, calendário, resumo, exportar), `palette.js`, `touch.js`, `backend.js` (camada Supabase), `app.css` (temas)
+- `vercel.json` cabeçalhos de segurança (CSP etc.); `public/_headers` é o equivalente para Netlify/Cloudflare
 - `supabase/migrations/` esquema, RLS, gatilhos de histórico e funções (rode na ordem, no SQL Editor, num projeto novo)
-- `test/` teste de interface com uma API Supabase falsa (instruções no topo de `test/e2e.js`)
+- `test/` teste de interface com uma API Supabase falsa (instruções no topo de `test/e2e.cjs`)

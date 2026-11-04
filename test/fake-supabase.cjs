@@ -8,8 +8,8 @@ module.exports = function makeFake() {
       { id: uid, name: 'Thiago', email: 't@x.com', role: 'admin', approved: true, color: '#6366f1', prefs: {}, created_at: '2026-01-01T00:00:00Z' },
       { id: uid2, name: 'Maria', email: 'm@x.com', role: 'member', approved: true, color: '#ec4899', prefs: {}, created_at: '2026-01-02T00:00:00Z' },
     ],
-    board_columns: [['A fazer', 'todo'], ['Em andamento', 'doing'], ['Revisão', 'doing'], ['Concluído', 'done']].map(([name, kind], i) => ({ id: i + 1, name, position: i, kind, color: null })),
-    tasks: [], events: [], nextTask: 1, nextEv: 1, calls: [],
+    board_columns: [['A fazer', 'todo'], ['Em andamento', 'doing'], ['Revisão', 'doing'], ['Concluído', 'done']].map(([name, kind], i) => ({ id: i + 1, name, position: i, kind, color: null, wip_limit: null })),
+    tasks: [], events: [], attachments: [], files: {}, nextTask: 1, nextEv: 1, nextAtt: 1, calls: [],
   };
   const now = () => new Date().toISOString();
   const ev = (task_id, user_id, type, data = {}) => db.events.push({ id: db.nextEv++, task_id, user_id, type, data, at: now() });
@@ -32,7 +32,7 @@ module.exports = function makeFake() {
   const insertTask = (b, user) => {
     const id = db.nextTask++;
     const k = col(b.column_id);
-    const t = { description: '', diary: '', assignee_id: null, priority: 1, due_date: null, labels: [], checklist: [], deleted_at: null, completed_at: k.kind === 'done' ? now() : null, ...b, id, creator_id: user,
+    const t = { description: '', diary: '', assignee_id: null, priority: 1, due_date: null, labels: [], checklist: [], deleted_at: null, time_spent: 0, timer_started_at: null, timer_user: null, completed_at: k.kind === 'done' ? now() : null, ...b, id, creator_id: user,
       position: Math.max(-1, ...db.tasks.filter((x) => x.column_id === b.column_id).map((x) => x.position)) + 1, created_at: now(), updated_at: now() };
     db.tasks.push(t); ev(id, user, 'created', { column: k.name }); if (t.assignee_id) ev(id, user, 'assigned', { to: t.assignee_id }); return t;
   };
@@ -58,6 +58,13 @@ module.exports = function makeFake() {
       let i = a.p_before ? arr.findIndex((x) => x.id === a.p_before) : -1; if (i < 0) i = arr.length; arr.splice(i, 0, t); arr.forEach((x, k) => (x.position = k)); return null;
     }
     if (fn === 'add_comment') { if (!a.p_text.trim()) throw { code: 'P0001', message: 'Comentário inválido (1 a 2000 caracteres)' }; ev(a.p_task, user, 'comment', { text: a.p_text.trim() }); return null; }
+    if (fn === 'toggle_timer') {
+      const t = db.tasks.find((x) => x.id === a.p_task);
+      if (t.timer_started_at) { const secs = Math.max(0, Math.floor((Date.now() - Date.parse(t.timer_started_at)) / 1000)); t.time_spent += secs; t.timer_started_at = null; t.timer_user = null; ev(t.id, user, 'timer', { action: 'stop', seconds: secs }); }
+      else { db.tasks.filter((x) => x.timer_user === user && x.timer_started_at).forEach((x) => { x.time_spent += Math.floor((Date.now() - Date.parse(x.timer_started_at)) / 1000); x.timer_started_at = null; x.timer_user = null; }); t.timer_started_at = now(); t.timer_user = user; ev(t.id, user, 'timer', { action: 'start' }); }
+      return null;
+    }
+    if (fn === 'reorder_column') { a.p_ids.forEach((id, i) => { const t = db.tasks.find((x) => x.id === id); if (t && t.column_id === a.p_column) t.position = i; }); return null; }
     if (fn === 'log_worked') { ev(a.p_task, user, 'worked'); return null; }
     if (fn === 'move_column') { const arr = [...db.board_columns].sort((x, y) => x.position - y.position); const i = arr.findIndex((c) => c.id === a.p_id), j = i + a.p_dir; if (j >= 0 && j < arr.length) { [arr[i], arr[j]] = [arr[j], arr[i]]; arr.forEach((c, k) => (c.position = k)); } return null; }
     if (fn === 'diary') {
@@ -90,6 +97,14 @@ module.exports = function makeFake() {
       }
       if (p.startsWith('/auth/v1/user')) { const h = req.headers().authorization || ''; const sub = JSON.parse(Buffer.from(h.split('.')[1] || 'e30', 'base64url').toString() || '{}').sub; const u = db.profiles.find((x) => x.id === sub) || db.profiles[0]; return send(200, userObj(u)); }
       if (p.startsWith('/auth/v1/logout')) return send(204);
+      if (p.startsWith('/storage/v1/object/sign/')) {
+        if (m === 'POST') return send(200, { signedURL: p.replace('/storage/v1', '') + '?token=t' });
+        return route.fulfill({ status: 200, headers: { ...cors, 'content-type': 'image/png' }, body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64') });
+      }
+      if (p.startsWith('/storage/v1/object/attachments')) {
+        if (m === 'POST') { db.files[decodeURIComponent(p.replace('/storage/v1/object/attachments/', ''))] = (req.postDataBuffer() || Buffer.from('')).length; return send(200, { Key: 'attachments/x', Id: 'x' }); }
+        if (m === 'DELETE') { const b = JSON.parse(req.postData() || '{}'); (b.prefixes || []).forEach((x) => delete db.files[x]); return send(200, []); }
+      }
       if (!p.startsWith('/rest/v1/')) return send(404, { message: 'x' });
       const auth = req.headers().authorization || ''; const sub = JSON.parse(Buffer.from((auth.split('.')[1]) || 'e30', 'base64url').toString() || '{}').sub || uid;
       const name = p.replace('/rest/v1/', ''); const q = url.searchParams; const wantObj = /vnd\.pgrst\.object/.test(req.headers().accept || '');
@@ -97,16 +112,17 @@ module.exports = function makeFake() {
       db.calls.push(`${m} ${name}${url.search ? '?' + url.search.slice(1, 80) : ''}`);
       const out = (rows) => wantObj ? (rows.length === 1 ? send(200, rows[0]) : send(406, { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned', details: `The result contains ${rows.length} rows` })) : send(200, rows);
       if (name.startsWith('rpc/')) { try { const r = rpc(name.slice(4), body || {}, sub); return send(200, r); } catch (e) { return send(400, { code: e.code || 'P0001', message: e.message }); } }
-      if (name === 'events' && m === 'GET') { const rows = order(filt(db.events, q), q).map((e) => ({ ...e, profiles: { name: (db.profiles.find((x) => x.id === e.user_id) || {}).name } })); return out(q.get('limit') ? rows.slice(0, Number(q.get('limit'))) : rows); }
+      if (name === 'events' && m === 'GET') { const rows = order(filt(db.events, q), q).map((e) => { const tk = db.tasks.find((x) => x.id === e.task_id); return { ...e, profiles: { name: (db.profiles.find((x) => x.id === e.user_id) || {}).name }, tasks: tk ? { title: tk.title, deleted_at: tk.deleted_at } : null }; }); return out(q.get('limit') ? rows.slice(0, Number(q.get('limit'))) : rows); }
       const table = db[name]; if (!table) return send(404, { message: 'tabela ' + name });
       if (m === 'GET') { let rows = order(filt(table, q), q); if (q.get('limit')) rows = rows.slice(0, Number(q.get('limit'))); return out(rows); }
       if (m === 'POST' && name === 'tasks') return send(201, insertTask(body, sub));
+      if (m === 'POST' && name === 'attachments') { const a = { id: db.nextAtt++, created_at: now(), mime: null, ...body }; db.attachments.push(a); ev(a.task_id, sub, 'attachment', { name: a.name }); return send(201, a); }
       if (m === 'POST' && name === 'board_columns') { const c = { id: db.board_columns.length + 10, position: db.board_columns.length, color: null, kind: 'todo', ...body }; db.board_columns.push(c); return send(201, c); }
       if (m === 'PATCH') {
         const rows = filt(table, q); rows.forEach((r) => (name === 'tasks' ? patchTask(r, body, sub) : Object.assign(r, body)));
         return out(rows);
       }
-      if (m === 'DELETE') return send(204);
+      if (m === 'DELETE') { if (name === 'attachments') { const ids = filt(db.attachments, q).map((r) => r.id); db.attachments = db.attachments.filter((r) => !ids.includes(r.id)); } return send(204); }
       return send(405, { message: 'nao suportado' });
     } catch (e) { return send(500, { message: String(e && e.message || e) }); }
   }

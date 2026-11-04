@@ -21,6 +21,15 @@ const ICONS = {
   left: '<path d="m15 18-6-6 6-6"/>',
   right: '<path d="m9 18 6-6-6-6"/>',
   edit: '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/>',
+  play: '<path d="M6 4l14 8-14 8z"/>',
+  pause: '<path d="M7 4h4v16H7zM13 4h4v16h-4z"/>',
+  clip: '<path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7l9-9a3.3 3.3 0 0 1 5 5l-9 9a1.7 1.7 0 0 1-2.5-2.5L15 7"/>',
+  chart: '<path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/>',
+  pulse: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+  download: '<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
+  command: '<path d="M9 9h6v6H9zM9 9V6a3 3 0 1 0-3 3h3zm6 0V6a3 3 0 1 1 3 3h-3zM9 15v3a3 3 0 1 1-3-3h3zm6 0v3a3 3 0 1 0 3-3h-3z"/>',
+  table: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/>',
   undo: '<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/>',
   list: '<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>',
   move: '<path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/>',
@@ -66,6 +75,7 @@ const initials = (n) => n.trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join(
 const hueOf = (s) => { let x = 0; for (const c of norm(s)) x = (x * 31 + c.charCodeAt(0)) % 360; return x; };
 
 const api = async (method, url, body) => {
+  if (method !== 'GET') S.lastWrite = Date.now();
   try { return await KB.api(method, url, body); }
   catch (e) {
     if (/JWT|token is expired|not authenticated|invalid claim/i.test(e.message)) { try { await KB.signOut(); } catch { /* ok */ } location.reload(); }
@@ -90,8 +100,26 @@ const THEMES = [
   ['brutal', 'Brutal', 'ousado, contorno grosso'], ['sunset', 'Sunset', 'gradiente impactante'],
   ['terminal', 'Terminal', 'verde sobre preto, mono'], ['gelo', 'Gelo', 'azul glacial, arejado'],
 ];
-const DEFAULT_PREFS = { theme: 'minimal', mode: 'system', accent: null, font: 'auto', radius: null, density: 'comfortable', motion: true, autoAssign: true, hideOldDone: true };
-const S = { me: null, users: [], columns: [], tasks: [], prefs: { ...DEFAULT_PREFS }, filter: { q: '', who: 'all', due: null, label: null }, drafts: {}, drag: null, seen: null, showAllDone: false };
+const DEFAULT_PREFS = { theme: 'minimal', mode: 'system', accent: null, font: 'auto', radius: null, density: 'comfortable', motion: true, autoAssign: true, hideOldDone: true, view: 'board', bg: 'theme', bgUrl: '', notify: false };
+const S = { me: null, users: [], columns: [], tasks: [], prefs: { ...DEFAULT_PREFS }, filter: { q: '', who: 'all', due: null, label: null }, drafts: {}, drag: null, seen: null, showAllDone: false, online: new Set(), lastWrite: 0, loadedOnce: false };
+
+const BGS = [
+  ['theme', 'Do tema'],
+  ['aurora', 'Aurora', 'linear-gradient(135deg,#e0e7ff,#fae8ff 50%,#cffafe)', 'linear-gradient(135deg,#0f0c29,#302b63 55%,#24243e)'],
+  ['sunset', 'Pôr do sol', 'linear-gradient(135deg,#ffedd5,#fecdd3 55%,#ddd6fe)', 'linear-gradient(135deg,#1f0a0a,#5b1d2f 55%,#2b1055)'],
+  ['mar', 'Mar', 'linear-gradient(160deg,#dbeafe,#e0f2fe 50%,#ccfbf1)', 'linear-gradient(160deg,#020c1b,#0b2a4a 60%,#064e3b)'],
+  ['floresta', 'Floresta', 'linear-gradient(150deg,#ecfccb,#d1fae5 55%,#e0f2fe)', 'linear-gradient(150deg,#04130a,#0f3d2a 60%,#062b3a)'],
+  ['grafite', 'Grafite', 'linear-gradient(180deg,#f4f4f5,#e4e4e7)', 'linear-gradient(180deg,#111113,#1c1c20)'],
+  ['solido', 'Sólido', '#f5f5f4', '#0c0c0d'],
+];
+function bgCss(p, mode) {
+  if (p.bg === 'custom') {
+    try { const u = new URL(p.bgUrl); if (u.protocol === 'https:') return `url("${u.href.replace(/"/g, '%22')}") center / cover no-repeat`; } catch { /* url inválida */ }
+    return null;
+  }
+  const b = BGS.find((x) => x[0] === p.bg && x[2]);
+  return b ? (mode === 'dark' ? b[3] : b[2]) : null;
+}
 
 const sysDark = matchMedia('(prefers-color-scheme: dark)');
 const resolvedMode = () => S.prefs.mode === 'system' ? (sysDark.matches ? 'dark' : 'light') : S.prefs.mode;
@@ -100,6 +128,8 @@ function applyPrefs() {
   const p = S.prefs, r = document.documentElement;
   r.dataset.theme = p.theme; r.dataset.mode = resolvedMode(); r.dataset.density = p.density;
   r.dataset.motion = p.motion ? 'on' : 'off';
+  const bg = bgCss(p, resolvedMode());
+  if (bg) { r.style.setProperty('--bg-user', bg); r.dataset.bg = 'user'; } else { r.style.removeProperty('--bg-user'); delete r.dataset.bg; }
   p.font && p.font !== 'auto' ? (r.dataset.font = p.font) : delete r.dataset.font;
   p.radius != null ? r.style.setProperty('--radius-u', p.radius + 'px') : r.style.removeProperty('--radius-u');
   if (p.accent && /^#[0-9a-f]{6}$/i.test(p.accent)) {
@@ -188,15 +218,28 @@ addEventListener('scroll', closePopover, true);
 /* ================= dados ================= */
 let loadTimer;
 function scheduleLoad() { clearTimeout(loadTimer); loadTimer = setTimeout(() => (S.drag != null ? (S.pendingLoad = true) : loadBoard()), 120); }
+function notifyAssigned(t) {
+  toast(`Task atribuída a você: ${t.title}`, false, { label: 'Abrir', onClick: () => openTask(t.id) });
+  if (S.prefs.notify && typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.hidden) {
+    try { new Notification('Nova task para você', { body: t.title, icon: 'icon-192.png', tag: 'assign-' + t.id }); } catch { /* ok */ }
+  }
+}
 async function loadBoard() {
   const d = await api('GET', '/api/board');
+  const prevAssignee = S.loadedOnce ? new Map(S.tasks.map((t) => [t.id, t.assignee_id])) : null;
   S.columns = d.columns; S.tasks = d.tasks; S.users = d.users;
+  if (prevAssignee && Date.now() - S.lastWrite > 4000) {
+    d.tasks.filter((t) => t.assignee_id === S.me.id && prevAssignee.get(t.id) !== S.me.id).slice(0, 3).forEach(notifyAssigned);
+  }
+  S.loadedOnce = true;
   const me = d.users.find((u) => u.id === S.me.id);
   if (!me) return start(); // acesso foi revogado: volta para a tela de login/aprovação
   S.me = { ...S.me, ...me };
   renderBoard();
 }
-function connectStream() { KB.subscribe(scheduleLoad); }
+function connectStream() {
+  KB.subscribe(scheduleLoad, { presence: { id: S.me.id, name: S.me.name }, onPresence: (ids) => { S.online = new Set(ids); renderToolbar(); } });
+}
 const upsertTask = (t) => { const i = S.tasks.findIndex((x) => x.id === t.id); i >= 0 ? (S.tasks[i] = t) : S.tasks.push(t); };
 
 /* ================= criação rápida ================= */
@@ -234,7 +277,7 @@ async function createFromText(text, columnId) {
   return t;
 }
 
-function openQuickAdd() {
+function openQuickAdd(prefill = '') {
   const first = S.columns[0]; if (!first) return;
   const input = h('input', { class: 'input big-input', placeholder: 'O que precisa ser feito?', autocomplete: 'off', maxLength: 300 });
   const colSel = h('select', { class: 'select' }, S.columns.map((c) => h('option', { value: c.id }, c.name)));
@@ -270,6 +313,7 @@ function openQuickAdd() {
       h('div', { class: 'help' }, 'Atalhos no texto: ', h('span', { class: 'kbd' }, '#etiqueta'), ' ', h('span', { class: 'kbd' }, '@nome'), ' ', h('span', { class: 'kbd' }, '!alta'), ' ', h('span', { class: 'kbd' }, '^amanhã'), ' ', h('span', { class: 'kbd' }, '^25/12'))),
     h('div', { class: 'modal-foot' }, h('span', { class: 'help grow' }, h('span', { class: 'kbd' }, 'Enter'), ' cria · ', h('span', { class: 'kbd' }, 'Ctrl+Enter'), ' cria e continua'),
       h('button', { class: 'btn primary', onclick: () => submit(false) }, icon('plus'), 'Criar'))]);
+  if (typeof prefill === 'string' && prefill) { input.value = prefill; updatePreview(); }
   setTimeout(() => input.focus(), 20);
 }
 
@@ -338,6 +382,24 @@ async function askNewPassword() {
 }
 
 /* ================= shell: topbar e quadro ================= */
+function moreMenu() {
+  const A = window.KBApp;
+  return [
+    { label: 'Paleta de comandos (Ctrl+K)', icon: 'command', onClick: () => A.openPalette && A.openPalette() },
+    'hr',
+    { label: resolvedMode() === 'dark' ? 'Modo claro' : 'Modo escuro', icon: resolvedMode() === 'dark' ? 'sun' : 'moon', onClick: () => setPrefs({ mode: resolvedMode() === 'dark' ? 'light' : 'dark' }) },
+    { label: 'Personalizar aparência', icon: 'palette', onClick: () => openSettings('look') },
+    'hr',
+    { label: 'Resumo da equipe', icon: 'chart', onClick: () => A.openSummary && A.openSummary() },
+    { label: 'Atividade recente', icon: 'pulse', onClick: () => A.openActivity && A.openActivity() },
+    'hr',
+    { label: 'Exportar tasks (CSV)', icon: 'download', onClick: () => A.exportCsv && A.exportCsv() },
+    { label: 'Backup completo (JSON)', icon: 'download', onClick: () => A.exportJson && A.exportJson() },
+  ];
+}
+function syncViewSeg() {
+  document.querySelectorAll('#viewSeg button').forEach((b) => b.classList.toggle('on', b.dataset.view === (S.prefs.view || 'board')));
+}
 function renderTopbarMode() {
   const b = $('#modeBtn'); if (!b) return;
   b.replaceChildren(icon(resolvedMode() === 'dark' ? 'sun' : 'moon'));
@@ -350,11 +412,14 @@ function renderShell() {
   const top = h('header', { class: 'topbar' },
     h('div', { class: 'brand' }, h('span', { class: 'logo' }, icon('grid')), h('span', null, 'Kanban')),
     h('label', { class: 'search' }, icon('search'), search, h('kbd', null, '/')),
+    h('div', { class: 'seg view-seg', id: 'viewSeg', role: 'tablist' }, [['board', 'grid', 'Quadro'], ['list', 'table', 'Lista'], ['calendar', 'calendar', 'Calendário']].map(([k, ic, l]) =>
+      h('button', { type: 'button', title: l, 'aria-label': l, dataset: { view: k }, onclick: () => setPrefs({ view: k }, { refreshSettings: false }) }, icon(ic)))),
     h('div', { class: 'grow' }),
     h('button', { class: 'btn', onclick: openDiary, title: 'Gerar diário do dia' }, icon('book'), h('span', { class: 'lbl' }, 'Gerar diário')),
-    h('button', { class: 'btn primary keep', onclick: openQuickAdd, title: 'Nova task (N)' }, icon('plus'), h('span', { class: 'lbl' }, 'Nova task')),
-    h('button', { class: 'btn ghost icon', id: 'modeBtn', onclick: () => setPrefs({ mode: resolvedMode() === 'dark' ? 'light' : 'dark' }) }),
-    h('button', { class: 'btn ghost icon', title: 'Personalizar', onclick: () => openSettings('look') }, icon('palette')),
+    h('button', { class: 'btn primary keep', onclick: () => openQuickAdd(), title: 'Nova task (N)' }, icon('plus'), h('span', { class: 'lbl' }, 'Nova task')),
+    h('button', { class: 'btn ghost icon', title: 'Mais (Ctrl+K)', 'aria-label': 'Mais opções', onclick: (e) => popover(e.currentTarget, moreMenu()) }, icon('more')),
+    h('button', { class: 'btn ghost icon hide-m', id: 'modeBtn', onclick: () => setPrefs({ mode: resolvedMode() === 'dark' ? 'light' : 'dark' }) }),
+    h('button', { class: 'btn ghost icon hide-m', title: 'Personalizar', onclick: () => openSettings('look') }, icon('palette')),
     h('button', { class: 'btn ghost icon', title: S.me.name, style: { padding: '4px' }, id: 'meBtn', onclick: (e) => popover(e.currentTarget, [
       { label: 'Minha conta', icon: 'edit', onClick: () => openSettings('account') },
       ...(S.me.role === 'admin' ? [{ label: 'Equipe', icon: 'take', onClick: () => openSettings('team') }] : []),
@@ -363,6 +428,19 @@ function renderShell() {
   renderTopbarMode();
 }
 
+const totalSecs = (t) => (t.time_spent || 0) + (t.timer_started_at ? Math.max(0, Math.floor((Date.now() - t.timer_started_at) / 1000)) : 0);
+function fmtDur(sec) {
+  sec = Math.max(0, Math.floor(sec));
+  const hh = Math.floor(sec / 3600), mm = Math.floor((sec % 3600) / 60), ss = sec % 60;
+  return hh ? `${hh}h${pad(mm)}` : mm ? `${mm}min` : `${ss}s`;
+}
+setInterval(() => {
+  document.querySelectorAll('.timer-live[data-since]').forEach((el) => {
+    const since = Number(el.dataset.since), base = Number(el.dataset.base || 0);
+    const txt = fmtDur(base + (Date.now() - since) / 1000), n = el.lastChild;
+    if (n && n.nodeType === 3 && n.textContent !== txt) n.textContent = txt;
+  });
+}, 1000);
 const dueState = (t) => {
   const col = colById(t.column_id);
   if (!t.due_date || (col && col.kind === 'done')) return null;
@@ -388,7 +466,7 @@ function renderToolbar() {
   const dueChip = (key, label, n, cls) => (n > 0 || S.filter.due === key) && h('button', { class: 'chip ' + cls + (S.filter.due === key ? ' on' : ''), onclick: () => { S.filter.due = S.filter.due === key ? null : key; renderBoard(); } }, `${label} (${n})`);
   const labels = [...new Map(S.tasks.flatMap((t) => t.labels).map((l) => [l.toLowerCase(), l])).values()].sort((a, b) => a.localeCompare(b)).slice(0, 12);
   tb.replaceChildren(chip('Todas', 'all'), chip('Minhas', 'me'), chip('Sem dono', 'none'),
-    ...S.users.filter((u) => u.id !== S.me.id).map((u) => chip(u.name.split(' ')[0], u.id, avatar(u, 18))),
+    ...S.users.filter((u) => u.id !== S.me.id).map((u) => chip(u.name.split(' ')[0], u.id, h('span', { class: 'av-wrap' + (S.online.has(u.id) ? ' online' : ''), title: S.online.has(u.id) ? 'online agora' : '' }, avatar(u, 18)))),
     (late > 0 || today > 0 || S.filter.due) && h('span', { class: 'sep' }), dueChip('late', 'Atrasadas', late, 'late'), dueChip('today', 'Vencem hoje', today, 'today'),
     labels.length > 0 && h('span', { class: 'sep' }),
     ...labels.map((l) => h('button', { class: 'tag tag-btn' + (S.filter.label && S.filter.label.toLowerCase() === l.toLowerCase() ? ' on' : ''), style: { '--h': hueOf(l) }, title: 'Filtrar por #' + l, onclick: () => { S.filter.label = S.filter.label && S.filter.label.toLowerCase() === l.toLowerCase() ? null : l; renderBoard(); } }, l)),
@@ -398,7 +476,15 @@ function renderToolbar() {
 
 function renderBoard() {
   const board = $('#board'); if (!board) return;
-  renderToolbar();
+  renderToolbar(); syncViewSeg();
+  const view = S.prefs.view || 'board';
+  if (view !== 'board' && window.KBApp.views[view]) {
+    board.className = 'board alt view-' + view;
+    board.replaceChildren(window.KBApp.views[view]());
+    S.seen = new Set(S.tasks.map((t) => t.id));
+    return;
+  }
+  board.className = 'board';
   const keep = { x: board.scrollLeft, y: {} };
   board.querySelectorAll('.col-body').forEach((b) => { keep.y[b.parentElement.dataset.id] = b.scrollTop; });
   const fa = document.activeElement;
@@ -440,7 +526,7 @@ function renderColumn(col) {
 
   const menuBtn = h('button', { class: 'btn ghost icon sm', title: 'Opções da coluna', onclick: (e) => popover(e.currentTarget, columnMenu(col, e.currentTarget)) }, icon('more'));
   const el = h('section', { class: 'column' + (col.color ? ' has-color' : ''), style: col.color ? { '--col-color': col.color } : null, dataset: { id: col.id, kind: col.kind } },
-    h('div', { class: 'col-head' }, h('span', { class: 'col-dot' }), h('div', { class: 'col-title', title: col.name }, col.name), h('span', { class: 'col-count' }, all.length), menuBtn),
+    h('div', { class: 'col-head' }, h('span', { class: 'col-dot' }), h('div', { class: 'col-title', title: col.name }, col.name), h('span', { class: 'col-count' + (col.wip_limit && all.length > col.wip_limit ? ' over' : ''), title: col.wip_limit ? `Limite: ${col.wip_limit} tasks` : '' }, col.wip_limit ? `${all.length}/${col.wip_limit}` : all.length), menuBtn),
     body, h('div', { class: 'col-foot' }, add));
 
   // arrastar e soltar
@@ -459,12 +545,32 @@ function renderColumn(col) {
   return el;
 }
 
+const PRIO_RANK = (t) => -t.priority;
+const COL_SORTS = [
+  ['Prioridade (maior primeiro)', (a, b) => PRIO_RANK(a) - PRIO_RANK(b)],
+  ['Prazo (mais cedo primeiro)', (a, b) => (a.due_date || '9999') < (b.due_date || '9999') ? -1 : (a.due_date || '9999') > (b.due_date || '9999') ? 1 : 0],
+  ['Título (A–Z)', (a, b) => a.title.localeCompare(b.title, 'pt-BR')],
+  ['Mais recentes primeiro', (a, b) => b.created_at - a.created_at],
+  ['Mais antigas primeiro', (a, b) => a.created_at - b.created_at],
+];
 const COL_COLORS = [['Padrão', null], ['Cinza', '#71717a'], ['Vermelho', '#ef4444'], ['Laranja', '#f97316'], ['Amarelo', '#eab308'], ['Verde', '#22c55e'], ['Azul', '#3b82f6'], ['Roxo', '#8b5cf6'], ['Rosa', '#ec4899']];
 function columnMenu(col, anchor) {
   const idx = S.columns.findIndex((c) => c.id === col.id);
   const kinds = [['todo', 'A fazer'], ['doing', 'Em andamento'], ['done', 'Concluída']];
   return [
     { label: 'Renomear', icon: 'edit', onClick: guard(async () => { const n = await askText('Renomear coluna', col.name); if (n) { await api('PATCH', `/api/columns/${col.id}`, { name: n }); await loadBoard(); } }) },
+    { label: 'Ordenar por…', icon: 'move', onClick: () => popover(anchor, COL_SORTS.map(([name, fn]) => ({ label: name, onClick: guard(async () => {
+      const tasks = S.tasks.filter((t) => t.column_id === col.id).sort((a, b) => a.position - b.position || a.id - b.id);
+      const ids = tasks.map((t, i) => [t, i]).sort((x, y) => fn(x[0], y[0]) || x[1] - y[1]).map((x) => x[0].id);
+      await api('POST', `/api/columns/${col.id}/sort`, { ids }); await loadBoard(); toast('Coluna ordenada');
+    }) }))) },
+    { label: col.wip_limit ? `Limite de tasks (${col.wip_limit})…` : 'Definir limite de tasks…', icon: 'list', onClick: guard(async () => {
+      const v = await askText('Limite de tasks nesta coluna (1 a 99)', col.wip_limit ? String(col.wip_limit) : '', { ok: 'Salvar', placeholder: 'Ex.: 3' });
+      if (v == null) return; const n = parseInt(v, 10);
+      if (!(n >= 1 && n <= 99)) return toast('Informe um número de 1 a 99', true);
+      await api('PATCH', `/api/columns/${col.id}`, { wip_limit: n }); await loadBoard();
+    }) },
+    ...(col.wip_limit ? [{ label: 'Remover limite', icon: 'x', onClick: guard(async () => { await api('PATCH', `/api/columns/${col.id}`, { wip_limit: null }); await loadBoard(); }) }] : []),
     { label: 'Cor da coluna…', icon: 'palette', onClick: () => popover(anchor, COL_COLORS.map(([name, c]) => ({ label: name, dot: c, checked: (col.color || null) === c, onClick: guard(async () => { await api('PATCH', `/api/columns/${col.id}`, { color: c }); await loadBoard(); }) }))) },
     'hr', ...kinds.map(([k, label]) => ({ label: 'Conta como: ' + label, checked: col.kind === k, onClick: guard(async () => { await api('PATCH', `/api/columns/${col.id}`, { kind: k }); await loadBoard(); }) })),
     'hr',
@@ -508,6 +614,9 @@ function renderCard(t, col) {
     h('div', { class: 'card-meta' },
       t.labels.map((l) => h('span', { class: 'tag tag-btn', style: { '--h': hueOf(l) }, title: 'Filtrar por #' + l, onclick: (e) => { e.stopPropagation(); S.filter.label = S.filter.label && S.filter.label.toLowerCase() === l.toLowerCase() ? null : l; renderBoard(); } }, l)),
       cl.length > 0 && h('span', { class: 'due' + (clDone === cl.length ? ' ok' : '') }, icon('list'), `${clDone}/${cl.length}`),
+      t.attachments > 0 && h('span', { class: 'due', title: 'Anexos' }, icon('clip'), t.attachments),
+      (t.timer_started_at || t.time_spent > 0) && h('span', { class: 'due' + (t.timer_started_at ? ' timer-live running' : ''), title: t.timer_started_at ? 'Cronômetro rodando' : 'Tempo registrado',
+        dataset: t.timer_started_at ? { since: t.timer_started_at, base: t.time_spent } : {} }, icon('timer'), fmtDur(totalSecs(t))),
       t.due_date && h('span', { class: 'due' + (ds === 'late' ? ' late' : ds === 'today' ? ' today' : '') }, icon('calendar'), fmtDay(t.due_date)),
       owner ? avatar(owner, 24) : h('button', { class: 'btn sm take', title: 'Pegar esta task', onclick: guard(async (e) => { e.stopPropagation(); upsertTask(await api('PATCH', `/api/tasks/${t.id}`, { assignee_id: S.me.id })); renderBoard(); toast('Task é sua'); }) }, icon('take'), 'Pegar')));
   card.addEventListener('dragstart', (e) => { S.drag = t.id; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(t.id)); requestAnimationFrame(() => card.classList.add('dragging')); });
@@ -544,6 +653,8 @@ function eventText(e) {
     case 'edited': return 'editou a task';
     case 'worked': return 'registrou trabalho';
     case 'comment': return 'comentou';
+    case 'timer': return d.action === 'start' ? 'iniciou o cronômetro' : `parou o cronômetro (${fmtDur(d.seconds || 0)})`;
+    case 'attachment': return `anexou ${d.name || 'um arquivo'}`;
     default: return e.type;
   }
 }
@@ -593,6 +704,40 @@ function openTask(id) {
   };
   drawCl();
 
+  // cronômetro
+  const timeBox = h('div', { class: 'timebox' });
+  const drawTime = () => {
+    const cur = S.tasks.find((x) => x.id === id) || t, running = !!cur.timer_started_at;
+    timeBox.replaceChildren(
+      h('span', { class: 'time-total' + (running ? ' timer-live running' : ''), dataset: running ? { since: cur.timer_started_at, base: cur.time_spent } : {} }, icon('timer'), fmtDur(totalSecs(cur))),
+      h('button', { class: 'btn sm' + (running ? ' primary' : ''), onclick: guard(async () => { await api('POST', `/api/tasks/${id}/timer`); await loadBoard(); drawTime(); loadEvents(); }) }, icon(running ? 'pause' : 'play'), running ? 'Parar' : 'Iniciar'),
+      running && cur.timer_user !== S.me.id && h('span', { class: 'help' }, `rodando com ${userById(cur.timer_user)?.name || 'alguém'}`));
+    timeBox.querySelectorAll('svg').forEach((v) => Object.assign(v.style, { width: '14px', height: '14px' }));
+  };
+  drawTime();
+
+  // anexos
+  const attBox = h('div', { class: 'atts' });
+  const fileInput = h('input', { type: 'file', multiple: true, class: 'hidden', onchange: () => { upload([...fileInput.files]); fileInput.value = ''; } });
+  const fmtSize = (n) => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+  const openAtt = async (a) => { const w = window.open('about:blank', '_blank'); try { const url = await KB.attachmentUrl(a.path); if (w) w.location.href = url; } catch (e) { w && w.close(); toast(e.message, true); } };
+  const drawAtts = (list) => {
+    attBox.replaceChildren(...list.map((a) => {
+      const thumb = h('span', { class: 'att-thumb' }, icon('clip'));
+      if ((a.mime || '').startsWith('image/')) KB.attachmentUrl(a.path).then((u) => { const im = h('img', { src: u, alt: '', loading: 'lazy' }); thumb.replaceChildren(im); }).catch(() => {});
+      return h('div', { class: 'att' }, thumb,
+        h('button', { class: 'att-name', title: 'Abrir', onclick: () => openAtt(a) }, a.name, h('small', null, `${fmtSize(a.size)} · ${userById(a.user_id)?.name || ''}`)),
+        h('button', { class: 'btn ghost icon sm', title: 'Remover anexo', 'aria-label': 'Remover anexo', onclick: guard(async () => { await KB.removeAttachment(a); loadAtts(); loadBoard(); }) }, icon('x')));
+    }), h('div', { class: 'att-add' }, h('button', { class: 'btn sm', onclick: () => fileInput.click() }, icon('clip'), 'Anexar arquivo'), h('span', { class: 'help' }, 'ou cole um print (Ctrl+V) / arraste arquivos aqui · até 10 MB'), fileInput));
+    attBox.querySelectorAll('.btn svg').forEach((v) => Object.assign(v.style, { width: '14px', height: '14px' }));
+  };
+  const loadAtts = async () => { try { drawAtts(await api('GET', `/api/tasks/${id}/attachments`)); } catch { drawAtts([]); } };
+  const upload = guard(async (files) => {
+    for (const f of files) { toast(`Enviando ${f.name}…`); await KB.uploadAttachment(id, f, S.me.id); }
+    if (files.length) { toast(files.length > 1 ? 'Arquivos anexados' : 'Arquivo anexado'); loadAtts(); loadEvents(); loadBoard(); }
+  });
+  drawAtts([]); loadAtts();
+
   // comentários e histórico
   const comment = h('textarea', { class: 'textarea', style: { minHeight: '56px' }, placeholder: 'Escrever um comentário… (Ctrl+Enter envia)', maxLength: 2000,
     onkeydown: (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendComment(); } } });
@@ -616,7 +761,9 @@ function openTask(id) {
       h('div', { class: 'row' }, h('div', { class: 'field' }, h('label', null, 'Prazo'), due),
         h('div', { class: 'field' }, h('label', null, 'Prioridade'), h('div', { class: 'seg' }, prioBtns))),
       h('div', { class: 'field' }, h('label', null, 'Etiquetas'), labelBox),
+      h('div', { class: 'field' }, h('label', null, 'Tempo'), timeBox),
       h('div', { class: 'field' }, h('label', null, 'Checklist'), clBox),
+      h('div', { class: 'field' }, h('label', null, 'Anexos'), attBox),
       h('div', { class: 'field' }, h('label', null, 'Descrição'), desc),
       h('div', { class: 'field' }, h('label', null, 'Texto para o diário'), diary),
       h('div', { class: 'field' }, h('label', null, 'Comentários e histórico'), comment, h('div', null, h('button', { class: 'btn sm', onclick: sendComment }, 'Comentar')), timeline)),
@@ -624,6 +771,12 @@ function openTask(id) {
       h('button', { class: 'btn danger', onclick: guard(async () => { close(); await deleteTask(t); }) }, icon('trash'), 'Excluir'),
       h('span', { class: 'grow' }), t.assignee_id !== S.me.id && takeBtn, worked)], { wide: false });
   loadEvents();
+  const mEl = timeline.closest('.modal');
+  if (mEl) {
+    mEl.addEventListener('paste', (e) => { const fs = [...(e.clipboardData?.files || [])]; if (fs.length) { e.preventDefault(); upload(fs); } });
+    mEl.addEventListener('dragover', (e) => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
+    mEl.addEventListener('drop', (e) => { const fs = [...(e.dataTransfer?.files || [])]; if (fs.length) { e.preventDefault(); upload(fs); } });
+  }
   if (!t.title) title.focus();
 }
 
@@ -730,8 +883,20 @@ function viewLook() {
       h('div', { class: 'field' }, h('label', null, `Cantos arredondados${p.radius == null ? ' (do tema)' : ': ' + p.radius + 'px'}`),
         h('input', { type: 'range', min: 0, max: 28, value: p.radius ?? 12, oninput: (e) => { setPrefs({ radius: Number(e.target.value) }, { refreshSettings: false }); e.target.previousSibling.textContent = `Cantos arredondados: ${e.target.value}px`; } }),
         p.radius != null && h('button', { class: 'btn sm ghost', style: { alignSelf: 'flex-start' }, onclick: () => setPrefs({ radius: null }) }, 'Voltar ao do tema'))),
+    h('div', { class: 'field' }, h('label', null, 'Fundo'),
+      h('div', { class: 'bg-grid' }, BGS.map(([id, name, l, d]) => h('button', { type: 'button', class: 'bg-tile' + (p.bg === id ? ' on' : ''), title: name, onclick: () => setPrefs({ bg: id }),
+        style: l ? { background: mode === 'dark' ? d : l } : null }, h('span', null, name))),
+        h('button', { type: 'button', class: 'bg-tile' + (p.bg === 'custom' ? ' on' : ''), title: 'Imagem (link)', onclick: () => setPrefs({ bg: 'custom' }) }, h('span', null, 'Imagem'))),
+      p.bg === 'custom' && h('input', { class: 'input', placeholder: 'https://…/imagem.jpg (link https)', value: p.bgUrl || '', onchange: (e) => setPrefs({ bgUrl: e.target.value.trim() }) })),
     h('div', { class: 'field' }, h('label', null, 'Comportamento'),
-      toggle('motion', 'Animações e fundos animados'), toggle('autoAssign', 'Novas tasks já ficam comigo'), toggle('hideOldDone', 'Esconder concluídas com mais de 14 dias')));
+      toggle('motion', 'Animações e fundos animados'), toggle('autoAssign', 'Novas tasks já ficam comigo'), toggle('hideOldDone', 'Esconder concluídas com mais de 14 dias'),
+      h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !!p.notify, onchange: async (e) => {
+        if (e.target.checked && typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
+          const r = await Notification.requestPermission();
+          if (r !== 'granted') { e.target.checked = false; return toast('Permissão de notificação negada no navegador', true); }
+        }
+        setPrefs({ notify: e.target.checked });
+      } }), 'Avisar no sistema quando alguém me atribuir uma task (com o app em segundo plano)')));
 }
 
 function viewAccount() {
@@ -768,6 +933,7 @@ function viewTeam() {
 
 /* ================= atalhos ================= */
 document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && S.me) { e.preventDefault(); window.KBApp.openPalette && window.KBApp.openPalette(); return; }
   if (e.key === 'Escape') {
     if (openPop) return closePopover();
     const top = modalStack[modalStack.length - 1];
@@ -792,7 +958,14 @@ async function boot(user) {
   await loadBoard();
   connectStream();
 }
+window.KBApp = {
+  S, h, $, icon, api, toast, guard, openModal, modalHead, popover, askText, confirmBox, setPrefs, resolvedMode, THEMES,
+  eventText, openTask, openQuickAdd, openDiary, openSettings, renderBoard, loadBoard, moveTask, deleteTask, upsertTask, userById, colById, avatar,
+  matches, filtersActive, clearFilters, dueState, fmtDay, fmtTime, fmtDur, totalSecs, ymd, pad, addDays, norm, hueOf, cap, PRIO_NAME, views: {},
+};
 (async function init() {
+  // espera os scripts de recursos (vistas, paleta, toque) registrarem-se antes de iniciar
+  if (document.readyState === 'loading') await new Promise((r) => document.addEventListener('DOMContentLoaded', r));
   S.prefs = { ...DEFAULT_PREFS, ...loadLocalPrefs() };
   applyPrefs();
   if (!KB.configured) return renderNotConfigured();

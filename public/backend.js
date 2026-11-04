@@ -19,7 +19,7 @@
   };
   const unwrap = ({ data, error }) => { if (error) throw new Error(friendly(error)); return data; };
   const ts = (v) => (v ? Date.parse(v) : null);
-  const toTask = (r) => ({ ...r, created_at: ts(r.created_at), updated_at: ts(r.updated_at), completed_at: ts(r.completed_at), checklist: Array.isArray(r.checklist) ? r.checklist : [] });
+  const toTask = (r) => ({ ...r, created_at: ts(r.created_at), updated_at: ts(r.updated_at), completed_at: ts(r.completed_at), timer_started_at: ts(r.timer_started_at), time_spent: r.time_spent || 0, attachments: 0, checklist: Array.isArray(r.checklist) ? r.checklist : [] });
   const cleanChecklist = (arr) => {
     if (!Array.isArray(arr)) throw new Error('Checklist inválido');
     return arr.slice(0, 50).map((i) => ({ text: String((i && i.text) || '').trim().slice(0, 200), done: !!(i && i.done) })).filter((i) => i.text);
@@ -41,12 +41,14 @@
 
   const routes = [
     ['GET', /^\/api\/board$/, async () => {
-      const [c, t, u] = await Promise.all([
-        sb.from('board_columns').select('id,name,position,kind,color').order('position').order('id'),
+      const [c, t, u, a] = await Promise.all([
+        sb.from('board_columns').select('id,name,position,kind,color,wip_limit').order('position').order('id'),
         sb.from('tasks').select('*').is('deleted_at', null).order('position').order('id').limit(5000),
         sb.from('profiles').select('id,name,email,role,color,approved').eq('approved', true).order('created_at'),
+        sb.from('attachments').select('task_id').limit(5000),
       ]);
-      return { columns: unwrap(c), tasks: unwrap(t).map(toTask), users: unwrap(u) };
+      const counts = {}; unwrap(a).forEach((r) => { counts[r.task_id] = (counts[r.task_id] || 0) + 1; });
+      return { columns: unwrap(c), tasks: unwrap(t).map((r) => ({ ...toTask(r), attachments: counts[r.id] || 0 })), users: unwrap(u) };
     }],
     ['POST', /^\/api\/tasks$/, async ({ body }) => {
       const title = String(body.title || '').trim();
@@ -84,6 +86,7 @@
       if ('name' in body) { patch.name = String(body.name).trim(); if (!patch.name) throw new Error('Nome é obrigatório'); }
       if ('kind' in body) patch.kind = body.kind;
       if ('color' in body) patch.color = body.color || null;
+      if ('wip_limit' in body) patch.wip_limit = body.wip_limit || null;
       if (Object.keys(patch).length) unwrap(await sb.from('board_columns').update(patch).eq('id', id));
       if (body.dir === -1 || body.dir === 1) unwrap(await sb.rpc('move_column', { p_id: id, p_dir: body.dir }));
       return { ok: true };
@@ -93,6 +96,12 @@
       return unwrap(await sb.rpc('delete_column', { p_id: Number(m[1]), p_move_to: to }));
     }],
 
+    ['POST', /^\/api\/tasks\/(\d+)\/timer$/, async ({ m }) => unwrap(await sb.rpc('toggle_timer', { p_task: Number(m[1]) }))],
+    ['GET', /^\/api\/tasks\/(\d+)\/attachments$/, async ({ m }) => unwrap(await sb.from('attachments').select('id,name,path,size,mime,user_id,created_at').eq('task_id', Number(m[1])).order('created_at', { ascending: false }))],
+    ['POST', /^\/api\/columns\/(\d+)\/sort$/, async ({ m, body }) => unwrap(await sb.rpc('reorder_column', { p_column: Number(m[1]), p_ids: (body.ids || []).map(Number) }))],
+    ['GET', /^\/api\/activity$/, async () => unwrap(await sb.from('events').select('id,type,data,at,user_id,task_id,profiles(name),tasks(title,deleted_at)').order('id', { ascending: false }).limit(120))
+      .filter((e) => e.tasks && !e.tasks.deleted_at)
+      .map((e) => ({ id: e.id, type: e.type, data: e.data, at: ts(e.at), user_id: e.user_id, user_name: e.profiles && e.profiles.name, task_id: e.task_id, task_title: e.tasks.title }))],
     ['GET', /^\/api\/diary$/, async ({ url }) => {
       const q = url.searchParams;
       const rows = unwrap(await sb.rpc('diary', { p_from: new Date(Number(q.get('from'))).toISOString(), p_to: new Date(Number(q.get('to'))).toISOString(), p_team: q.get('scope') === 'team', p_doing: q.get('doing') === '1' }));
@@ -152,13 +161,26 @@
     },
     async resetPassword(email) { need(); unwrap(await sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: location.origin + location.pathname })); },
     async setPassword(password) { need(); unwrap(await sb.auth.updateUser({ password })); },
+    async uploadAttachment(taskId, file, userId) {
+      need();
+      if (file.size > 10 * 1024 * 1024) throw new Error(`${file.name}: maior que 10 MB`);
+      const safe = (file.name || 'arquivo').replace(/[^\w.\-]+/g, '_').slice(-80) || 'arquivo';
+      const path = `${taskId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safe}`;
+      unwrap(await sb.storage.from('attachments').upload(path, file, { contentType: file.type || 'application/octet-stream' }));
+      return unwrap(await sb.from('attachments').insert({ task_id: taskId, name: (file.name || 'arquivo').slice(0, 200), path, size: file.size, mime: file.type || null, user_id: userId }).select().single());
+    },
+    async attachmentUrl(path) { need(); return unwrap(await sb.storage.from('attachments').createSignedUrl(path, 3600)).signedUrl; },
+    async removeAttachment(a) { need(); unwrap(await sb.from('attachments').delete().eq('id', a.id)); try { await sb.storage.from('attachments').remove([a.path]); } catch { /* arquivo órfão não atrapalha */ } },
     async signOut() { need(); await sb.auth.signOut(); },
     onRecovery(cb) { sb && sb.auth.onAuthStateChange((ev) => { if (ev === 'PASSWORD_RECOVERY') setTimeout(cb, 0); }); },
-    subscribe(cb) {
+    subscribe(cb, opts = {}) {
       need();
-      const ch = sb.channel('kanban');
-      ['tasks', 'board_columns', 'profiles'].forEach((table) => ch.on('postgres_changes', { event: '*', schema: 'public', table }, cb));
-      ch.subscribe();
+      const ch = sb.channel('kanban', opts.presence ? { config: { presence: { key: opts.presence.id } } } : undefined);
+      ['tasks', 'board_columns', 'profiles', 'attachments'].forEach((table) => ch.on('postgres_changes', { event: '*', schema: 'public', table }, cb));
+      if (opts.onPresence) ch.on('presence', { event: 'sync' }, () => { try { opts.onPresence(Object.keys(ch.presenceState())); } catch { /* ok */ } });
+      ch.subscribe(async (status) => {
+        if (status === 'SUBSCRIBED' && opts.presence) { try { await ch.track({ id: opts.presence.id, name: opts.presence.name, at: Date.now() }); } catch { /* presença é opcional */ } }
+      });
       document.addEventListener('visibilitychange', () => { if (!document.hidden) cb(); });
       setInterval(() => { if (!document.hidden) cb(); }, 60000); // rede de segurança se o websocket cair
     },
