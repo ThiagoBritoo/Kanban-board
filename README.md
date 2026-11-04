@@ -16,10 +16,9 @@ npm start     # http://localhost:3000
 
 ## Publicar grátis
 
-**GitHub Pages (já configurado):** um workflow publica a pasta `public` a cada push na `main`.
-Uma vez só: *Settings → Pages → Source: GitHub Actions*. Endereço: `https://thiagobritoo.github.io/Kanban-board/`.
-
-**Outras opções (Cloudflare Pages, Netlify, Vercel):** conecte este repositório. **Sem comando de build**, pasta de saída: `public`.
+**Vercel (em uso):** importe o repositório com *Framework: Other*, sem build e *Output Directory: `public`*.
+Cada push na `main` publica sozinho; branches e PRs ganham um endereço de prévia.
+Também serve Cloudflare Pages ou Netlify: conecte este repositório. **Sem comando de build**, pasta de saída: `public`.
 2. No Supabase: *Authentication → URL Configuration*: em **Site URL** coloque o endereço publicado
    (e adicione também em *Redirect URLs*). Sem isso, os links de e-mail (confirmar conta, recuperar senha) apontam errado.
 3. Opcional: *Authentication → Sign In / Providers → Email*: desligue **Confirm email** se não quiser exigir confirmação por e-mail
@@ -36,14 +35,20 @@ Uma vez só: *Settings → Pages → Source: GitHub Actions*. Endereço: `https:
 
 - **Criar task**: `N` abre a criação rápida; ou digite direto no campo no fim de cada coluna.
   Atalhos no texto: `#etiqueta` `@nome` `!alta` (`!baixa` `!urgente`) `^amanhã` `^25/12`. `Ctrl+Enter` cria e continua.
+- **Menu do card** (`⋯`): mover de coluna, pegar/soltar, excluir. É a forma de mover tasks no celular.
+- **Desfazer**: excluir e mover mostram um aviso com *Desfazer*. Excluir só manda para a lixeira (nada é apagado de verdade).
+- **Checklist e comentários** dentro de cada task. Mexer neles conta como trabalho no diário.
+- **Filtros**: Minhas / Sem dono / pessoa, *Atrasadas*, *Vencem hoje* e etiquetas (clique numa etiqueta do card).
 - **Quem pegou**: botão *Pegar* no card, ou mover uma task sem dono para uma coluna "em andamento".
 - **Arrastar** cards entre colunas; no celular, abra o card e troque o *Status*.
-- **Gerar diário**: bullets do que você criou, moveu, editou ou marcou com *Trabalhei hoje* (mais suas tasks em andamento).
+- **Gerar diário**: bullets do que você criou, moveu, editou, comentou ou marcou com *Trabalhei hoje* (mais suas tasks em andamento). Períodos: Hoje, Ontem, Semana (com o dia como título) ou um dia à escolha.
   O campo *Texto para o diário* da task define como a linha aparece.
-- **Personalizar** (paleta): tema, claro/escuro/sistema, cor de destaque, fonte, cantos, densidade, animações. Segue a sua conta.
+- **Personalizar** (paleta): 10 temas, claro/escuro/sistema, cor de destaque, fonte, cantos, densidade, animações. Cor por coluna no menu `⋯` da coluna. Segue a sua conta.
+- **Instalar no celular**: abra o site no Chrome/Safari e use *Adicionar à tela inicial*.
 - Atalhos: `N` nova task · `/` buscar · `Esc` fecha.
 
 ## Estrutura
 
 - `public/` site estático (`index.html`, `app.js`, `backend.js` = camada Supabase, `app.css` = temas, `_headers` = segurança)
 - `supabase/migrations/` esquema, RLS, gatilhos de histórico e funções (rode na ordem, no SQL Editor, num projeto novo)
+- `test/` teste de interface com uma API Supabase falsa (instruções no topo de `test/e2e.js`)

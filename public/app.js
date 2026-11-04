@@ -21,12 +21,21 @@ const ICONS = {
   left: '<path d="m15 18-6-6 6-6"/>',
   right: '<path d="m9 18 6-6-6-6"/>',
   edit: '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  undo: '<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/>',
+  list: '<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>',
+  move: '<path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/>',
 };
 function icon(name) {
   const t = document.createElement('template');
   t.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
   return t.content.firstChild;
 }
+
+// replaceChildren transforma false/null em texto ("false"); aqui eles são ignorados, como em h().
+const _replaceChildren = Element.prototype.replaceChildren;
+Element.prototype.replaceChildren = function (...nodes) {
+  return _replaceChildren.apply(this, nodes.flat(Infinity).filter((n) => n != null && n !== false && n !== true));
+};
 
 // Cria elementos sem innerHTML (todo texto vira textContent => sem XSS).
 function h(tag, props, ...kids) {
@@ -56,13 +65,21 @@ const fmtTime = (at) => new Date(at).toLocaleString('pt-BR', { day: '2-digit', m
 const initials = (n) => n.trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
 const hueOf = (s) => { let x = 0; for (const c of norm(s)) x = (x * 31 + c.charCodeAt(0)) % 360; return x; };
 
-const api = (method, url, body) => KB.api(method, url, body);
+const api = async (method, url, body) => {
+  try { return await KB.api(method, url, body); }
+  catch (e) {
+    if (/JWT|token is expired|not authenticated|invalid claim/i.test(e.message)) { try { await KB.signOut(); } catch { /* ok */ } location.reload(); }
+    throw e;
+  }
+};
 
-function toast(msg, err = false) {
-  const el = h('div', { class: 'toast' + (err ? ' err' : '') }, !err && icon('check'), msg);
+function toast(msg, err = false, action = null) {
+  const dismiss = () => { el.classList.add('out'); setTimeout(() => el.remove(), 260); };
+  const el = h('div', { class: 'toast' + (err ? ' err' : '') }, !err && icon('check'), msg,
+    action && h('button', { class: 'toast-act', onclick: () => { dismiss(); action.onClick(); } }, action.label));
   el.firstChild?.nodeName === 'svg' && Object.assign(el.firstChild.style, { width: '16px', height: '16px' });
   $('#toasts').append(el);
-  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 260); }, err ? 4200 : 2200);
+  setTimeout(dismiss, err ? 4200 : action ? 6500 : 2200);
 }
 const guard = (fn) => async (...a) => { try { return await fn(...a); } catch (e) { toast(e.message, true); } };
 
@@ -71,9 +88,10 @@ const THEMES = [
   ['minimal', 'Minimal', 'limpo e neutro'], ['paper', 'Papel', 'calmo, serifado'], ['sage', 'Sálvia', 'suave e verde'],
   ['ocean', 'Oceano', 'azul profundo'], ['aurora', 'Aurora', 'vidro e luz'], ['neon', 'Neon', 'cyber, contraste alto'],
   ['brutal', 'Brutal', 'ousado, contorno grosso'], ['sunset', 'Sunset', 'gradiente impactante'],
+  ['terminal', 'Terminal', 'verde sobre preto, mono'], ['gelo', 'Gelo', 'azul glacial, arejado'],
 ];
 const DEFAULT_PREFS = { theme: 'minimal', mode: 'system', accent: null, font: 'auto', radius: null, density: 'comfortable', motion: true, autoAssign: true, hideOldDone: true };
-const S = { me: null, users: [], columns: [], tasks: [], prefs: { ...DEFAULT_PREFS }, filter: { q: '', who: 'all' }, drafts: {}, drag: null, seen: null, showAllDone: false };
+const S = { me: null, users: [], columns: [], tasks: [], prefs: { ...DEFAULT_PREFS }, filter: { q: '', who: 'all', due: null, label: null }, drafts: {}, drag: null, seen: null, showAllDone: false };
 
 const sysDark = matchMedia('(prefers-color-scheme: dark)');
 const resolvedMode = () => S.prefs.mode === 'system' ? (sysDark.matches ? 'dark' : 'light') : S.prefs.mode;
@@ -155,7 +173,7 @@ function popover(anchor, items) {
   closePopover();
   const el = h('div', { class: 'popover', role: 'menu' }, items.map((it) => it === 'hr' ? h('hr') :
     h('button', { class: it.danger ? 'danger' : '', onclick: () => { closePopover(); it.onClick(); } },
-      it.checked !== undefined ? h('span', { class: 'ck' }, it.checked ? icon('check') : '') : (it.icon ? icon(it.icon) : null), it.label)));
+      it.checked !== undefined ? h('span', { class: 'ck' }, it.checked ? icon('check') : '') : (it.icon ? icon(it.icon) : null), it.dot !== undefined && h('span', { class: 'dot', style: { background: it.dot || 'var(--muted)' } }), it.label)));
   document.body.append(el);
   const a = anchor.getBoundingClientRect(), w = el.offsetWidth, hgt = el.offsetHeight;
   el.style.left = Math.max(8, Math.min(innerWidth - w - 8, a.right - w)) + 'px';
@@ -173,7 +191,9 @@ function scheduleLoad() { clearTimeout(loadTimer); loadTimer = setTimeout(() => 
 async function loadBoard() {
   const d = await api('GET', '/api/board');
   S.columns = d.columns; S.tasks = d.tasks; S.users = d.users;
-  const me = d.users.find((u) => u.id === S.me.id); if (me) S.me = { ...S.me, ...me };
+  const me = d.users.find((u) => u.id === S.me.id);
+  if (!me) return start(); // acesso foi revogado: volta para a tela de login/aprovação
+  S.me = { ...S.me, ...me };
   renderBoard();
 }
 function connectStream() { KB.subscribe(scheduleLoad); }
@@ -343,20 +363,37 @@ function renderShell() {
   renderTopbarMode();
 }
 
+const dueState = (t) => {
+  const col = colById(t.column_id);
+  if (!t.due_date || (col && col.kind === 'done')) return null;
+  return t.due_date < ymd() ? 'late' : t.due_date === ymd() ? 'today' : null;
+};
 function matches(t) {
   const f = S.filter;
   if (f.who === 'me' && t.assignee_id !== S.me.id) return false;
   if (f.who === 'none' && t.assignee_id != null) return false;
   if (!['all', 'me', 'none'].includes(f.who) && t.assignee_id !== f.who) return false;
+  if (f.label && !t.labels.some((l) => l.toLowerCase() === f.label.toLowerCase())) return false;
+  if (f.due && dueState(t) !== f.due) return false;
   if (f.q) { const hay = norm(t.title + ' ' + t.description + ' ' + t.labels.join(' ') + ' ' + (userById(t.assignee_id)?.name || '')); if (!norm(f.q).split(/\s+/).every((w) => hay.includes(w))) return false; }
   return true;
 }
+const filtersActive = () => S.filter.q || S.filter.who !== 'all' || S.filter.due || S.filter.label;
+function clearFilters() { S.filter = { q: '', who: 'all', due: null, label: null }; const s = $('#search'); if (s) s.value = ''; renderBoard(); }
 
 function renderToolbar() {
   const tb = $('#toolbar'); if (!tb) return;
   const chip = (label, who, extra) => h('button', { class: 'chip' + (S.filter.who === who ? ' on' : ''), onclick: () => { S.filter.who = S.filter.who === who && who !== 'all' ? 'all' : who; renderBoard(); } }, extra, label);
-  tb.replaceChildren(chip('Todas', 'all'), chip('Minhas', 'me'), chip('Sem dono', 'none'), h('span', { class: 'sep' }),
-    ...S.users.filter((u) => u.id !== S.me.id).map((u) => chip(u.name.split(' ')[0], u.id, avatar(u, 18))));
+  const late = S.tasks.filter((t) => dueState(t) === 'late').length, today = S.tasks.filter((t) => dueState(t) === 'today').length;
+  const dueChip = (key, label, n, cls) => (n > 0 || S.filter.due === key) && h('button', { class: 'chip ' + cls + (S.filter.due === key ? ' on' : ''), onclick: () => { S.filter.due = S.filter.due === key ? null : key; renderBoard(); } }, `${label} (${n})`);
+  const labels = [...new Map(S.tasks.flatMap((t) => t.labels).map((l) => [l.toLowerCase(), l])).values()].sort((a, b) => a.localeCompare(b)).slice(0, 12);
+  tb.replaceChildren(chip('Todas', 'all'), chip('Minhas', 'me'), chip('Sem dono', 'none'),
+    ...S.users.filter((u) => u.id !== S.me.id).map((u) => chip(u.name.split(' ')[0], u.id, avatar(u, 18))),
+    (late > 0 || today > 0 || S.filter.due) && h('span', { class: 'sep' }), dueChip('late', 'Atrasadas', late, 'late'), dueChip('today', 'Vencem hoje', today, 'today'),
+    labels.length > 0 && h('span', { class: 'sep' }),
+    ...labels.map((l) => h('button', { class: 'tag tag-btn' + (S.filter.label && S.filter.label.toLowerCase() === l.toLowerCase() ? ' on' : ''), style: { '--h': hueOf(l) }, title: 'Filtrar por #' + l, onclick: () => { S.filter.label = S.filter.label && S.filter.label.toLowerCase() === l.toLowerCase() ? null : l; renderBoard(); } }, l)),
+    filtersActive() && h('button', { class: 'btn ghost sm', onclick: clearFilters }, icon('x'), 'Limpar'));
+  tb.querySelectorAll('svg').forEach((v) => Object.assign(v.style, { width: '13px', height: '13px' }));
 }
 
 function renderBoard() {
@@ -389,7 +426,7 @@ function renderColumn(col) {
   }
   const line = h('div', { class: 'drop-line' });
   const body = h('div', { class: 'col-body' }, list.map((t) => renderCard(t, col)));
-  if (!list.length) body.append(h('div', { class: 'empty-hint' }, S.filter.q || S.filter.who !== 'all' ? 'Nada com esse filtro' : 'Solte uma task aqui'));
+  if (!list.length) body.append(h('div', { class: 'empty-hint' }, filtersActive() ? 'Nada com esse filtro' : (!S.tasks.length && col.id === S.columns[0].id) ? 'Comece pressionando N para criar a primeira task' : 'Solte uma task aqui'));
   if (hidden) body.append(h('button', { class: 'more-done', onclick: () => { S.showAllDone = true; renderBoard(); } }, `Mostrar ${hidden} concluída${hidden > 1 ? 's' : ''} antiga${hidden > 1 ? 's' : ''}`));
 
   const add = h('input', { class: 'add-input', placeholder: '+ Adicionar task (Enter)', dataset: { col: col.id }, maxLength: 300, autocomplete: 'off', value: S.drafts[col.id] || '',
@@ -401,8 +438,8 @@ function renderColumn(col) {
       try { await createFromText(text, col.id); const el = $(`.add-input[data-col="${col.id}"]`); el && el.focus(); } catch (x) { add.value = text; S.drafts[col.id] = text; throw x; }
     }) });
 
-  const menuBtn = h('button', { class: 'btn ghost icon sm', title: 'Opções da coluna', onclick: (e) => popover(e.currentTarget, columnMenu(col)) }, icon('more'));
-  const el = h('section', { class: 'column', dataset: { id: col.id, kind: col.kind } },
+  const menuBtn = h('button', { class: 'btn ghost icon sm', title: 'Opções da coluna', onclick: (e) => popover(e.currentTarget, columnMenu(col, e.currentTarget)) }, icon('more'));
+  const el = h('section', { class: 'column' + (col.color ? ' has-color' : ''), style: col.color ? { '--col-color': col.color } : null, dataset: { id: col.id, kind: col.kind } },
     h('div', { class: 'col-head' }, h('span', { class: 'col-dot' }), h('div', { class: 'col-title', title: col.name }, col.name), h('span', { class: 'col-count' }, all.length), menuBtn),
     body, h('div', { class: 'col-foot' }, add));
 
@@ -422,11 +459,13 @@ function renderColumn(col) {
   return el;
 }
 
-function columnMenu(col) {
+const COL_COLORS = [['Padrão', null], ['Cinza', '#71717a'], ['Vermelho', '#ef4444'], ['Laranja', '#f97316'], ['Amarelo', '#eab308'], ['Verde', '#22c55e'], ['Azul', '#3b82f6'], ['Roxo', '#8b5cf6'], ['Rosa', '#ec4899']];
+function columnMenu(col, anchor) {
   const idx = S.columns.findIndex((c) => c.id === col.id);
   const kinds = [['todo', 'A fazer'], ['doing', 'Em andamento'], ['done', 'Concluída']];
   return [
     { label: 'Renomear', icon: 'edit', onClick: guard(async () => { const n = await askText('Renomear coluna', col.name); if (n) { await api('PATCH', `/api/columns/${col.id}`, { name: n }); await loadBoard(); } }) },
+    { label: 'Cor da coluna…', icon: 'palette', onClick: () => popover(anchor, COL_COLORS.map(([name, c]) => ({ label: name, dot: c, checked: (col.color || null) === c, onClick: guard(async () => { await api('PATCH', `/api/columns/${col.id}`, { color: c }); await loadBoard(); }) }))) },
     'hr', ...kinds.map(([k, label]) => ({ label: 'Conta como: ' + label, checked: col.kind === k, onClick: guard(async () => { await api('PATCH', `/api/columns/${col.id}`, { kind: k }); await loadBoard(); }) })),
     'hr',
     ...(idx > 0 ? [{ label: 'Mover para a esquerda', icon: 'left', onClick: guard(async () => { await api('PATCH', `/api/columns/${col.id}`, { dir: -1 }); await loadBoard(); }) }] : []),
@@ -441,36 +480,58 @@ function columnMenu(col) {
   ];
 }
 
+function cardMenu(t) {
+  const mine = t.assignee_id === S.me.id;
+  return [
+    { label: 'Abrir', icon: 'edit', onClick: () => openTask(t.id) },
+    mine ? { label: 'Soltar (ficar sem dono)', icon: 'x', onClick: guard(async () => { upsertTask(await api('PATCH', `/api/tasks/${t.id}`, { assignee_id: null })); renderBoard(); }) }
+      : { label: 'Pegar pra mim', icon: 'take', onClick: guard(async () => { upsertTask(await api('PATCH', `/api/tasks/${t.id}`, { assignee_id: S.me.id })); renderBoard(); toast('Task é sua'); }) },
+    'hr', ...S.columns.map((c) => ({ label: 'Mover para ' + c.name, checked: c.id === t.column_id, onClick: guard(() => c.id === t.column_id ? null : moveTask(t.id, c.id, null)) })),
+    'hr', { label: 'Excluir', icon: 'trash', danger: true, onClick: guard(() => deleteTask(t)) },
+  ];
+}
+async function deleteTask(t) {
+  await api('DELETE', `/api/tasks/${t.id}`);
+  S.tasks = S.tasks.filter((x) => x.id !== t.id); renderBoard();
+  toast('Task excluída', false, { label: 'Desfazer', onClick: guard(async () => { await api('POST', `/api/tasks/${t.id}/restore`); await loadBoard(); toast('Task restaurada'); }) });
+}
+
 function renderCard(t, col) {
   const owner = userById(t.assignee_id);
-  const late = t.due_date && t.due_date < ymd() && col.kind !== 'done';
+  const ds = dueState(t);
+  const cl = t.checklist || [], clDone = cl.filter((i) => i.done).length;
   const card = h('article', { class: 'card' + (col.kind === 'done' ? ' done' : '') + (S.seen && !S.seen.has(t.id) ? ' enter' : ''), draggable: true, tabIndex: 0, dataset: { id: t.id, p: t.priority },
     onclick: () => openTask(t.id), onkeydown: (e) => { if (e.key === 'Enter' && e.target === card) openTask(t.id); } },
+    h('button', { class: 'card-menu btn ghost icon sm', title: 'Opções da task', 'aria-label': 'Opções da task', onclick: (e) => { e.stopPropagation(); popover(e.currentTarget, cardMenu(t)); } }, icon('more')),
     h('div', { class: 'card-title' }, t.title),
     t.description && h('div', { class: 'card-desc' }, t.description),
     h('div', { class: 'card-meta' },
-      t.labels.map((l) => h('span', { class: 'tag', style: { '--h': hueOf(l) } }, l)),
-      t.due_date && h('span', { class: 'due' + (late ? ' late' : '') }, icon('calendar'), fmtDay(t.due_date)),
+      t.labels.map((l) => h('span', { class: 'tag tag-btn', style: { '--h': hueOf(l) }, title: 'Filtrar por #' + l, onclick: (e) => { e.stopPropagation(); S.filter.label = S.filter.label && S.filter.label.toLowerCase() === l.toLowerCase() ? null : l; renderBoard(); } }, l)),
+      cl.length > 0 && h('span', { class: 'due' + (clDone === cl.length ? ' ok' : '') }, icon('list'), `${clDone}/${cl.length}`),
+      t.due_date && h('span', { class: 'due' + (ds === 'late' ? ' late' : ds === 'today' ? ' today' : '') }, icon('calendar'), fmtDay(t.due_date)),
       owner ? avatar(owner, 24) : h('button', { class: 'btn sm take', title: 'Pegar esta task', onclick: guard(async (e) => { e.stopPropagation(); upsertTask(await api('PATCH', `/api/tasks/${t.id}`, { assignee_id: S.me.id })); renderBoard(); toast('Task é sua'); }) }, icon('take'), 'Pegar')));
   card.addEventListener('dragstart', (e) => { S.drag = t.id; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(t.id)); requestAnimationFrame(() => card.classList.add('dragging')); });
   card.addEventListener('dragend', () => {
     S.drag = null; card.classList.remove('dragging'); document.querySelectorAll('.drop-line').forEach((l) => l.remove()); document.querySelectorAll('.column.over').forEach((c) => c.classList.remove('over'));
     if (S.pendingLoad) { S.pendingLoad = false; scheduleLoad(); }
   });
-  card.querySelectorAll('svg').forEach((s) => Object.assign(s.style, { width: '13px', height: '13px' }));
+  card.querySelectorAll('svg').forEach((v) => Object.assign(v.style, { width: '13px', height: '13px' }));
   return card;
 }
 
-async function moveTask(id, colId, beforeId) {
+async function moveTask(id, colId, beforeId, { undo = false } = {}) {
   // atualização otimista, igual à regra do servidor
   const t = S.tasks.find((x) => x.id === id); if (!t) return;
-  const target = colById(colId);
+  const target = colById(colId), prevCol = t.column_id;
+  const prevList = S.tasks.filter((x) => x.column_id === prevCol).sort((a, b) => a.position - b.position || a.id - b.id);
+  const prevNext = (prevList[prevList.findIndex((x) => x.id === id) + 1] || {}).id || null;
   const list = S.tasks.filter((x) => x.column_id === colId && x.id !== id).sort((a, b) => a.position - b.position || a.id - b.id);
   let i = beforeId ? list.findIndex((x) => x.id === beforeId) : -1; if (i < 0) i = list.length;
   list.splice(i, 0, t); list.forEach((x, k) => { x.column_id = colId; x.position = k; });
   if (target.kind === 'doing' && !t.assignee_id) t.assignee_id = S.me.id;
   renderBoard();
   try { await api('POST', `/api/tasks/${id}/move`, { column_id: colId, before_id: beforeId }); } finally { await loadBoard(); }
+  if (!undo && prevCol !== colId) toast(`Movida para ${target.name}`, false, { label: 'Desfazer', onClick: guard(() => moveTask(id, prevCol, prevNext, { undo: true })) });
 }
 
 /* ================= detalhe da task ================= */
@@ -482,6 +543,7 @@ function eventText(e) {
     case 'assigned': return d.to == null ? 'removeu o responsável' : d.to === e.user_id ? 'pegou a task' : `atribuiu a ${userById(d.to)?.name || 'alguém'}`;
     case 'edited': return 'editou a task';
     case 'worked': return 'registrou trabalho';
+    case 'comment': return 'comentou';
     default: return e.type;
   }
 }
@@ -512,11 +574,36 @@ function openTask(id) {
   labelInput.addEventListener('blur', () => { if (labelInput.value.trim()) addLabel(); });
   drawLabels();
 
+  // checklist
+  const items = (t.checklist || []).map((i) => ({ ...i }));
+  const clBox = h('div', { class: 'checklist' });
+  const saveCl = () => save({ checklist: items });
+  const drawCl = () => {
+    const done = items.filter((i) => i.done).length;
+    clBox.replaceChildren(
+      items.length > 0 && h('div', { class: 'cl-head' }, h('div', { class: 'cl-bar' }, h('i', { style: { width: (items.length ? (done / items.length) * 100 : 0) + '%' } })), h('span', { class: 'help' }, `${done}/${items.length}`)),
+      ...items.map((it, idx) => h('div', { class: 'cl-item' + (it.done ? ' done' : '') },
+        h('input', { type: 'checkbox', checked: it.done, 'aria-label': 'Concluir item', onchange: (e) => { it.done = e.target.checked; drawCl(); saveCl(); } }),
+        h('input', { class: 'cl-text', value: it.text, maxLength: 200, onchange: (e) => { const v = e.target.value.trim(); if (!v) items.splice(idx, 1); else it.text = v; drawCl(); saveCl(); } }),
+        h('button', { class: 'btn ghost icon sm', title: 'Remover item', 'aria-label': 'Remover item', onclick: () => { items.splice(idx, 1); drawCl(); saveCl(); } }, icon('x')))),
+      items.length < 50 && h('input', { class: 'input cl-add', placeholder: '+ Adicionar item (Enter)', maxLength: 200, onkeydown: (e) => {
+        if (e.key === 'Enter' && e.target.value.trim()) { e.preventDefault(); items.push({ text: e.target.value.trim(), done: false }); drawCl(); saveCl(); const n = clBox.querySelector('.cl-add'); n && n.focus(); }
+      } }));
+    clBox.querySelectorAll('.btn svg').forEach((v) => Object.assign(v.style, { width: '14px', height: '14px' }));
+  };
+  drawCl();
+
+  // comentários e histórico
+  const comment = h('textarea', { class: 'textarea', style: { minHeight: '56px' }, placeholder: 'Escrever um comentário… (Ctrl+Enter envia)', maxLength: 2000,
+    onkeydown: (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendComment(); } } });
+  const sendComment = guard(async () => { const text = comment.value.trim(); if (!text) return; comment.value = ''; try { await api('POST', `/api/tasks/${id}/comments`, { text }); } catch (x) { comment.value = text; throw x; } loadEvents(); });
   const timeline = h('div', { class: 'timeline' });
   async function loadEvents() {
     try {
       const ev = await api('GET', `/api/tasks/${id}/events`);
-      timeline.replaceChildren(...ev.map((e) => h('div', null, h('b', null, e.user_name || 'Alguém'), ' ' + eventText(e), h('time', null, fmtTime(e.at)))));
+      timeline.replaceChildren(...ev.map((e) => e.type === 'comment'
+        ? h('div', { class: 'cm' }, h('div', null, h('b', null, e.user_name || 'Alguém'), ' comentou', h('time', null, fmtTime(e.at))), h('div', { class: 'cm-text' }, (e.data && e.data.text) || ''))
+        : h('div', null, h('b', null, e.user_name || 'Alguém'), ' ' + eventText(e), h('time', null, fmtTime(e.at)))));
     } catch { /* ignora */ }
   }
   const worked = h('button', { class: 'btn sm', title: 'Marca esta task como trabalhada hoje (entra no diário)', onclick: guard(async () => { await api('POST', `/api/tasks/${id}/worked`); toast('Registrado no diário de hoje'); loadEvents(); }) }, icon('check'), 'Trabalhei hoje');
@@ -529,11 +616,12 @@ function openTask(id) {
       h('div', { class: 'row' }, h('div', { class: 'field' }, h('label', null, 'Prazo'), due),
         h('div', { class: 'field' }, h('label', null, 'Prioridade'), h('div', { class: 'seg' }, prioBtns))),
       h('div', { class: 'field' }, h('label', null, 'Etiquetas'), labelBox),
+      h('div', { class: 'field' }, h('label', null, 'Checklist'), clBox),
       h('div', { class: 'field' }, h('label', null, 'Descrição'), desc),
       h('div', { class: 'field' }, h('label', null, 'Texto para o diário'), diary),
-      h('div', { class: 'field' }, h('label', null, 'Histórico'), timeline)),
+      h('div', { class: 'field' }, h('label', null, 'Comentários e histórico'), comment, h('div', null, h('button', { class: 'btn sm', onclick: sendComment }, 'Comentar')), timeline)),
     h('div', { class: 'modal-foot' },
-      h('button', { class: 'btn danger', onclick: guard(async () => { if (!(await confirmBox(`Excluir "${t.title}"? Isso não pode ser desfeito.`, 'Excluir'))) return; await api('DELETE', `/api/tasks/${id}`); S.tasks = S.tasks.filter((x) => x.id !== id); renderBoard(); close(); toast('Task excluída'); }) }, icon('trash'), 'Excluir'),
+      h('button', { class: 'btn danger', onclick: guard(async () => { close(); await deleteTask(t); }) }, icon('trash'), 'Excluir'),
       h('span', { class: 'grow' }), t.assignee_id !== S.me.id && takeBtn, worked)], { wide: false });
   loadEvents();
   if (!t.title) title.focus();
@@ -551,35 +639,60 @@ async function copyText(text) {
   const ta = h('textarea', { value: text, style: { position: 'fixed', opacity: '0' } }); document.body.append(ta); ta.select();
   let ok = false; try { ok = document.execCommand('copy'); } catch { /* ok */ } ta.remove(); return ok;
 }
+const cap = (x) => x.charAt(0).toUpperCase() + x.slice(1);
+const addDays = (s, n) => { const [y, m, d] = s.split('-').map(Number); return ymd(new Date(y, m - 1, d + n)); };
+const weekStart = (s) => { const [y, m, d] = s.split('-').map(Number); const dt = new Date(y, m - 1, d); return addDays(s, -((dt.getDay() + 6) % 7)); }; // segunda-feira
+const dayTitle = (s) => { const [y, m, d] = s.split('-').map(Number); return `${cap(new Date(y, m - 1, d).toLocaleDateString('pt-BR', { weekday: 'long' }))} (${pad(d)}/${pad(m)})`; };
+
 function openDiary() {
-  const o = { date: ymd(), scope: 'me', doing: true, status: false };
-  let items = [];
+  const o = { mode: 'day', date: ymd(), scope: 'me', doing: true, status: false };
+  let days = []; // [{ date, items }]
   const area = h('textarea', { class: 'textarea diary-text', spellcheck: false });
   const count = h('span', { class: 'help' });
-  const date = h('input', { class: 'input', type: 'date', value: o.date, max: ymd(), onchange: () => { o.date = date.value || ymd(); load(); } });
+  const date = h('input', { class: 'input', type: 'date', value: o.date, max: ymd(), onchange: () => { o.mode = 'day'; o.date = date.value || ymd(); drawPresets(); load(); } });
+  const presets = h('div', { class: 'seg' });
+  const drawPresets = () => {
+    const today = ymd(), yest = addDays(today, -1);
+    const cur = o.mode === 'week' ? 'week' : o.date === today ? 'today' : o.date === yest ? 'yest' : 'other';
+    presets.replaceChildren(...[['today', 'Hoje'], ['yest', 'Ontem'], ['week', 'Semana']].map(([k, l]) => h('button', { type: 'button', class: cur === k ? 'on' : '', onclick: () => {
+      if (k === 'week') { o.mode = 'week'; o.date = today; } else { o.mode = 'day'; o.date = k === 'today' ? today : yest; }
+      date.value = o.date; drawPresets(); load();
+    } }, l)));
+  };
   const seg = (key, opts) => { const wrap = h('div', { class: 'seg' }); const draw = () => wrap.replaceChildren(...opts.map(([v, label]) => h('button', { type: 'button', class: o[key] === v ? 'on' : '', onclick: () => { o[key] = v; draw(); load(); } }, label))); draw(); return wrap; };
   const build = () => {
-    area.value = items.map((i) => diaryLine(i, o.status)).join('\n');
-    count.textContent = items.length ? `${items.length} ${items.length > 1 ? 'itens' : 'item'}` : '';
-    area.placeholder = 'Nada registrado nesse dia ainda. Crie, mova ou edite tasks (ou use "Trabalhei hoje" na task) e gere de novo.';
+    const total = days.reduce((n, d) => n + d.items.length, 0);
+    area.value = o.mode === 'week'
+      ? days.filter((d) => d.items.length).map((d) => dayTitle(d.date) + '\n' + d.items.map((i) => diaryLine(i, o.status)).join('\n')).join('\n\n')
+      : (days[0] ? days[0].items.map((i) => diaryLine(i, o.status)).join('\n') : '');
+    count.textContent = total ? `${total} ${total > 1 ? 'itens' : 'item'}` : '';
+    area.placeholder = 'Nada registrado nesse período. Crie, mova ou edite tasks (ou use "Trabalhei hoje" na task) e gere de novo.';
   };
+  let seq = 0;
   const load = guard(async () => {
-    const [from, to] = dayRange(o.date);
-    const d = await api('GET', `/api/diary?from=${from}&to=${to}&scope=${o.scope}&doing=${o.doing && o.date === ymd() ? 1 : 0}`);
-    items = d.items; build();
+    const my = ++seq, today = ymd();
+    const list = o.mode === 'week' ? Array.from({ length: 7 }, (_, i) => addDays(weekStart(o.date), i)).filter((d) => d <= today) : [o.date];
+    const res = await Promise.all(list.map(async (dt) => {
+      const [from, to] = dayRange(dt);
+      const d = await api('GET', `/api/diary?from=${from}&to=${to}&scope=${o.scope}&doing=${o.doing && dt === today ? 1 : 0}`);
+      return { date: dt, items: d.items };
+    }));
+    if (my !== seq) return; // resposta antiga
+    days = res; build();
   });
   const doingCb = h('input', { type: 'checkbox', checked: o.doing, onchange: () => { o.doing = doingCb.checked; load(); } });
   const statusCb = h('input', { type: 'checkbox', checked: o.status, onchange: () => { o.status = statusCb.checked; build(); } });
   const close = openModal([modalHead('Diário de trabalho', () => close()),
     h('div', { class: 'modal-body' },
-      h('div', { class: 'row' }, h('div', { class: 'field' }, h('label', null, 'Dia'), date),
-        h('div', { class: 'field' }, h('label', null, 'De quem'), seg('scope', [['me', 'Só minhas'], ['team', 'Equipe toda']]))),
+      h('div', { class: 'row' }, h('div', { class: 'field' }, h('label', null, 'Período'), presets),
+        h('div', { class: 'field' }, h('label', null, 'Ou escolha um dia'), date)),
+      h('div', { class: 'field' }, h('label', null, 'De quem'), seg('scope', [['me', 'Só minhas'], ['team', 'Equipe toda']])),
       h('div', { class: 'row' }, h('label', { class: 'check' }, doingCb, 'Incluir tasks em andamento (só hoje)'), h('label', { class: 'check' }, statusCb, 'Mostrar status')),
       area,
-      h('div', { class: 'help' }, 'Entram as tasks que você criou, moveu, editou ou marcou com "Trabalhei hoje". Use o campo ', h('b', null, 'Texto para o diário'), ' da task para escrever exatamente como quer que apareça. Você pode editar o texto aqui antes de copiar.')),
+      h('div', { class: 'help' }, 'Entram as tasks que você criou, moveu, editou, comentou ou marcou com "Trabalhei hoje". Use o campo ', h('b', null, 'Texto para o diário'), ' da task para escrever exatamente como quer que apareça. Você pode editar o texto aqui antes de copiar.')),
     h('div', { class: 'modal-foot' }, count, h('span', { class: 'grow' }),
       h('button', { class: 'btn primary', onclick: async () => { if (!area.value.trim()) return toast('Nada para copiar', true); toast((await copyText(area.value)) ? 'Diário copiado' : 'Não consegui copiar, selecione o texto', false); } }, icon('copy'), 'Copiar'))], { wide: true });
-  load();
+  drawPresets(); load();
 }
 
 /* ================= personalização, conta e equipe ================= */
@@ -683,6 +796,7 @@ async function boot(user) {
   S.prefs = { ...DEFAULT_PREFS, ...loadLocalPrefs() };
   applyPrefs();
   if (!KB.configured) return renderNotConfigured();
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
   KB.onRecovery(askNewPassword);
   try { await start(); }
   catch (e) { $('#app').append(h('div', { class: 'auth' }, h('div', { class: 'auth-card' }, h('h1', null, 'Sem conexão'), h('p', null, e.message)))); }
