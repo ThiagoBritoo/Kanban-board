@@ -161,7 +161,7 @@ Y2K (cromado, bolhas) · Memphis · E-Ink/Paper · Anti-Polish/Raw (rotação al
 
 ---
 
-## 6. O que foi construído no Kanban a partir disso (25 temas, todos com claro + escuro)
+## 6. O que foi construído no Kanban a partir disso (30 temas, todos com claro + escuro)
 
 Arquivo: `public/themes.css`. Selo **animado** = tem efeito de fundo (liga/desliga, velocidade e intensidade nas preferências).
 
@@ -172,9 +172,11 @@ Arquivo: `public/themes.css`. Selo **animado** = tem efeito de fundo (liga/desli
 | | **Comando** | Raycast (Refero) — coral sobre quase preto, botões em "tecla" |
 | | **Editorial** | Superhuman (Refero) — pergaminho, serifa, vinho/lavanda |
 | | **Estúdio** | teenage engineering (Refero) — peso 300, hairlines |
+| | **Brasa** | Cursor (Refero) — creme `#f7f7f4`, tinta `#26251e`, âmbar `#c08532`/brasa `#f54e00`, Garamond + mono, cantos 4px |
 | Suaves e coloridos | Oceano ⚡ · Aurora ⚡ · Sunset ⚡ | gradientes que derivam (Aurora UI) |
 | | **Argila** | Claymorphism |
 | | **Adesivo** | Slush (Refero) — cartões em cores de adesivo |
+| | **Limão** | Perk (Refero) — lima `#beff50` sobre `#f5f5eb`, tinta `#14140f`, cantos 28px, sem sombras |
 | Impactantes | Neon · Brutal | Cyberpunk UI · Neubrutalism |
 | | **Lava** ⚡ · **Vaporwave** ⚡ · **Galáxia** ⚡ · **Y2K** ⚡ | bolhas de lava · sol + grade em perspectiva · estrelas (Space Tech) · cromado/iridescente |
 | Únicos | **Caderno** | Anti-Polish/Raw — post-its tortos / quadro negro |
@@ -182,8 +184,23 @@ Arquivo: `public/themes.css`. Selo **animado** = tem efeito de fundo (liga/desli
 | | Terminal · **Retrô 95** | Terminal-Core + scanlines · janelas com relevo |
 | | **Ouro** | Luxo `#1C1917/#A16207` + dourado, serifa |
 | | **Líquido** ⚡ | monopo (Refero) — P&B, pílulas, brilho iridescente |
+| | **Galeria** | Origin Financial (Refero) — `#090a0b`, serifa em peso 300, réguas `#847dff` `#00b3dd` `#dd90d8` |
+| | **Meia-luz** | Peak Design (Refero) — painéis `#1a211e`/`#0c0c0c` alternando com branco, serifa itálica, vermelho `#cc2e39` raro |
+| | **Câmara Escura** | Oryzo (Refero) — breu `#100904`, creme `#ffedd7`, pílulas, tracejado, laranja `#dc5000` só em destaques |
 
-⚡ = efeito de fundo animado. Em negrito = criados nesta rodada.
+⚡ = efeito de fundo animado. Em negrito = criados a partir de referências (as de "(Refero)" usam tokens lidos nas páginas do estilo).
+
+### Como extrair tokens de um estilo do Refero (receita)
+1. Abra `https://styles.refero.design` e copie o link de um estilo (`/style/<uuid>`); as páginas `/ai-agents/design-md-examples` listam vários.
+2. A página traz uma descrição de 1 parágrafo (a "regra de ouro" do estilo) + paleta com nomes e papéis + tipografia. As cores mais usadas
+   também aparecem como `#rrggbb` no HTML. Papéis importantes: o que é **ação primária**, o que é **só destaque de texto** (ex.: no Cursor o laranja
+   *não* preenche botão), raios de canto, uso de sombra (quase sempre nenhum) e peso da fonte.
+3. Mapeie para tokens: canvas → `--bg`, painéis → `--col`/`--card`, hairline → `--line`, tinta → `--text`, cinza → `--muted`, acento → `--accent`.
+4. Escolha o texto do botão (`--accent-fg`) para dar ≥ 4,5:1 e rode o script de contraste. Marque no arquivo de tema de onde veio.
+- Estilos usados até agora (ids no Refero): Raycast `3b6a17f0…`, Superhuman `418b374a…`, Slush `8b6b547f…`, teenage engineering `aecf9dda…`,
+  monopo `3e52dd36…`, Cursor `4e3b4717…`, Origin Financial `c60f05ff…`, Peak Design `6f3fb64d…`, Perk `75c06591…`, Oryzo `1f204e95…`.
+- Bons candidatos ainda não feitos: Warp (violeta sobre obsidiana), Prisma (azul-planta + teal), Vercel (monocromo `#fafafa`, Geist), Perplexity (pergaminho + teal),
+  Brex (concreto branco + brasa laranja), Freitag (industrial suíço), Bang & Olufsen (porcelana / alcova escura), Sociotype, Miranda, Reflect (violeta cósmico).
 
 ## 7. Reaproveitar o sistema de temas em outro projeto
 

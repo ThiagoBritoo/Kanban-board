@@ -142,6 +142,28 @@
 [data-theme="liquido"]{--bg:#fff;--surface:rgba(255,255,255,.9);--col:#f4f4f4;--card:#fff;--pop:#fff;--line:#e3e3e3;--text:#000;--muted:#6d6d6d;--accent:#000;--accent-fg:#fff;--shadow:0 0 #0000;--radius-t:0px;--heading-weight:600;--heading-track:-.03em}
 [data-theme="liquido"][data-mode="dark"]{--bg:#000;--surface:rgba(0,0,0,.88);--col:#0c0c0c;--card:#0c0c0c;--pop:#111;--line:#262626;--text:#fff;--muted:#9a9a9a;--accent:#fff;--accent-fg:#000}
 
+/* ================= 26–30: temas a partir de tokens reais do Refero Styles (Cursor, Origin, Peak Design, Perk, Oryzo) ================= */
+
+/* 26. Brasa — pergaminho, tinta e âmbar; títulos em Garamond, rótulos em mono. Estático. */
+[data-theme="brasa"]{--bg:#f7f7f4;--surface:rgba(247,247,244,.92);--col:#f2f1ed;--card:#fff;--pop:#fff;--line:#e6e5e0;--text:#26251e;--muted:#6f6e68;--accent:#c08532;--accent-fg:#26251e;--shadow:0 1px 0 rgba(38,37,30,.05),0 2px 6px rgba(38,37,30,.05);--shadow-hover:0 1px 0 rgba(38,37,30,.08),0 8px 18px rgba(38,37,30,.09);--radius-t:4px;--heading-weight:500}
+[data-theme="brasa"][data-mode="dark"]{--bg:#1c1b16;--surface:rgba(28,27,22,.92);--col:#23221c;--card:#2b2a23;--pop:#2b2a23;--line:#3a382f;--text:#f2f1ed;--muted:#a8a69c;--accent:#f54e00;--accent-fg:#1a0a00;--shadow:0 1px 0 rgba(0,0,0,.5);--shadow-hover:0 8px 18px rgba(0,0,0,.45);--hl:rgba(255,240,220,.05)}
+
+/* 27. Galeria — galeria noturna: quase preto, serifa em peso leve, réguas coloridas. Estático. */
+[data-theme="galeria"]{--bg:#f5f5f7;--surface:rgba(245,245,247,.92);--col:#ececf0;--card:#fff;--pop:#fff;--line:#d9d9de;--text:#090a0b;--muted:#5e5e66;--accent:#090a0b;--accent-fg:#fff;--shadow:0 0 #0000;--shadow-hover:0 0 0 1px rgba(9,10,11,.25);--radius-t:6px;--font-h:Fraunces,Georgia,serif;--heading-weight:300;--heading-track:-.01em}
+[data-theme="galeria"][data-mode="dark"]{--bg:#090a0b;--surface:rgba(9,10,11,.9);--col:#0f1011;--card:#0f1011;--pop:#151617;--line:#2e2e2e;--text:#f5f5f7;--muted:#9f9fa0;--accent:#fff;--accent-fg:#000;--shadow-hover:0 0 0 1px rgba(132,125,255,.6)}
+
+/* 28. Meia-luz — painéis escuros sobre fundo claro (e vice-versa), serifa itálica, botões em caixa-alta. Estático. */
+[data-theme="meialuz"]{--bg:#eef1f0;--surface:rgba(255,255,255,.92);--col:#1a211e;--card:#fff;--pop:#fff;--line:#cccfcd;--text:#1a211e;--muted:#606562;--accent:#1a211e;--accent-fg:#fff;--shadow:0 0 #0000;--shadow-hover:0 0 0 1px #1a211e;--radius-t:4px;--panel:#1a211e;--font:Inter,system-ui,sans-serif;--font-h:Fraunces,Georgia,serif;--heading-weight:500}
+[data-theme="meialuz"][data-mode="dark"]{--bg:#050505;--surface:rgba(5,5,5,.92);--col:#0c0c0c;--card:#1a211e;--pop:#1a211e;--line:#363537;--text:#eef1f0;--muted:#b8bcba;--accent:#cc2e39;--accent-fg:#fff;--panel:#0c0c0c;--shadow-hover:0 0 0 1px #cc2e39}
+
+/* 29. Limão — lima elétrica sobre pergaminho, cantos grandes, sem sombras (separação por tom). Estático. */
+[data-theme="limao"]{--bg:#f5f5eb;--surface:rgba(245,245,235,.92);--col:#ecece0;--card:#fff;--pop:#fff;--line:#d2d2c8;--text:#14140f;--muted:#6e6e64;--accent:#beff50;--accent-fg:#14140f;--shadow:0 0 #0000;--shadow-hover:0 0 0 2px #beff50;--radius-t:26px;--font:"Space Grotesk",Inter,system-ui,sans-serif;--heading-weight:500;--heading-track:-.03em}
+[data-theme="limao"][data-mode="dark"]{--bg:#14140f;--surface:rgba(20,20,15,.92);--col:#1b1b15;--card:#23231b;--pop:#23231b;--line:#30302a;--text:#f5f5eb;--muted:#919183;--accent:#beff50;--accent-fg:#14140f}
+
+/* 30. Câmara Escura — breu quente e creme, controles em pílula, linhas tracejadas, tudo sussurrado. Estático. */
+[data-theme="camara"]{--bg:#fbf3e6;--surface:rgba(251,243,230,.92);--col:rgba(16,9,4,.04);--card:#fffaf0;--pop:#fffaf0;--line:rgba(16,9,4,.22);--text:#100904;--muted:#6c5f51;--accent:#100904;--accent-fg:#ffedd7;--shadow:0 0 #0000;--shadow-hover:0 0 0 1px rgba(16,9,4,.5);--radius-t:14px;--heading-weight:500;--ember:#b34000}
+[data-theme="camara"][data-mode="dark"]{--bg:#100904;--surface:rgba(16,9,4,.9);--col:rgba(255,237,215,.04);--card:rgba(255,237,215,.06);--pop:#1b120a;--line:rgba(255,237,215,.18);--text:#ffedd7;--muted:#a8957f;--accent:#ffedd7;--accent-fg:#100904;--ember:#dc5000;--shadow-hover:0 0 0 1px rgba(255,237,215,.45)}
+
 /* ================= camadas decorativas de fundo (#deco) =================
    ::before = brilhos que derivam | ::after = grade/pontos | .d1 .d2 .d3 = camadas extras por tema
    Controles do usuário: data-fx (liga/desliga), --fx-speed (0.5–2), --deco-o (intensidade 0–1). */
@@ -286,3 +308,41 @@ html[data-motion="off"] *,html[data-motion="off"] #deco::before,html[data-motion
 /* Líquido: cantos retos no conteúdo, pílulas nos controles */
 [data-theme="liquido"] :is(.btn,.chip,.seg,.seg button,.search input,.add-input){border-radius:999px}
 [data-theme="liquido"] .tag{border-radius:999px}
+
+
+/* Brasa */
+[data-theme="brasa"] :is(.col-title,.brand,.kpi-v,.auth-card h1){font-family:"EB Garamond",Georgia,serif;font-size:1.1em}
+[data-theme="brasa"] :is(.col-count,.due,.tag,.kpi-l,.help){font-family:"JetBrains Mono",ui-monospace,monospace;font-size:.88em}
+[data-theme="brasa"] .chip.late,[data-theme="brasa"] .due.late{color:#f54e00}
+
+/* Galeria */
+[data-theme="galeria"] :is(.col-title,.brand,.kpi-v,.auth-card h1){font-weight:300;letter-spacing:-.01em}
+[data-theme="galeria"] :is(.field>label:not(.check),.th-btn,.col-count,.kpi-l,.theme-cat){font-family:"JetBrains Mono",ui-monospace,monospace;text-transform:uppercase;letter-spacing:.08em;font-size:11px}
+[data-theme="galeria"] .column{border-top:2px solid #847dff}
+[data-theme="galeria"] .column[data-kind="todo"]{border-top-color:#00b3dd}
+[data-theme="galeria"] .column[data-kind="done"]{border-top-color:#dd90d8}
+
+/* Meia-luz: colunas em painel escuro, texto claro dentro delas */
+[data-theme="meialuz"] .column{background:var(--panel);border-color:#363537}
+[data-theme="meialuz"] .col-head{color:#eef1f0}
+[data-theme="meialuz"] .col-title{font-family:Fraunces,Georgia,serif;font-style:italic;font-weight:500;color:#fff}
+[data-theme="meialuz"] .col-head .btn,[data-theme="meialuz"] .more-done{color:#eef1f0}
+[data-theme="meialuz"] .col-count{background:rgba(255,255,255,.14);color:#eef1f0}
+[data-theme="meialuz"] .column .add-input{color:#eef1f0;border-color:#4e4e4e}
+[data-theme="meialuz"] .column .add-input::placeholder,[data-theme="meialuz"] .column .empty-hint{color:#b8bcba}
+[data-theme="meialuz"] .column .add-input:focus{background:rgba(255,255,255,.06);border-color:#fff}
+[data-theme="meialuz"] .btn:not(.ghost):not(.icon){text-transform:uppercase;letter-spacing:.06em;font-size:12px}
+[data-theme="meialuz"] :is(.chip,.search input){border-radius:999px}
+[data-theme="meialuz"][data-mode="dark"] .column{border-color:#2a2a2c}
+
+/* Limão: rótulos pequenos em caixa-alta espaçada, pílulas */
+[data-theme="limao"] :is(.chip,.tag,.seg button){border-radius:999px}
+[data-theme="limao"] :is(.field>label:not(.check),.th-btn,.kpi-l){letter-spacing:.1em}
+[data-theme="limao"] .btn.primary{border-radius:999px}
+
+/* Câmara Escura: chrome em caixa-alta fina, pílulas e tracejado */
+[data-theme="camara"] :is(.btn,.chip,.seg button,.col-title,.th-btn,.kpi-l,.brand){text-transform:uppercase;letter-spacing:.07em;font-size:.84em;font-weight:500}
+[data-theme="camara"] .btn.icon{font-size:inherit}
+[data-theme="camara"] :is(.btn,.chip,.seg,.seg button,.search input,.add-input,.tag){border-radius:999px}
+[data-theme="camara"] :is(.column,.card,.input,.select,.textarea,.kpi,.list-table){border-style:dashed}
+[data-theme="camara"] :is(.due.today,.chip.today,.chip.late,.due.late){color:var(--ember)}

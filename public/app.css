@@ -388,3 +388,6 @@ html[data-theme="minimal"][data-mode="dark"] .fx-badge{color:var(--text)}
 .theme-name b{font-weight:600}
 .range-row{display:flex;align-items:center;gap:10px}.range-row output{min-width:44px;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
 .theme-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+.theme-filter button{padding:4px 10px}
+.theme-tools .input{padding:6px 10px}
