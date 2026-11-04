@@ -95,12 +95,29 @@ const guard = (fn) => async (...a) => { try { return await fn(...a); } catch (e)
 
 /* ================= estado e preferências ================= */
 const THEMES = [
-  ['minimal', 'Minimal', 'limpo e neutro'], ['paper', 'Papel', 'calmo, serifado'], ['sage', 'Sálvia', 'suave e verde'],
-  ['ocean', 'Oceano', 'azul profundo'], ['aurora', 'Aurora', 'vidro e luz'], ['neon', 'Neon', 'cyber, contraste alto'],
-  ['brutal', 'Brutal', 'ousado, contorno grosso'], ['sunset', 'Sunset', 'gradiente impactante'],
-  ['terminal', 'Terminal', 'verde sobre preto, mono'], ['gelo', 'Gelo', 'azul glacial, arejado'],
+  ['minimal', 'Minimal', 'limpo e neutro', 'Minimalistas', false],
+  ['suico', 'Suíço', 'réguas pretas, vermelho', 'Minimalistas', false],
+  ['paper', 'Papel', 'calmo, com grão', 'Minimalistas', false],
+  ['gelo', 'Gelo', 'azul glacial, arejado', 'Minimalistas', false],
+  ['sage', 'Sálvia', 'suave e verde', 'Minimalistas', false],
+  ['ocean', 'Oceano', 'azul profundo', 'Suaves e coloridos', true],
+  ['aurora', 'Aurora', 'vidro e luz', 'Suaves e coloridos', true],
+  ['sunset', 'Sunset', 'gradiente quente', 'Suaves e coloridos', true],
+  ['argila', 'Argila', '3D macio e tátil', 'Suaves e coloridos', false],
+  ['neon', 'Neon', 'cyber, contraste alto', 'Impactantes', false],
+  ['brutal', 'Brutal', 'contorno grosso', 'Impactantes', false],
+  ['lava', 'Lava', 'bolhas em movimento', 'Impactantes', true],
+  ['vaporwave', 'Vaporwave', 'sol e grade retrô', 'Impactantes', true],
+  ['galaxia', 'Galáxia', 'estrelas cintilando', 'Impactantes', true],
+  ['y2k', 'Y2K', 'cromado e iridescente', 'Impactantes', true],
+  ['caderno', 'Caderno', 'post-its / quadro negro', 'Únicos', false],
+  ['blueprint', 'Blueprint', 'planta técnica', 'Únicos', false],
+  ['terminal', 'Terminal', 'verde sobre preto, CRT', 'Únicos', false],
+  ['retro95', 'Retrô 95', 'janelas com relevo', 'Únicos', false],
+  ['ouro', 'Ouro', 'preto e dourado, serifa', 'Únicos', false],
 ];
-const DEFAULT_PREFS = { theme: 'minimal', mode: 'system', accent: null, font: 'auto', radius: null, density: 'comfortable', motion: true, autoAssign: true, hideOldDone: true, view: 'board', bg: 'theme', bgUrl: '', notify: false };
+const DEFAULT_PREFS = { theme: 'minimal', mode: 'system', accent: null, font: 'auto', radius: null, density: 'comfortable', motion: true, autoAssign: true, hideOldDone: true, view: 'board', bg: 'theme', bgUrl: '', notify: false,
+  fx: true, fxSpeed: 100, fxIntensity: 100, cardStyle: 'theme', border: 'theme', shadow: 'theme', size: 'normal' };
 const S = { me: null, users: [], columns: [], tasks: [], prefs: { ...DEFAULT_PREFS }, filter: { q: '', who: 'all', due: null, label: null }, drafts: {}, drag: null, seen: null, showAllDone: false, online: new Set(), lastWrite: 0, loadedOnce: false };
 
 const BGS = [
@@ -128,6 +145,12 @@ function applyPrefs() {
   const p = S.prefs, r = document.documentElement;
   r.dataset.theme = p.theme; r.dataset.mode = resolvedMode(); r.dataset.density = p.density;
   r.dataset.motion = p.motion ? 'on' : 'off';
+  r.dataset.fx = p.fx === false ? 'off' : 'on';
+  r.style.setProperty('--fx-speed', String((Number(p.fxSpeed) || 100) / 100));
+  r.style.setProperty('--deco-o', String((p.fxIntensity == null ? 100 : Number(p.fxIntensity)) / 100));
+  for (const [key, attr] of [['cardStyle', 'card'], ['border', 'bw'], ['shadow', 'shadow'], ['size', 'size']]) {
+    const v = p[key]; v && v !== 'theme' && v !== 'normal' ? (r.dataset[attr] = v) : delete r.dataset[attr];
+  }
   const bg = bgCss(p, resolvedMode());
   if (bg) { r.style.setProperty('--bg-user', bg); r.dataset.bg = 'user'; } else { r.style.removeProperty('--bg-user'); delete r.dataset.bg; }
   p.font && p.font !== 'auto' ? (r.dataset.font = p.font) : delete r.dataset.font;
@@ -867,10 +890,13 @@ function viewLook() {
   const toggle = (key, label) => h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !!p[key], onchange: (e) => setPrefs({ [key]: e.target.checked }) }), label);
   const swatchColors = ['#6366f1', '#2563eb', '#0ea5e9', '#14b8a6', '#22c55e', '#eab308', '#f97316', '#ef4444', '#ec4899', '#a855f7'];
   return h('div', { class: 'modal-body' },
-    h('div', { class: 'field' }, h('label', null, 'Tema'),
-      h('div', { class: 'theme-grid' }, THEMES.map(([id, name, sub]) => h('button', { class: 'theme-tile' + (p.theme === id ? ' on' : ''), dataset: { theme: id, mode }, onclick: () => setPrefs({ theme: id }) },
-        h('div', { class: 'theme-prev' }, h('i', null, h('b'), h('b')), h('i', null, h('b'), h('b'), h('b')), h('i', null, h('b'))),
-        h('div', { class: 'theme-name' }, name, h('span', null, sub)))))),
+    h('div', { class: 'field' }, h('label', null, `Tema (${THEMES.length})`),
+      h('div', { class: 'theme-tools' }, h('button', { class: 'btn sm', onclick: () => { const others = THEMES.filter((t) => t[0] !== p.theme); setPrefs({ theme: others[Math.floor(Math.random() * others.length)][0] }); } }, 'Surpreenda-me'),
+        h('span', { class: 'help' }, 'Todos têm modo claro e escuro. “Animado” = tem efeito de fundo (dá para desligar ou ajustar abaixo).')),
+      [...new Set(THEMES.map((t) => t[3]))].map((cat) => h('div', null, h('div', { class: 'theme-cat' }, cat),
+        h('div', { class: 'theme-grid' }, THEMES.filter((t) => t[3] === cat).map(([id, name, sub, , fx]) => h('button', { class: 'theme-tile' + (p.theme === id ? ' on' : ''), dataset: { theme: id, mode }, title: name, onclick: () => setPrefs({ theme: id }) },
+          h('div', { class: 'theme-prev' }, h('i', null, h('b'), h('b')), h('i', null, h('b'), h('b'), h('b')), h('i', null, h('b'))),
+          h('div', { class: 'theme-name' }, h('b', null, name, fx && h('span', { class: 'fx-badge' }, 'animado')), h('span', null, sub)))))))),
     h('div', { class: 'row' },
       h('div', { class: 'field' }, h('label', null, 'Modo'), seg('mode', [['light', 'Claro'], ['dark', 'Escuro'], ['system', 'Sistema']])),
       h('div', { class: 'field' }, h('label', null, 'Densidade'), seg('density', [['compact', 'Compacta'], ['comfortable', 'Normal'], ['roomy', 'Ampla']]))),
@@ -878,18 +904,27 @@ function viewLook() {
       h('div', { class: 'swatches' }, h('button', { class: 'btn sm' + (p.accent ? '' : ' primary'), onclick: () => setPrefs({ accent: null }) }, 'Do tema'),
         swatchColors.map((c) => h('button', { class: 'swatch' + (p.accent === c ? ' on' : ''), style: { background: c }, title: c, 'aria-label': c, onclick: () => setPrefs({ accent: c }) })),
         h('input', { type: 'color', value: p.accent || '#6366f1', title: 'Cor personalizada', oninput: (e) => setPrefs({ accent: e.target.value }, { refreshSettings: false }) }))),
-    h('div', { class: 'row' },
-      h('div', { class: 'field' }, h('label', null, 'Fonte'), seg('font', [['auto', 'Do tema'], ['sans', 'Inter'], ['serif', 'Serif'], ['grotesk', 'Grotesk'], ['mono', 'Mono']])),
+    h('div', { class: 'field' }, h('label', null, 'Fonte'), seg('font', [['auto', 'Do tema'], ['sans', 'Inter'], ['serif', 'Serif'], ['grotesk', 'Grotesk'], ['rounded', 'Redonda'], ['hand', 'Manual'], ['mono', 'Mono']])),
       h('div', { class: 'field' }, h('label', null, `Cantos arredondados${p.radius == null ? ' (do tema)' : ': ' + p.radius + 'px'}`),
         h('input', { type: 'range', min: 0, max: 28, value: p.radius ?? 12, oninput: (e) => { setPrefs({ radius: Number(e.target.value) }, { refreshSettings: false }); e.target.previousSibling.textContent = `Cantos arredondados: ${e.target.value}px`; } }),
-        p.radius != null && h('button', { class: 'btn sm ghost', style: { alignSelf: 'flex-start' }, onclick: () => setPrefs({ radius: null }) }, 'Voltar ao do tema'))),
+        p.radius != null && h('button', { class: 'btn sm ghost', style: { alignSelf: 'flex-start' }, onclick: () => setPrefs({ radius: null }) }, 'Voltar ao do tema')),
     h('div', { class: 'field' }, h('label', null, 'Fundo'),
       h('div', { class: 'bg-grid' }, BGS.map(([id, name, l, d]) => h('button', { type: 'button', class: 'bg-tile' + (p.bg === id ? ' on' : ''), title: name, onclick: () => setPrefs({ bg: id }),
         style: l ? { background: mode === 'dark' ? d : l } : null }, h('span', null, name))),
         h('button', { type: 'button', class: 'bg-tile' + (p.bg === 'custom' ? ' on' : ''), title: 'Imagem (link)', onclick: () => setPrefs({ bg: 'custom' }) }, h('span', null, 'Imagem'))),
       p.bg === 'custom' && h('input', { class: 'input', placeholder: 'https://…/imagem.jpg (link https)', value: p.bgUrl || '', onchange: (e) => setPrefs({ bgUrl: e.target.value.trim() }) })),
+    h('div', { class: 'field' }, h('label', null, 'Efeitos de fundo'),
+      toggle('fx', 'Fundo animado (estrelas, lava, grade…) — desligue para ficar estático'),
+      h('div', { class: 'range-row' }, h('span', { class: 'help', style: { width: '90px' } }, 'Velocidade'), h('input', { type: 'range', min: 40, max: 250, step: 10, value: p.fxSpeed ?? 100, oninput: (e) => { setPrefs({ fxSpeed: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = (e.target.value / 100).toFixed(1).replace('.', ',') + '×'; } }), h('output', null, ((p.fxSpeed ?? 100) / 100).toFixed(1).replace('.', ',') + '×')),
+      h('div', { class: 'range-row' }, h('span', { class: 'help', style: { width: '90px' } }, 'Intensidade'), h('input', { type: 'range', min: 0, max: 100, step: 5, value: p.fxIntensity ?? 100, oninput: (e) => { setPrefs({ fxIntensity: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = e.target.value + '%'; } }), h('output', null, (p.fxIntensity ?? 100) + '%'))),
+    h('div', { class: 'row' },
+      h('div', { class: 'field' }, h('label', null, 'Cartões'), seg('cardStyle', [['theme', 'Do tema'], ['solid', 'Sólido'], ['glass', 'Vidro'], ['outline', 'Contorno']])),
+      h('div', { class: 'field' }, h('label', null, 'Bordas'), seg('border', [['theme', 'Do tema'], ['none', 'Sem'], ['thin', 'Finas'], ['thick', 'Grossas']]))),
+    h('div', { class: 'row' },
+      h('div', { class: 'field' }, h('label', null, 'Sombras'), seg('shadow', [['theme', 'Do tema'], ['none', 'Sem'], ['soft', 'Suaves'], ['hard', 'Duras']])),
+      h('div', { class: 'field' }, h('label', null, 'Tamanho do texto'), seg('size', [['small', 'Pequeno'], ['normal', 'Normal'], ['large', 'Grande']]))),
     h('div', { class: 'field' }, h('label', null, 'Comportamento'),
-      toggle('motion', 'Animações e fundos animados'), toggle('autoAssign', 'Novas tasks já ficam comigo'), toggle('hideOldDone', 'Esconder concluídas com mais de 14 dias'),
+      toggle('motion', 'Animações da interface (transições, entradas)'), toggle('autoAssign', 'Novas tasks já ficam comigo'), toggle('hideOldDone', 'Esconder concluídas com mais de 14 dias'),
       h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !!p.notify, onchange: async (e) => {
         if (e.target.checked && typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
           const r = await Notification.requestPermission();
