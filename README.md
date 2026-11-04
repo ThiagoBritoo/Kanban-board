@@ -36,9 +36,9 @@ Também serve Cloudflare Pages ou Netlify: conecte este repositório. **Sem coma
 - **Criar task**: `N` abre a criação rápida; ou digite direto no campo no fim de cada coluna.
   Atalhos no texto: `#etiqueta` `@nome` `!alta` (`!baixa` `!urgente`) `^amanhã` `^25/12`. `Ctrl+Enter` cria e continua.
 - **Menu do card** (`⋯`): mover de coluna, pegar/soltar, excluir. É a forma de mover tasks no celular.
-- **Vistas**: Quadro, Lista (ordenável) e Calendário (arraste a task para outro dia para mudar o prazo). Botões ao lado da busca.
+- **Vistas**: Quadro, Lista (ordenável), Calendário e **Painel** (bento: o que importa agora) (arraste a task para outro dia para mudar o prazo). Botões ao lado da busca.
 - **Paleta de comandos** (`Ctrl+K`): busca tasks e roda comandos (trocar tema, filtrar, ir para uma vista…). O menu `⋯` do topo tem Resumo, Atividade e exportações.
-- **Cronômetro** por task (só um rodando por pessoa), **anexos** (até 10 MB; cole um print com `Ctrl+V` ou arraste arquivos) e **limite de tasks por coluna** (menu `⋯` da coluna, também ordena a coluna).
+- **Cronômetro** por task (só um rodando por pessoa; uma **ilha** flutuante mostra o que está rodando), **anexos** (até 10 MB; cole um print com `Ctrl+V` ou arraste arquivos) e **limite de tasks por coluna** (menu `⋯` da coluna, também ordena a coluna).
 - **Resumo da equipe**: criadas × concluídas por dia, tempo médio até concluir e carga por pessoa. **Atividade recente**: quem fez o quê.
 - **Exportar** tasks em CSV (abre no Excel) e **backup completo** em JSON.
 - **No celular**: segure ~0,4 s num card e arraste para outra coluna (ou use o menu do card). Aviso na tela quando alguém te atribui uma task; opcionalmente notificação do sistema (Personalizar → Comportamento).
@@ -49,13 +49,14 @@ Também serve Cloudflare Pages ou Netlify: conecte este repositório. **Sem coma
 - **Arrastar** cards entre colunas; no celular, abra o card e troque o *Status*.
 - **Gerar diário**: bullets do que você criou, moveu, editou, comentou ou marcou com *Trabalhei hoje* (mais suas tasks em andamento). Períodos: Hoje, Ontem, Semana (com o dia como título) ou um dia à escolha.
   O campo *Texto para o diário* da task define como a linha aparece.
-- **Personalizar** (paleta): **30 temas** (minimalistas, suaves, impactantes e únicos), todos com claro/escuro/sistema; os animados têm um selo e dá para desligar o fundo animado, ajustar velocidade e intensidade. Também: fundo (gradientes ou imagem https), cor de destaque, fonte, cantos, densidade, estilo dos cartões (sólido/vidro/contorno), bordas, sombras e tamanho do texto. Cor por coluna no menu `⋯` da coluna. Segue a sua conta.
+- **Personalizar** (paleta): **33 temas** (minimalistas, suaves, impactantes e únicos), todos com claro/escuro/sistema; os animados têm um selo e dá para desligar o fundo animado, ajustar velocidade e intensidade. Também: fundo (gradientes, imagem https ou **shader WebGL** com tipo, cores, velocidade, força e grão), cor de destaque, fonte, cantos, densidade, estilo dos cartões (sólido/vidro/contorno/dobrado), bordas, sombras e tamanho do texto. Cor por coluna no menu `⋯` da coluna. Segue a sua conta.
 - **Instalar no celular**: abra o site no Chrome/Safari e use *Adicionar à tela inicial*.
 - Atalhos: `N` nova task · `/` buscar · `Esc` fecha.
 
 ## Estrutura
 
-- `public/` site estático: `themes.css` (os 20 temas e efeitos de fundo), `app.js` (núcleo), `views.js` (lista, calendário, resumo, exportar), `palette.js`, `touch.js`, `backend.js` (camada Supabase), `app.css` (temas)
+- `public/` site estático: `themes.css` (os 33 temas e efeitos de fundo), `shader.js` (fundo WebGL), `island.js` (ilha do cronômetro), `app.js` (núcleo), `views.js` (lista, calendário, resumo, exportar), `palette.js`, `touch.js`, `backend.js` (camada Supabase), `app.css` (temas)
 - `vercel.json` cabeçalhos de segurança (CSP etc.); `public/_headers` é o equivalente para Netlify/Cloudflare
 - `supabase/migrations/` esquema, RLS, gatilhos de histórico e funções (rode na ordem, no SQL Editor, num projeto novo)
+- `docs/DESIGN.md` design system do projeto · `docs/REFERENCIAS_DESIGN.md` referências e o que foi aplicado de cada uma
 - `test/` teste de interface com uma API Supabase falsa (instruções no topo de `test/e2e.cjs`)

@@ -161,7 +161,7 @@ Y2K (cromado, bolhas) · Memphis · E-Ink/Paper · Anti-Polish/Raw (rotação al
 
 ---
 
-## 6. O que foi construído no Kanban a partir disso (30 temas, todos com claro + escuro)
+## 6. O que foi construído no Kanban a partir disso (33 temas, todos com claro + escuro)
 
 Arquivo: `public/themes.css`. Selo **animado** = tem efeito de fundo (liga/desliga, velocidade e intensidade nas preferências).
 
@@ -175,6 +175,8 @@ Arquivo: `public/themes.css`. Selo **animado** = tem efeito de fundo (liga/desli
 | | **Brasa** | Cursor (Refero) — creme `#f7f7f4`, tinta `#26251e`, âmbar `#c08532`/brasa `#f54e00`, Garamond + mono, cantos 4px |
 | Suaves e coloridos | Oceano ⚡ · Aurora ⚡ · Sunset ⚡ | gradientes que derivam (Aurora UI) |
 | | **Argila** | Claymorphism |
+| | **Canelado** ⚡ | Cult UI (Fluted glass) — nervuras de vidro sobre orbes de cor |
+| | **Espacial** | UI UX Pro Max (Spatial UI/visionOS) — vidro grosso sobre crepúsculo |
 | | **Adesivo** | Slush (Refero) — cartões em cores de adesivo |
 | | **Limão** | Perk (Refero) — lima `#beff50` sobre `#f5f5eb`, tinta `#14140f`, cantos 28px, sem sombras |
 | Impactantes | Neon · Brutal | Cyberpunk UI · Neubrutalism |
@@ -182,6 +184,7 @@ Arquivo: `public/themes.css`. Selo **animado** = tem efeito de fundo (liga/desli
 | Únicos | **Caderno** | Anti-Polish/Raw — post-its tortos / quadro negro |
 | | **Blueprint** | HUD/planta técnica (cianotipia / azul clássico) |
 | | Terminal · **Retrô 95** | Terminal-Core + scanlines · janelas com relevo |
+| | **HUD** | UI UX Pro Max (HUD/FUI) — linhas finas, colchetes nos cantos, ciano |
 | | **Ouro** | Luxo `#1C1917/#A16207` + dourado, serifa |
 | | **Líquido** ⚡ | monopo (Refero) — P&B, pílulas, brilho iridescente |
 | | **Galeria** | Origin Financial (Refero) — `#090a0b`, serifa em peso 300, réguas `#847dff` `#00b3dd` `#dd90d8` |
@@ -189,6 +192,22 @@ Arquivo: `public/themes.css`. Selo **animado** = tem efeito de fundo (liga/desli
 | | **Câmara Escura** | Oryzo (Refero) — breu `#100904`, creme `#ffedd7`, pílulas, tracejado, laranja `#dc5000` só em destaques |
 
 ⚡ = efeito de fundo animado. Em negrito = criados a partir de referências (as de "(Refero)" usam tokens lidos nas páginas do estilo).
+
+## 6b. O que foi aplicado de **cada** referência (não só do Refero)
+
+| Referência | O que virou código no Kanban | Onde |
+|---|---|---|
+| **Shader Gradient** | Fundo **shader** WebGL próprio: tipos *Fluxo / Ondas / Orbe* (≈ plane / waterPlane / sphere), 3 cores, velocidade, força, densidade, grão, "escurecer"; 8 presets (o "Menta" usa a paleta padrão do site: `#52ff89 #dbba95 #d0bce1`). Não usei o pacote deles (three.js + R3F é pesado para um site estático): é um GLSL de ~40 linhas, renderizado a meia resolução e ~30 fps, pausa com a aba oculta e para com "fundo animado" desligado / movimento reduzido. | `public/shader.js` · Personalizar → Fundo → Shader |
+| **Skiper UI** | **Ilha** flutuante do cronômetro (ideia do Dynamic Island, que é grátis lá): aparece enquanto há cronômetro seu rodando, expande o título no hover, botão de parar. Paleta de comandos `Ctrl+K` (o site tem uma). Sem pulsar, entra/sai em < 200 ms. | `public/island.js` · `public/palette.js` |
+| **Cult UI** | Tema **Canelado** (*fluted glass*: nervuras de blur em faixas sobre orbes de cor) e estilo de cartão **Dobrado** (*folded card*: canto dobrado). O "Kanban board" deles serviu de referência de card/coluna. | `themes.css` (Canelado) · Cartões → Dobrado |
+| **UI UX Pro Max** | Estilos do catálogo viraram: **Espacial** (Spatial UI/visionOS: `blur(40px) saturate(180%)`, raio 26px), **HUD** (FUI: linhas finas, colchetes nos 4 cantos, ciano, mono), **Painel** (Bento Box Grid, raio 24px, `gap:16px`), Suíço, Argila, Vaporwave, Y2K, Caderno (Anti-Polish), Terminal (scanlines). Padrão **Master + Overrides** → `docs/DESIGN.md`. | `themes.css` · `views.js` (Painel) · `docs/DESIGN.md` |
+| **Design Motion Principles** | Saídas mais sutis que as entradas (modal 120 ms, popover 90 ms, ilha 160 ms), troca de ícone com opacity+scale+blur ao copiar, `scale(.97)` no press, easing customizado, origem do popover no gatilho, números tabulares, `prefers-reduced-motion` e chave "desligar animações". Auditoria anti-slop aplicada (nada pulsando, stagger só onde faz sentido). | `app.css` (v4/v5) |
+| **Awesome Claude Design** | Famílias estéticas como mapa para escolher temas; *anti-slop kit* como regras do `docs/DESIGN.md` (faixa à esquerda do card só para prioridade; máx. 2 níveis de aninhamento; sem acento ciano padrão; sem indicador pulsando). | `docs/DESIGN.md` |
+| **taste (Hmbown)** | Processo, não código: **aterrar no artefato real** (li as páginas e DESIGN.md em vez de lembrar de cabeça), **checagem pré-entrega** (contraste por script, 49 verificações de interface, folha de contato visual) e "produzir só o que a ocasião pede". | checklist em `docs/DESIGN.md` |
+| **Refero Styles** | 10 temas com tokens lidos nas páginas (Comando, Editorial, Estúdio, Adesivo, Líquido, Brasa, Limão, Galeria, Meia-luz, Câmara Escura). | `themes.css` |
+| **OriginKit** ⚠️ | **Não aplicado**: o site é renderizado no cliente e nada ficou legível por `curl`. Se você me passar um componente específico, eu replico a ideia. | — |
+
+Total hoje: **33 temas** (todos claro + escuro), 5 vistas (Quadro, Lista, Calendário, Painel + paleta), fundo shader e 5 estilos de cartão.
 
 ### Como extrair tokens de um estilo do Refero (receita)
 1. Abra `https://styles.refero.design` e copie o link de um estilo (`/style/<uuid>`); as páginas `/ai-agents/design-md-examples` listam vários.

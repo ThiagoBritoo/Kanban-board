@@ -13,6 +13,7 @@
       ['Resumo da equipe', 'chart', run(() => A.openSummary())],
       ['Atividade recente', 'pulse', run(() => A.openActivity())],
       ['Ir para o Quadro', 'grid', view('board')], ['Ir para a Lista', 'table', view('list')], ['Ir para o Calendário', 'calendar', view('calendar')],
+      ['Ir para o Painel (bento)', 'bento', view('painel')],
       ['Filtrar: minhas tasks', 'take', filt({ who: 'me' })], ['Filtrar: sem dono', 'take', filt({ who: 'none' })],
       ['Filtrar: atrasadas', 'calendar', filt({ due: 'late' })], ['Filtrar: vencem hoje', 'calendar', filt({ due: 'today' })], ['Limpar filtros', 'x', filt({})],
       ['Alternar claro / escuro', 'moon', run(() => A.setPrefs({ mode: A.resolvedMode() === 'dark' ? 'light' : 'dark' }))],
