@@ -120,6 +120,28 @@
 [data-theme="retro95"][data-mode="dark"]{--bg:#0f3a3a;--surface:#2b2b2b;--col:#2b2b2b;--card:#333;--pop:#2b2b2b;--line:#555;--text:#e8e8e8;--muted:#a8a8a8;--accent:#6fa8ff;--accent-fg:#001233;--bevel-out:inset -1px -1px #000,inset 1px 1px #707070,inset -2px -2px #1b1b1b,inset 2px 2px #494949;--bevel-in:inset -1px -1px #707070,inset 1px 1px #1b1b1b,inset -2px -2px #494949,inset 2px 2px #000;--titlebar:linear-gradient(90deg,#1a1a5e,#2a56b8)}
 
 
+/* ================= 21–25: temas inspirados no catálogo do Refero Styles (paleta e sensação) ================= */
+
+/* 21. Comando — central de comando: quase preto, uma única cor coral, "teclas" com brilho interno. Estático. */
+[data-theme="comando"]{--bg:#f5f5f6;--surface:rgba(245,245,246,.9);--col:#ececee;--card:#fff;--pop:#fff;--line:rgba(0,0,0,.09);--text:#111214;--muted:#636466;--accent:#d63636;--accent-fg:#fff;--shadow:0 0 0 1px rgba(0,0,0,.02),0 1px 2px rgba(0,0,0,.08);--shadow-hover:0 0 0 1px rgba(0,0,0,.05),0 4px 10px rgba(0,0,0,.1);--radius-t:10px;--hl:rgba(255,255,255,.9)}
+[data-theme="comando"][data-mode="dark"]{--bg:#040506;--surface:rgba(4,5,6,.85);--col:#07080a;--card:#0b0c0e;--pop:#111214;--line:rgba(255,255,255,.08);--text:#e6e6e6;--muted:#9c9c9d;--accent:#ff6363;--accent-fg:#1a0000;--shadow:0 0 0 1px rgba(255,255,255,.04),0 1px 2px rgba(0,0,0,.7);--shadow-hover:0 0 0 1px rgba(255,99,99,.35),0 6px 18px rgba(0,0,0,.6);--hl:rgba(255,255,255,.07)}
+
+/* 22. Editorial — pergaminho quente, serifa nos títulos, vinho/lavanda. Estático. */
+[data-theme="editorial"]{--bg:#f2f0eb;--surface:rgba(242,240,235,.92);--col:#eae7e0;--card:#fbfaf7;--pop:#fbfaf7;--line:#dcd8ce;--text:#292827;--muted:#6d6a64;--accent:#421d24;--accent-fg:#fff;--shadow:0 1px 0 rgba(60,50,40,.06),0 2px 8px rgba(60,50,40,.06);--shadow-hover:0 1px 0 rgba(60,50,40,.08),0 8px 20px rgba(60,50,40,.1);--radius-t:8px;--font-h:Fraunces,Georgia,serif;--heading-weight:500;--heading-track:-.005em}
+[data-theme="editorial"][data-mode="dark"]{--bg:#151311;--surface:rgba(21,19,17,.9);--col:#1c1917;--card:#24211e;--pop:#24211e;--line:#38332d;--text:#f2f0eb;--muted:#b3ada2;--accent:#d4c7ff;--accent-fg:#1d1233;--shadow:0 1px 0 rgba(0,0,0,.5);--shadow-hover:0 8px 20px rgba(0,0,0,.45);--hl:rgba(255,240,220,.05)}
+
+/* 23. Estúdio — catálogo industrial: tipografia fina, tudo sussurrado, só o conteúdo tem peso. Estático. */
+[data-theme="estudio"]{--bg:#f6f8f7;--surface:rgba(246,248,247,.92);--col:#eef1ef;--card:#fff;--pop:#fff;--line:#dfe3e1;--text:#0f0e12;--muted:#6b6f6c;--accent:#0071bb;--accent-fg:#fff;--shadow:0 0 #0000;--radius-t:2px;--fw:300;--heading-weight:300;--heading-track:.01em}
+[data-theme="estudio"][data-mode="dark"]{--bg:#0f0e12;--surface:rgba(15,14,18,.92);--col:#141318;--card:#1a191e;--pop:#1a191e;--line:#2a2930;--text:#f2f4f3;--muted:#9a9ca0;--accent:#4db3ff;--accent-fg:#00263d}
+
+/* 24. Adesivo — papel pastel, cartões coloridos como adesivos, cantos bem redondos. Estático. */
+[data-theme="adesivo"]{--bg:#dceeff;--surface:rgba(220,238,255,.9);--col:rgba(255,255,255,.55);--card:#fff;--pop:#fff;--line:rgba(0,0,0,.08);--text:#0b0b0f;--muted:#55566a;--accent:#4da2ff;--accent-fg:#000;--shadow:0 4px 0 rgba(0,0,0,.07);--shadow-hover:0 7px 0 rgba(0,0,0,.09);--radius-t:26px;--font:Nunito,Inter,system-ui,sans-serif;--heading-weight:800;--heading-track:-.02em;--s1:#fff;--s2:#fff1b8;--s3:#d6f6e6;--s4:#ecd9ff}
+[data-theme="adesivo"][data-mode="dark"]{--bg:#0b1226;--surface:rgba(11,18,38,.9);--col:rgba(255,255,255,.05);--card:#16203d;--pop:#16203d;--line:rgba(255,255,255,.1);--text:#f1f6ff;--muted:#a5b4d6;--accent:#4da2ff;--accent-fg:#00172e;--shadow:0 4px 0 rgba(0,0,0,.35);--shadow-hover:0 7px 0 rgba(0,0,0,.4);--s1:#16203d;--s2:rgba(255,215,49,.16);--s3:rgba(85,219,156,.16);--s4:rgba(147,130,255,.2)}
+
+/* 25. Líquido — preto e branco editorial, botões em pílula e um brilho iridescente. Animado. */
+[data-theme="liquido"]{--bg:#fff;--surface:rgba(255,255,255,.9);--col:#f4f4f4;--card:#fff;--pop:#fff;--line:#e3e3e3;--text:#000;--muted:#6d6d6d;--accent:#000;--accent-fg:#fff;--shadow:0 0 #0000;--radius-t:0px;--heading-weight:600;--heading-track:-.03em}
+[data-theme="liquido"][data-mode="dark"]{--bg:#000;--surface:rgba(0,0,0,.88);--col:#0c0c0c;--card:#0c0c0c;--pop:#111;--line:#262626;--text:#fff;--muted:#9a9a9a;--accent:#fff;--accent-fg:#000}
+
 /* ================= camadas decorativas de fundo (#deco) =================
    ::before = brilhos que derivam | ::after = grade/pontos | .d1 .d2 .d3 = camadas extras por tema
    Controles do usuário: data-fx (liga/desliga), --fx-speed (0.5–2), --deco-o (intensidade 0–1). */
@@ -174,6 +196,10 @@
 [data-theme="lava"] #deco .d1{left:-12vmax;top:-10vmax;background:radial-gradient(circle,var(--d1),transparent 68%);animation:lava1 calc(19s / var(--fx-speed,1)) ease-in-out infinite alternate}
 [data-theme="lava"] #deco .d2{right:-14vmax;top:12vmax;background:radial-gradient(circle,var(--d2),transparent 68%);animation:lava2 calc(23s / var(--fx-speed,1)) ease-in-out infinite alternate}
 [data-theme="lava"] #deco .d3{left:22vmax;bottom:-24vmax;background:radial-gradient(circle,var(--d3),transparent 68%);animation:lava3 calc(27s / var(--fx-speed,1)) ease-in-out infinite alternate}
+
+/* Líquido: névoa iridescente suave atrás do conteúdo */
+[data-theme="liquido"] #deco::before{inset:-30%;background:conic-gradient(from 0deg at 70% 25%,#ffd6f2,#cfe8ff,#e5d4ff,#fff1c9,#d4fff0,#ffd6f2);filter:blur(100px) saturate(1.2);opacity:.45;animation:spin calc(60s / var(--fx-speed,1)) linear infinite}
+[data-theme="liquido"][data-mode="dark"] #deco::before{background:conic-gradient(from 0deg at 70% 25%,#4b1fff,#ff2fa8,#00c2ff,#27ffb0,#4b1fff);opacity:.3;filter:blur(120px) saturate(1.3)}
 
 /* ---- controles de animação (efeitos de fundo x animações da interface) ---- */
 html[data-fx="off"] #deco::before,html[data-fx="off"] #deco::after,html[data-fx="off"] #deco i{animation:none!important}
@@ -234,3 +260,29 @@ html[data-motion="off"] *,html[data-motion="off"] #deco::before,html[data-motion
 [data-theme="retro95"] .card:hover{transform:none}
 [data-theme="retro95"] .seg{padding:3px}
 [data-theme="retro95"] .overlay{background:rgba(0,0,0,.35);backdrop-filter:none}
+
+/* Comando: botões em "tecla" (brilho interno e leve afundado) */
+[data-theme="comando"] .btn:not(.primary):not(.ghost){box-shadow:inset 0 1px 0 var(--hl),inset 0 -1px 0 rgba(0,0,0,.18),0 1px 2px rgba(0,0,0,.2)}
+[data-theme="comando"] .btn:not(.primary):not(.ghost):active{box-shadow:inset 0 1px 3px rgba(0,0,0,.4)}
+[data-theme="comando"] :is(.brand,.col-title){letter-spacing:-.005em}
+
+/* Editorial: títulos com serifa e filetes */
+[data-theme="editorial"] :is(.col-title,.brand,.kpi-v){font-feature-settings:"liga","kern"}
+[data-theme="editorial"] .column{border-top:2px solid var(--accent)}
+
+/* Estúdio: peso fino em tudo, só os títulos e valores respiram */
+[data-theme="estudio"] body,[data-theme="estudio"] .card-title{font-weight:300}
+[data-theme="estudio"] :is(.col-title,.brand){text-transform:lowercase;letter-spacing:.03em}
+[data-theme="estudio"] .btn{font-weight:400}
+
+/* Adesivo: cartões coloridos, cantos generosos, botões gordinhos */
+[data-theme="adesivo"] .card{background:var(--s1)}
+[data-theme="adesivo"] .card:nth-child(4n+2){background:var(--s2)}
+[data-theme="adesivo"] .card:nth-child(4n+3){background:var(--s3)}
+[data-theme="adesivo"] .card:nth-child(4n+4){background:var(--s4)}
+[data-theme="adesivo"] .btn,[data-theme="adesivo"] .chip{border-radius:999px}
+[data-theme="adesivo"] .btn.primary{box-shadow:0 3px 0 rgba(0,0,0,.18)}
+
+/* Líquido: cantos retos no conteúdo, pílulas nos controles */
+[data-theme="liquido"] :is(.btn,.chip,.seg,.seg button,.search input,.add-input){border-radius:999px}
+[data-theme="liquido"] .tag{border-radius:999px}

@@ -96,6 +96,9 @@ const guard = (fn) => async (...a) => { try { return await fn(...a); } catch (e)
 /* ================= estado e preferências ================= */
 const THEMES = [
   ['minimal', 'Minimal', 'limpo e neutro', 'Minimalistas', false],
+  ['comando', 'Comando', 'teclas e coral sobre preto', 'Minimalistas', false],
+  ['editorial', 'Editorial', 'pergaminho e serifa', 'Minimalistas', false],
+  ['estudio', 'Estúdio', 'fino, industrial', 'Minimalistas', false],
   ['suico', 'Suíço', 'réguas pretas, vermelho', 'Minimalistas', false],
   ['paper', 'Papel', 'calmo, com grão', 'Minimalistas', false],
   ['gelo', 'Gelo', 'azul glacial, arejado', 'Minimalistas', false],
@@ -104,6 +107,7 @@ const THEMES = [
   ['aurora', 'Aurora', 'vidro e luz', 'Suaves e coloridos', true],
   ['sunset', 'Sunset', 'gradiente quente', 'Suaves e coloridos', true],
   ['argila', 'Argila', '3D macio e tátil', 'Suaves e coloridos', false],
+  ['adesivo', 'Adesivo', 'pastel e cores de adesivo', 'Suaves e coloridos', false],
   ['neon', 'Neon', 'cyber, contraste alto', 'Impactantes', false],
   ['brutal', 'Brutal', 'contorno grosso', 'Impactantes', false],
   ['lava', 'Lava', 'bolhas em movimento', 'Impactantes', true],
@@ -115,6 +119,7 @@ const THEMES = [
   ['terminal', 'Terminal', 'verde sobre preto, CRT', 'Únicos', false],
   ['retro95', 'Retrô 95', 'janelas com relevo', 'Únicos', false],
   ['ouro', 'Ouro', 'preto e dourado, serifa', 'Únicos', false],
+  ['liquido', 'Líquido', 'P&B com brilho iridescente', 'Únicos', true],
 ];
 const DEFAULT_PREFS = { theme: 'minimal', mode: 'system', accent: null, font: 'auto', radius: null, density: 'comfortable', motion: true, autoAssign: true, hideOldDone: true, view: 'board', bg: 'theme', bgUrl: '', notify: false,
   fx: true, fxSpeed: 100, fxIntensity: 100, cardStyle: 'theme', border: 'theme', shadow: 'theme', size: 'normal' };
