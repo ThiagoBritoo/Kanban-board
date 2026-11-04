@@ -14,9 +14,12 @@ pública (anon) estão em `public/config.js`. A chave anon é pública por desen
 npm start     # http://localhost:3000
 ```
 
-## Publicar grátis (Cloudflare Pages, Netlify ou Vercel)
+## Publicar grátis
 
-1. Conecte este repositório. **Sem comando de build**, pasta de saída: `public`.
+**GitHub Pages (já configurado):** um workflow publica a pasta `public` a cada push na `main`.
+Uma vez só: *Settings → Pages → Source: GitHub Actions*. Endereço: `https://thiagobritoo.github.io/Kanban-board/`.
+
+**Outras opções (Cloudflare Pages, Netlify, Vercel):** conecte este repositório. **Sem comando de build**, pasta de saída: `public`.
 2. No Supabase: *Authentication → URL Configuration*: em **Site URL** coloque o endereço publicado
    (e adicione também em *Redirect URLs*). Sem isso, os links de e-mail (confirmar conta, recuperar senha) apontam errado.
 3. Opcional: *Authentication → Sign In / Providers → Email*: desligue **Confirm email** se não quiser exigir confirmação por e-mail
