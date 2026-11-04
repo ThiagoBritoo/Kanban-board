@@ -173,6 +173,24 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   await p.screenshot({ path: OUT + 'v3-fundo.png' });
   await p.click('.bg-tile[title="Do tema"]'); await p.keyboard.press('Escape');
 
+  // painel bento + ilha do cronômetro + cartão dobrado + fundo shader
+  await p.click('#viewSeg button[data-view="painel"]'); await p.waitForSelector('.bento'); await p.waitForTimeout(500);
+  ok((await p.locator('.bento .bt').count()) === 7, 'painel bento com 7 blocos');
+  ok((await p.locator('.bt.hero .bt-stat').count()) === 4, 'painel mostra os 4 indicadores');
+  await p.click('#viewSeg button[data-view="board"]'); await p.waitForSelector('.column');
+  await p.locator('.column:nth-child(2) .card').first().click(); await p.waitForSelector('.timebox'); await p.click('.timebox button:has-text("Iniciar")'); await p.waitForTimeout(600);
+  await p.keyboard.press('Escape'); await p.waitForTimeout(350);
+  ok((await p.locator('.island').count()) === 1, 'ilha do cronômetro aparece ao iniciar');
+  await p.click('.island-stop'); await p.waitForTimeout(600);
+  ok((await p.locator('.island').count()) === 0, 'ilha some ao parar o cronômetro');
+  await p.evaluate(() => window.KBApp.setPrefs({ cardStyle: 'fold' }, { refreshSettings: false }));
+  ok(await p.evaluate(() => document.documentElement.dataset.card === 'fold'), 'estilo de cartão dobrado aplicado');
+  await p.evaluate(() => window.KBApp.setPrefs({ cardStyle: 'theme' }, { refreshSettings: false }));
+  await p.evaluate(() => window.KBApp.setPrefs({ bg: 'shader' }, { refreshSettings: false })); await p.waitForTimeout(400);
+  ok(await p.evaluate(() => ['on', 'fallback'].includes(document.documentElement.dataset.shader) && (document.documentElement.dataset.shader === 'fallback' || !!document.getElementById('shaderbg'))), 'fundo shader ativado (WebGL ou fallback)');
+  await p.evaluate(() => window.KBApp.setPrefs({ bg: 'theme' }, { refreshSettings: false })); await p.waitForTimeout(150);
+  ok(await p.evaluate(() => document.documentElement.dataset.shader === 'off'), 'fundo shader desligado volta ao tema');
+
   // arrastar com o dedo (tablet/celular)
   const tctx = await b.newContext({ viewport: { width: 1100, height: 800 }, hasTouch: true, isMobile: false });
   const tp = await tctx.newPage();

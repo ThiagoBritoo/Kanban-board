@@ -29,6 +29,7 @@ const ICONS = {
   pulse: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
   download: '<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
   command: '<path d="M9 9h6v6H9zM9 9V6a3 3 0 1 0-3 3h3zm6 0V6a3 3 0 1 1 3 3h-3zM9 15v3a3 3 0 1 1-3-3h3zm6 0v3a3 3 0 1 0 3-3h-3z"/>',
+  bento: '<rect x="3" y="3" width="8" height="10" rx="2"/><rect x="13" y="3" width="8" height="6" rx="2"/><rect x="13" y="11" width="8" height="10" rx="2"/><rect x="3" y="15" width="8" height="6" rx="2"/>',
   table: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/>',
   undo: '<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/>',
   list: '<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>',
@@ -109,6 +110,8 @@ const THEMES = [
   ['sunset', 'Sunset', 'gradiente quente', 'Suaves e coloridos', true],
   ['argila', 'Argila', '3D macio e tátil', 'Suaves e coloridos', false],
   ['adesivo', 'Adesivo', 'pastel e cores de adesivo', 'Suaves e coloridos', false],
+  ['canelado', 'Canelado', 'vidro canelado sobre cor', 'Suaves e coloridos', true],
+  ['espacial', 'Espacial', 'vidro visionOS, crepúsculo', 'Suaves e coloridos', false],
   ['limao', 'Limão', 'lima elétrica, cantos grandes', 'Suaves e coloridos', false],
   ['neon', 'Neon', 'cyber, contraste alto', 'Impactantes', false],
   ['brutal', 'Brutal', 'contorno grosso', 'Impactantes', false],
@@ -118,6 +121,7 @@ const THEMES = [
   ['y2k', 'Y2K', 'cromado e iridescente', 'Impactantes', true],
   ['caderno', 'Caderno', 'post-its / quadro negro', 'Únicos', false],
   ['blueprint', 'Blueprint', 'planta técnica', 'Únicos', false],
+  ['hud', 'HUD', 'linhas finas e colchetes', 'Únicos', false],
   ['terminal', 'Terminal', 'verde sobre preto, CRT', 'Únicos', false],
   ['retro95', 'Retrô 95', 'janelas com relevo', 'Únicos', false],
   ['ouro', 'Ouro', 'preto e dourado, serifa', 'Únicos', false],
@@ -127,9 +131,15 @@ const THEMES = [
   ['camara', 'Câmara Escura', 'breu quente, creme, tracejado', 'Únicos', false],
 ];
 const DEFAULT_PREFS = { theme: 'minimal', mode: 'system', accent: null, font: 'auto', radius: null, density: 'comfortable', motion: true, autoAssign: true, hideOldDone: true, view: 'board', bg: 'theme', bgUrl: '', notify: false,
+  shType: 'plane', shC1: '#52ff89', shC2: '#dbba95', shC3: '#d0bce1', shSpeed: 40, shStrength: 50, shDensity: 40, shGrain: 4, shDim: 0,
   fx: true, fxSpeed: 100, fxIntensity: 100, cardStyle: 'theme', border: 'theme', shadow: 'theme', size: 'normal' };
 const S = { me: null, users: [], columns: [], tasks: [], prefs: { ...DEFAULT_PREFS }, filter: { q: '', who: 'all', due: null, label: null }, drafts: {}, drag: null, seen: null, showAllDone: false, online: new Set(), lastWrite: 0, loadedOnce: false };
 
+const SHADER_PRESETS = [
+  ['Menta', 'plane', '#52ff89', '#dbba95', '#d0bce1'], ['Pôr do sol', 'plane', '#ff7a59', '#ffd27a', '#b967ff'], ['Oceano', 'waves', '#0ea5e9', '#22d3ee', '#6366f1'],
+  ['Neon', 'plane', '#ff2bd6', '#00f0ff', '#7c3aed'], ['Aurora', 'plane', '#34d399', '#38bdf8', '#a78bfa'], ['Brasa', 'orb', '#f54e00', '#c08532', '#26251e'],
+  ['Grafite', 'orb', '#52525b', '#a1a1aa', '#18181b'], ['Algodão', 'waves', '#ffd6f2', '#cfe8ff', '#e5d4ff'],
+];
 const BGS = [
   ['theme', 'Do tema'],
   ['aurora', 'Aurora', 'linear-gradient(135deg,#e0e7ff,#fae8ff 50%,#cffafe)', 'linear-gradient(135deg,#0f0c29,#302b63 55%,#24243e)'],
@@ -161,6 +171,7 @@ function applyPrefs() {
   for (const [key, attr] of [['cardStyle', 'card'], ['border', 'bw'], ['shadow', 'shadow'], ['size', 'size']]) {
     const v = p[key]; v && v !== 'theme' && v !== 'normal' ? (r.dataset[attr] = v) : delete r.dataset[attr];
   }
+  window.KBShader && window.KBShader.update(p, resolvedMode());
   const bg = bgCss(p, resolvedMode());
   if (bg) { r.style.setProperty('--bg-user', bg); r.dataset.bg = 'user'; } else { r.style.removeProperty('--bg-user'); delete r.dataset.bg; }
   p.font && p.font !== 'auto' ? (r.dataset.font = p.font) : delete r.dataset.font;
@@ -201,7 +212,7 @@ function openModal(content, { wide = false, onClose } = {}) {
     h('div', { class: 'modal' + (wide ? ' wide' : ''), role: 'dialog', 'aria-modal': 'true' }, content));
   function close() {
     const i = modalStack.indexOf(entry); if (i < 0) return;
-    modalStack.splice(i, 1); overlay.remove(); onClose && onClose();
+    modalStack.splice(i, 1); overlay.classList.add('out'); setTimeout(() => overlay.remove(), 130); onClose && onClose();
     if (!modalStack.length) document.body.style.overflow = '';
   }
   const entry = { close };
@@ -244,7 +255,7 @@ function popover(anchor, items) {
   el.querySelectorAll('svg').forEach((s) => Object.assign(s.style, { width: '15px', height: '15px' }));
   openPop = el;
 }
-function closePopover() { openPop && openPop.remove(); openPop = null; }
+function closePopover() { if (openPop) { const el = openPop; el.classList.add('out'); setTimeout(() => el.remove(), 90); } openPop = null; }
 document.addEventListener('mousedown', (e) => { if (openPop && !openPop.contains(e.target)) closePopover(); });
 addEventListener('scroll', closePopover, true);
 
@@ -445,7 +456,7 @@ function renderShell() {
   const top = h('header', { class: 'topbar' },
     h('div', { class: 'brand' }, h('span', { class: 'logo' }, icon('grid')), h('span', null, 'Kanban')),
     h('label', { class: 'search' }, icon('search'), search, h('kbd', null, '/')),
-    h('div', { class: 'seg view-seg', id: 'viewSeg', role: 'tablist' }, [['board', 'grid', 'Quadro'], ['list', 'table', 'Lista'], ['calendar', 'calendar', 'Calendário']].map(([k, ic, l]) =>
+    h('div', { class: 'seg view-seg', id: 'viewSeg', role: 'tablist' }, [['board', 'grid', 'Quadro'], ['list', 'table', 'Lista'], ['calendar', 'calendar', 'Calendário'], ['painel', 'bento', 'Painel']].map(([k, ic, l]) =>
       h('button', { type: 'button', title: l, 'aria-label': l, dataset: { view: k }, onclick: () => setPrefs({ view: k }, { refreshSettings: false }) }, icon(ic)))),
     h('div', { class: 'grow' }),
     h('button', { class: 'btn', onclick: openDiary, title: 'Gerar diário do dia' }, icon('book'), h('span', { class: 'lbl' }, 'Gerar diário')),
@@ -509,7 +520,7 @@ function renderToolbar() {
 
 function renderBoard() {
   const board = $('#board'); if (!board) return;
-  renderToolbar(); syncViewSeg();
+  renderToolbar(); syncViewSeg(); window.KBApp.updateIsland && window.KBApp.updateIsland();
   const view = S.prefs.view || 'board';
   if (view !== 'board' && window.KBApp.views[view]) {
     board.className = 'board alt view-' + view;
@@ -877,7 +888,11 @@ function openDiary() {
       area,
       h('div', { class: 'help' }, 'Entram as tasks que você criou, moveu, editou, comentou ou marcou com "Trabalhei hoje". Use o campo ', h('b', null, 'Texto para o diário'), ' da task para escrever exatamente como quer que apareça. Você pode editar o texto aqui antes de copiar.')),
     h('div', { class: 'modal-foot' }, count, h('span', { class: 'grow' }),
-      h('button', { class: 'btn primary', onclick: async () => { if (!area.value.trim()) return toast('Nada para copiar', true); toast((await copyText(area.value)) ? 'Diário copiado' : 'Não consegui copiar, selecione o texto', false); } }, icon('copy'), 'Copiar'))], { wide: true });
+      h('button', { class: 'btn primary', onclick: async (e) => {
+        const btn = e.currentTarget; if (!area.value.trim()) return toast('Nada para copiar', true);
+        const ok = await copyText(area.value); toast(ok ? 'Diário copiado' : 'Não consegui copiar, selecione o texto', false);
+        const svg = btn.querySelector('svg'); if (ok && svg) { const ck = icon('check'); ck.classList.add('icon-swap'); svg.replaceWith(ck); setTimeout(() => { const cp = icon('copy'); cp.classList.add('icon-swap'); ck.replaceWith(cp); }, 1600); }
+      } }, icon('copy'), 'Copiar'))], { wide: true });
   drawPresets(); load();
 }
 
@@ -905,6 +920,22 @@ function filterThemes(field, patch) {
   });
   field.querySelectorAll('.theme-group').forEach((g) => g.classList.toggle('hidden', !g.querySelector('.theme-tile:not(.hidden)')));
   field.querySelector('.theme-empty').classList.toggle('hidden', shown > 0);
+}
+function shaderControls(p) {
+  const slider = (key, label, min, max, fmt = (v) => v) => h('div', { class: 'range-row' }, h('span', { class: 'help', style: { width: '90px' } }, label),
+    h('input', { type: 'range', min, max, value: p[key], oninput: (e) => { setPrefs({ [key]: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = fmt(e.target.value); } }), h('output', null, fmt(p[key])));
+  const color = (key, label) => h('label', { class: 'color-pick', title: label }, h('input', { type: 'color', value: p[key], oninput: (e) => setPrefs({ [key]: e.target.value }, { refreshSettings: false }), onchange: () => S.refreshSettings && S.refreshSettings() }), h('span', null, label));
+  const supported = !window.KBShader || window.KBShader.supported();
+  return h('div', { class: 'shader-box' },
+    !supported && h('div', { class: 'help' }, 'Este navegador não tem WebGL: o fundo usa um gradiente simples com as mesmas cores.'),
+    h('div', { class: 'swatches' }, SHADER_PRESETS.map(([name, type, a, b, c]) => h('button', { type: 'button', class: 'preset-chip' + (p.shC1 === a && p.shC2 === b && p.shC3 === c && p.shType === type ? ' on' : ''), title: name, onclick: () => setPrefs({ shType: type, shC1: a, shC2: b, shC3: c }),
+      style: { background: `linear-gradient(135deg,${a},${b},${c})` } }, h('span', null, name)))),
+    h('div', { class: 'row' },
+      h('div', { class: 'field' }, h('label', null, 'Tipo'), h('div', { class: 'seg' }, [['plane', 'Fluxo'], ['waves', 'Ondas'], ['orb', 'Orbe']].map(([v, l]) => h('button', { type: 'button', class: p.shType === v ? 'on' : '', onclick: () => setPrefs({ shType: v }) }, l)))),
+      h('div', { class: 'field' }, h('label', null, 'Cores'), h('div', { class: 'swatches' }, color('shC1', '1'), color('shC2', '2'), color('shC3', '3')))),
+    slider('shSpeed', 'Velocidade', 0, 150, (v) => (v / 100).toFixed(1).replace('.', ',') + '×'), slider('shStrength', 'Força', 0, 100, (v) => v + '%'),
+    slider('shDensity', 'Densidade', 0, 100, (v) => v + '%'), slider('shGrain', 'Grão', 0, 30, (v) => v + '%'), slider('shDim', 'Escurecer', 0, 80, (v) => v + '%'),
+    h('div', { class: 'help' }, 'Dica: no modo escuro o fundo escurece sozinho. Com “Fundo animado” desligado (ou movimento reduzido no sistema) ele fica parado.'));
 }
 function viewLook() {
   const p = S.prefs, mode = resolvedMode();
@@ -937,14 +968,16 @@ function viewLook() {
     h('div', { class: 'field' }, h('label', null, 'Fundo'),
       h('div', { class: 'bg-grid' }, BGS.map(([id, name, l, d]) => h('button', { type: 'button', class: 'bg-tile' + (p.bg === id ? ' on' : ''), title: name, onclick: () => setPrefs({ bg: id }),
         style: l ? { background: mode === 'dark' ? d : l } : null }, h('span', null, name))),
-        h('button', { type: 'button', class: 'bg-tile' + (p.bg === 'custom' ? ' on' : ''), title: 'Imagem (link)', onclick: () => setPrefs({ bg: 'custom' }) }, h('span', null, 'Imagem'))),
+        h('button', { type: 'button', class: 'bg-tile' + (p.bg === 'custom' ? ' on' : ''), title: 'Imagem (link)', onclick: () => setPrefs({ bg: 'custom' }) }, h('span', null, 'Imagem')),
+        h('button', { type: 'button', class: 'bg-tile' + (p.bg === 'shader' ? ' on' : ''), title: 'Gradiente shader (WebGL)', onclick: () => setPrefs({ bg: 'shader' }), style: { background: `linear-gradient(135deg,${p.shC1},${p.shC2},${p.shC3})` } }, h('span', null, 'Shader'))),
+      p.bg === 'shader' && shaderControls(p),
       p.bg === 'custom' && h('input', { class: 'input', placeholder: 'https://…/imagem.jpg (link https)', value: p.bgUrl || '', onchange: (e) => setPrefs({ bgUrl: e.target.value.trim() }) })),
     h('div', { class: 'field' }, h('label', null, 'Efeitos de fundo'),
       toggle('fx', 'Fundo animado (estrelas, lava, grade…) — desligue para ficar estático'),
       h('div', { class: 'range-row' }, h('span', { class: 'help', style: { width: '90px' } }, 'Velocidade'), h('input', { type: 'range', min: 40, max: 250, step: 10, value: p.fxSpeed ?? 100, oninput: (e) => { setPrefs({ fxSpeed: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = (e.target.value / 100).toFixed(1).replace('.', ',') + '×'; } }), h('output', null, ((p.fxSpeed ?? 100) / 100).toFixed(1).replace('.', ',') + '×')),
       h('div', { class: 'range-row' }, h('span', { class: 'help', style: { width: '90px' } }, 'Intensidade'), h('input', { type: 'range', min: 0, max: 100, step: 5, value: p.fxIntensity ?? 100, oninput: (e) => { setPrefs({ fxIntensity: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = e.target.value + '%'; } }), h('output', null, (p.fxIntensity ?? 100) + '%'))),
     h('div', { class: 'row' },
-      h('div', { class: 'field' }, h('label', null, 'Cartões'), seg('cardStyle', [['theme', 'Do tema'], ['solid', 'Sólido'], ['glass', 'Vidro'], ['outline', 'Contorno']])),
+      h('div', { class: 'field' }, h('label', null, 'Cartões'), seg('cardStyle', [['theme', 'Do tema'], ['solid', 'Sólido'], ['glass', 'Vidro'], ['outline', 'Contorno'], ['fold', 'Dobrado']])),
       h('div', { class: 'field' }, h('label', null, 'Bordas'), seg('border', [['theme', 'Do tema'], ['none', 'Sem'], ['thin', 'Finas'], ['thick', 'Grossas']]))),
     h('div', { class: 'row' },
       h('div', { class: 'field' }, h('label', null, 'Sombras'), seg('shadow', [['theme', 'Do tema'], ['none', 'Sem'], ['soft', 'Suaves'], ['hard', 'Duras']])),

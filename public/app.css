@@ -391,3 +391,67 @@ html[data-theme="minimal"][data-mode="dark"] .fx-badge{color:var(--text)}
 
 .theme-filter button{padding:4px 10px}
 .theme-tools .input{padding:6px 10px}
+
+/* shader gradient */
+#shaderbg{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:auto}
+html[data-shader="on"] #deco::before,html[data-shader="on"] #deco::after,html[data-shader="on"] #deco i{display:none}
+html[data-shader="fallback"] body{background:var(--shader-fb);background-attachment:fixed}
+.shader-box{display:flex;flex-direction:column;gap:10px;padding:12px;border:var(--bw) solid var(--line);border-radius:var(--radius);background:color-mix(in srgb,var(--text) 3%,transparent)}
+.preset-chip{height:34px;min-width:86px;padding:0;border:2px solid var(--line);border-radius:999px;overflow:hidden;display:flex;align-items:flex-end;cursor:pointer}
+.preset-chip span{width:100%;padding:2px 8px;font-size:11.5px;font-weight:600;text-align:center;background:color-mix(in srgb,var(--pop) 78%,transparent);color:var(--text)}
+.preset-chip.on{border-color:var(--accent)}
+.color-pick{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+
+
+/* ============ v5: ilha do cronômetro, painel bento, saídas animadas, cartão dobrado ============ */
+.island{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:70;display:flex;align-items:center;gap:4px;max-width:min(92vw,520px);padding:5px 6px 5px 12px;border-radius:999px;background:#0b0b0d;color:#fff;box-shadow:0 12px 32px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.08);animation:island-in .2s var(--ease);transition:max-width .2s var(--ease),box-shadow .2s var(--ease)}
+html[data-mode="dark"] .island{background:#f4f4f5;color:#0b0b0d;box-shadow:0 12px 32px rgba(0,0,0,.55)}
+@keyframes island-in{from{opacity:0;transform:translate(-50%,10px) scale(.96)}}
+.island.out{animation:island-out .16s var(--ease) forwards;pointer-events:none}
+@keyframes island-out{to{opacity:0;transform:translate(-50%,6px) scale(.98)}}
+.island-main{display:flex;align-items:center;gap:8px;border:none;background:none;color:inherit;padding:4px 4px 4px 0;min-width:0;cursor:pointer;font-weight:550}
+.island-title{max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:max-width .2s var(--ease)}
+.island:hover .island-title,.island:focus-within .island-title{max-width:300px}
+.island-time{font-variant-numeric:tabular-nums;opacity:.85;font-weight:600}
+.island-stop{border:none;border-radius:50%;width:30px;height:30px;display:grid;place-items:center;background:rgba(255,255,255,.14);color:inherit;cursor:pointer;transition:background .15s var(--ease),transform .15s var(--ease)}
+html[data-mode="dark"] .island-stop{background:rgba(0,0,0,.1)}
+.island-stop:hover{background:var(--p3);color:#fff}.island-stop:active{transform:scale(.94)}
+body.has-island #toasts{bottom:82px}
+.overlay.out{animation:fade-out .12s var(--ease) forwards;pointer-events:none}
+.overlay.out .modal{animation:sink .12s var(--ease) forwards}
+@keyframes fade-out{to{opacity:0}}@keyframes sink{to{opacity:0;transform:translateY(4px) scale(.99)}}
+.popover.out{animation:pop-out .09s var(--ease) forwards;pointer-events:none}
+@keyframes pop-out{to{opacity:0;transform:scale(.97)}}
+.icon-swap{animation:icon-in .18s var(--ease)}
+@keyframes icon-in{from{opacity:0;transform:scale(.6);filter:blur(3px)}}
+
+.bento{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:minmax(150px,auto);gap:16px;padding:16px 20px 28px;max-width:1320px}
+.bt{background:var(--col);border:var(--bw) solid var(--line);border-radius:calc(var(--radius) + 8px);padding:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px;min-width:0;-webkit-backdrop-filter:blur(var(--blur));backdrop-filter:blur(var(--blur))}
+.bt.w2{grid-column:span 2}.bt.h2{grid-row:span 2}
+.bt-h{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.bt.hero .bt-h{font-family:var(--font-h);font-size:clamp(20px,2.4vw,28px);font-weight:var(--heading-weight);letter-spacing:var(--heading-track);text-transform:none;color:var(--text)}
+.bt-sub{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:4px}
+.bt-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.bt-stat{padding:10px;border-radius:var(--radius);background:color-mix(in srgb,var(--text) 5%,transparent);display:flex;flex-direction:column;gap:2px}
+.bt-stat b{font-family:var(--font-h);font-size:26px;line-height:1.05;font-variant-numeric:tabular-nums}.bt-stat span{font-size:12px;color:var(--muted)}
+.bt-stat.late b{color:var(--p3)}.bt-stat.today b{color:#b45309}html[data-mode="dark"] .bt-stat.today b{color:var(--p2)}
+.bt-list{display:flex;flex-direction:column;gap:2px;min-width:0}
+.bt-row,.bt-team{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:none;background:none;padding:6px;border-radius:calc(var(--radius) - 2px);min-width:0}
+.bt-row{cursor:pointer;transition:background .15s var(--ease)}.bt-row:hover{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.bt-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bt .avatar{border:none}
+.bt-timer b{font-family:var(--font-h);font-size:30px;font-variant-numeric:tabular-nums}
+.bt-bars{display:flex;align-items:flex-end;gap:10px;height:120px;padding-top:6px}
+.bt-bar{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px}
+.bt-bar i{display:block;width:100%;max-width:34px;border-radius:calc(var(--radius) - 4px) calc(var(--radius) - 4px) 3px 3px;background:var(--ok);min-height:3px;transition:height .25s var(--ease)}
+.bt-bar span{font-size:11px;color:var(--muted)}
+@media (max-width:980px){.bento{grid-template-columns:repeat(2,minmax(0,1fr))}.bt.w2{grid-column:span 2}.bt.h2{grid-row:auto}}
+@media (max-width:620px){.bento{grid-template-columns:minmax(0,1fr);padding:10px 12px 24px}.bt.w2{grid-column:auto}.bt-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.island-title{max-width:90px}}
+
+/* cartão dobrado (Cult UI "folded card"): canto superior direito dobrado */
+html[data-card="fold"] .card{background-image:linear-gradient(225deg,var(--col) 0 14px,transparent 14px)}
+html[data-card="fold"] .card::after{content:"";position:absolute;top:0;right:0;width:14px;height:14px;background:linear-gradient(225deg,transparent 50%,color-mix(in srgb,var(--text) 16%,var(--card)) 50%);border-bottom-left-radius:4px;box-shadow:-1px 1px 3px rgba(0,0,0,.14)}
+html[data-card="fold"] .card .card-menu{right:20px}
+.bt-team .bt-title{flex:0 0 auto;max-width:96px}
+.bt-team{flex-wrap:wrap}
+.island .timer-live.running,.island .island-time{color:inherit}

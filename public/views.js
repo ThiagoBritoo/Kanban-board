@@ -164,4 +164,45 @@
     download(`kanban-backup-${ymd()}.json`, 'application/json', JSON.stringify({ exported_at: new Date().toISOString(), columns: S.columns, tasks: S.tasks, users: S.users.map((u) => ({ id: u.id, name: u.name, email: u.email })) }, null, 2));
     toast('Backup baixado');
   };
+
+  /* ---------------- Painel (bento) ---------------- */
+  // Vista "bento box": blocos modulares com o que importa agora (UI UX Pro Max: Bento Box Grid).
+  function painelView() {
+    const now = new Date(), hr = now.getHours(), greet = hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite';
+    const kind = (t) => (colById(t.column_id) || {}).kind, byDue = (a, b) => (a.due_date || '9').localeCompare(b.due_date || '9');
+    const open = S.tasks.filter((t) => kind(t) !== 'done');
+    const late = open.filter((t) => A.dueState(t) === 'late').sort(byDue), today = open.filter((t) => A.dueState(t) === 'today');
+    const doing = S.tasks.filter((t) => kind(t) === 'doing');
+    const upcoming = open.filter((t) => t.due_date && t.due_date > ymd()).sort(byDue).slice(0, 5);
+    const running = S.tasks.find((t) => t.timer_started_at && t.timer_user === S.me.id);
+    const row = (t) => { const ds = A.dueState(t); return h('button', { class: 'bt-row', onclick: () => A.openTask(t.id) }, avatar(userById(t.assignee_id), 20), h('span', { class: 'bt-title' }, t.title), t.due_date && h('span', { class: 'due' + (ds === 'late' ? ' late' : ds === 'today' ? ' today' : '') }, fmtDay(t.due_date))); };
+    const list = (arr, empty) => h('div', { class: 'bt-list' }, arr.length ? arr.map(row) : h('div', { class: 'help' }, empty));
+    const tile = (cls, title, ...kids) => h('section', { class: 'bt ' + cls }, h('div', { class: 'bt-h' }, title), ...kids);
+    const stat = (n, label, cls = '') => h('div', { class: 'bt-stat ' + cls }, h('b', null, String(n)), h('span', null, label));
+    // concluídas nos últimos 7 dias
+    const days = Array.from({ length: 7 }, (_, i) => ymd(new Date(Date.now() - (6 - i) * 864e5)));
+    const doneBy = Object.fromEntries(days.map((d) => [d, 0])); S.tasks.forEach((t) => { if (t.completed_at) { const k = ymd(new Date(t.completed_at)); if (k in doneBy) doneBy[k]++; } });
+    const mx = Math.max(1, ...Object.values(doneBy));
+    const chart = h('div', { class: 'bt-bars', role: 'img', 'aria-label': 'Tasks concluídas por dia, últimos 7 dias' }, days.map((d) => h('div', { class: 'bt-bar' }, h('i', { style: { height: Math.max(doneBy[d] ? 8 : 3, (doneBy[d] / mx) * 100) + '%' }, title: `${fmtDay(d)}: ${doneBy[d]}` }), h('span', null, d.slice(8)))));
+    const team = h('div', { class: 'bt-list' }, S.users.map((u) => h('div', { class: 'bt-team' }, avatar(u, 22), h('span', { class: 'bt-title' }, u.name.split(' ')[0]),
+      h('span', { class: 'help' }, `${open.filter((t) => t.assignee_id === u.id).length} abertas · ${S.tasks.filter((t) => t.assignee_id === u.id && t.completed_at && t.completed_at > Date.now() - 7 * 864e5).length} concl. (7d)`))));
+    const act = h('div', { class: 'bt-list' }, h('div', { class: 'help' }, 'Carregando…'));
+    const fill = (ev) => act.replaceChildren(...(ev.length ? ev.slice(0, 6).map((e) => h('button', { class: 'bt-row', onclick: () => A.openTask(e.task_id) }, avatar(userById(e.user_id), 20), h('span', { class: 'bt-title' }, h('b', null, (e.user_name || 'Alguém').split(' ')[0]), ' ' + A.eventText(e) + ' — ' + e.task_title))) : [h('div', { class: 'help' }, 'Sem atividade ainda.')]));
+    if (S.actCache && Date.now() - S.actCache.at < 30000) fill(S.actCache.ev); else api('GET', '/api/activity').then((ev) => { S.actCache = { at: Date.now(), ev }; if (act.isConnected) fill(ev); }).catch(() => act.replaceChildren(h('div', { class: 'help' }, 'Não foi possível carregar.')));
+    const wrap = h('div', { class: 'bento' },
+      tile('w2 h2 hero', `${greet}, ${S.me.name.split(' ')[0]}`, h('div', { class: 'help' }, A.cap(now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }))),
+        h('div', { class: 'bt-stats' }, stat(late.length, 'atrasadas', late.length ? 'late' : ''), stat(today.length, 'vencem hoje', today.length ? 'today' : ''), stat(doing.length, 'em andamento'), stat(open.filter((t) => t.assignee_id === S.me.id).length, 'minhas abertas')),
+        h('div', { class: 'bt-sub' }, 'Precisa de atenção'), list([...late, ...today].slice(0, 6), 'Nada atrasado nem vencendo hoje.')),
+      tile('', 'Cronômetro', running
+        ? h('div', { class: 'bt-timer' }, h('b', { class: 'timer-live running', dataset: { since: running.timer_started_at, base: running.time_spent } }, A.fmtDur(A.totalSecs(running))), h('button', { class: 'bt-row', onclick: () => A.openTask(running.id) }, h('span', { class: 'bt-title' }, running.title)))
+        : h('div', { class: 'help' }, 'Nenhum cronômetro rodando. Abra uma task e toque em Iniciar.')),
+      tile('', 'Em andamento', list(doing.slice(0, 5), 'Nada em andamento.')),
+      tile('w2', 'Concluídas · 7 dias', chart),
+      tile('', 'Próximos prazos', list(upcoming, 'Sem prazos à frente.')),
+      tile('', 'Equipe', team),
+      tile('w2', 'Atividade recente', act));
+    svgIcons(wrap, 14);
+    return wrap;
+  }
+  A.views.painel = painelView;
 })();
