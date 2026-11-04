@@ -49,13 +49,13 @@ Também serve Cloudflare Pages ou Netlify: conecte este repositório. **Sem coma
 - **Arrastar** cards entre colunas; no celular, abra o card e troque o *Status*.
 - **Gerar diário**: bullets do que você criou, moveu, editou, comentou ou marcou com *Trabalhei hoje* (mais suas tasks em andamento). Períodos: Hoje, Ontem, Semana (com o dia como título) ou um dia à escolha.
   O campo *Texto para o diário* da task define como a linha aparece.
-- **Personalizar** (paleta): 10 temas, claro/escuro/sistema, fundo (gradientes ou imagem por link https), cor de destaque, fonte, cantos, densidade, animações. Cor por coluna no menu `⋯` da coluna. Segue a sua conta.
+- **Personalizar** (paleta): **20 temas** (minimalistas, suaves, impactantes e únicos), todos com claro/escuro/sistema; os animados têm um selo e dá para desligar o fundo animado, ajustar velocidade e intensidade. Também: fundo (gradientes ou imagem https), cor de destaque, fonte, cantos, densidade, estilo dos cartões (sólido/vidro/contorno), bordas, sombras e tamanho do texto. Cor por coluna no menu `⋯` da coluna. Segue a sua conta.
 - **Instalar no celular**: abra o site no Chrome/Safari e use *Adicionar à tela inicial*.
 - Atalhos: `N` nova task · `/` buscar · `Esc` fecha.
 
 ## Estrutura
 
-- `public/` site estático: `app.js` (núcleo), `views.js` (lista, calendário, resumo, exportar), `palette.js`, `touch.js`, `backend.js` (camada Supabase), `app.css` (temas)
+- `public/` site estático: `themes.css` (os 20 temas e efeitos de fundo), `app.js` (núcleo), `views.js` (lista, calendário, resumo, exportar), `palette.js`, `touch.js`, `backend.js` (camada Supabase), `app.css` (temas)
 - `vercel.json` cabeçalhos de segurança (CSP etc.); `public/_headers` é o equivalente para Netlify/Cloudflare
 - `supabase/migrations/` esquema, RLS, gatilhos de histórico e funções (rode na ordem, no SQL Editor, num projeto novo)
 - `test/` teste de interface com uma API Supabase falsa (instruções no topo de `test/e2e.cjs`)

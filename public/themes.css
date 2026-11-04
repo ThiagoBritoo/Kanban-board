@@ -1,0 +1,236 @@
+/* ============================================================
+   TEMAS — 20 temas, cada um com claro e escuro.
+   Qualquer elemento com data-theme/data-mode (inclusive as miniaturas do seletor) herda o visual.
+   Tokens: --bg --surface --col --card --pop --line --text --muted --accent --accent-fg
+           --shadow --shadow-hover --hl (brilho interno do card) --radius-t --bw --blur
+           --d1..d3 (cores de brilho de fundo) --grid --grid2 --dots --star
+   Regras de motion (skills de design-motion): hover 150–200 ms, curva customizada, sem "pulsar",
+   animar só transform/opacity nos efeitos, e tudo respeita data-fx / data-motion / prefers-reduced-motion.
+   ============================================================ */
+[data-theme]{
+  --font:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-h:var(--font);
+  --radius-t:12px; --radius:var(--radius-u,var(--radius-t));
+  --bw:1px; --blur:0px; --pad:12px; --gap:10px; --tl:30%; --fs:14px;
+  --d1:transparent; --d2:transparent; --d3:transparent; --grid:transparent; --grid2:transparent; --dots:transparent; --star:transparent;
+  --p2:#f59e0b; --p3:#ef4444; --ok:#16a34a;
+  --heading-weight:600; --heading-track:-.01em;
+  --hl:transparent; --shadow-hover:var(--shadow);
+  --ease:cubic-bezier(.23,1,.32,1);
+}
+[data-mode="dark"]{--tl:76%}
+
+/* ---------- 1–10: temas originais (valores base) ---------- */
+/* 1. Minimal */
+[data-theme="minimal"]{--bg:#f7f7f8;--surface:rgba(255,255,255,.82);--col:#efeff1;--card:#fff;--pop:#fff;--line:#e4e4e7;--text:#18181b;--muted:#71717a;--accent:#18181b;--accent-fg:#fff;--shadow:0 1px 2px rgba(0,0,0,.05);--radius-t:10px}
+[data-theme="minimal"][data-mode="dark"]{--bg:#09090b;--surface:rgba(9,9,11,.82);--col:#111113;--card:#18181b;--pop:#18181b;--line:#27272a;--text:#fafafa;--muted:#a1a1aa;--accent:#fafafa;--accent-fg:#09090b;--shadow:0 1px 2px rgba(0,0,0,.4)}
+
+/* 2. Papel */
+[data-theme="paper"]{--bg:#f3eee3;--surface:rgba(243,238,227,.88);--col:#e9e2d2;--card:#fffcf5;--pop:#fffcf5;--line:#d9cfb8;--text:#2a2419;--muted:#7a6e58;--accent:#b3471d;--accent-fg:#fff;--shadow:0 1px 0 rgba(90,70,30,.12);--radius-t:6px;--font-h:Fraunces,Georgia,serif;--heading-weight:700}
+[data-theme="paper"][data-mode="dark"]{--bg:#17130e;--surface:rgba(23,19,14,.88);--col:#1f1a13;--card:#28211a;--pop:#28211a;--line:#3a3126;--text:#f1e8d6;--muted:#a99c82;--accent:#e8905f;--accent-fg:#1b140d;--shadow:0 1px 0 rgba(0,0,0,.4)}
+
+/* 3. Sálvia */
+[data-theme="sage"]{--bg:#edf1ec;--surface:rgba(237,241,236,.85);--col:#e1e8e0;--card:#fbfcfa;--pop:#fbfcfa;--line:#d2dcd0;--text:#1d2a22;--muted:#627066;--accent:#3f7a5a;--accent-fg:#fff;--shadow:0 2px 6px rgba(40,70,50,.07);--radius-t:16px}
+[data-theme="sage"][data-mode="dark"]{--bg:#0d1210;--surface:rgba(13,18,16,.85);--col:#131a16;--card:#19221d;--pop:#19221d;--line:#25322a;--text:#e6efe8;--muted:#8ba093;--accent:#6fcf97;--accent-fg:#07130c;--shadow:0 2px 6px rgba(0,0,0,.35)}
+
+/* 4. Oceano */
+[data-theme="ocean"]{--bg:linear-gradient(160deg,#e3f0ff,#f4f9ff 45%,#d9edff);--surface:rgba(244,249,255,.75);--col:rgba(255,255,255,.55);--card:#fff;--pop:#fff;--line:rgba(37,99,235,.16);--text:#0b2447;--muted:#5b7399;--accent:#2563eb;--accent-fg:#fff;--shadow:0 4px 14px rgba(37,99,235,.10);--radius-t:14px;--blur:10px;--d1:rgba(59,130,246,.22);--d2:rgba(14,165,233,.18);--d3:rgba(99,102,241,.15)}
+[data-theme="ocean"][data-mode="dark"]{--bg:#050d1b;--surface:rgba(5,13,27,.7);--col:rgba(15,30,58,.55);--card:#0f2040;--pop:#0f2040;--line:#1c3560;--text:#e3eefc;--muted:#8aa6d0;--accent:#4da3ff;--accent-fg:#04101f;--shadow:0 4px 16px rgba(0,0,0,.4);--d1:rgba(37,99,235,.38);--d2:rgba(14,165,233,.26);--d3:rgba(99,102,241,.26)}
+
+/* 5. Aurora (vidro + gradiente animado) */
+[data-theme="aurora"]{--bg:#f6f3ff;--surface:rgba(255,255,255,.55);--col:rgba(255,255,255,.42);--card:rgba(255,255,255,.78);--pop:#fbf9ff;--line:rgba(124,58,237,.18);--text:#1e1538;--muted:#6d628f;--accent:#7c3aed;--accent-fg:#fff;--shadow:0 8px 24px rgba(124,58,237,.12);--radius-t:20px;--blur:20px;--d1:rgba(167,139,250,.6);--d2:rgba(244,114,182,.42);--d3:rgba(56,189,248,.42);--heading-weight:700}
+[data-theme="aurora"][data-mode="dark"]{--bg:#08050f;--surface:rgba(255,255,255,.05);--col:rgba(255,255,255,.04);--card:rgba(255,255,255,.075);--pop:#150f26;--line:rgba(255,255,255,.11);--text:#f3eeff;--muted:#a79bc9;--accent:#a78bfa;--accent-fg:#12072b;--shadow:0 8px 28px rgba(0,0,0,.45);--d1:rgba(124,58,237,.6);--d2:rgba(236,72,153,.42);--d3:rgba(34,211,238,.36)}
+
+/* 6. Neon */
+[data-theme="neon"]{--bg:#fdf7ff;--surface:rgba(253,247,255,.9);--col:#f6e8ff;--card:#fff;--pop:#fff;--line:#1a0b2e;--text:#1a0b2e;--muted:#6b4f8f;--accent:#d6008f;--accent-fg:#fff;--shadow:3px 3px 0 #00d4e6;--radius-t:4px;--bw:1.5px;--font:"Space Grotesk",Inter,system-ui,sans-serif;--heading-weight:700;--heading-track:.02em;--grid:rgba(26,11,46,.07);--d2:rgba(0,212,230,.14);--d1:rgba(214,0,143,.12)}
+[data-theme="neon"][data-mode="dark"]{--bg:#05010d;--surface:rgba(5,1,13,.8);--col:rgba(20,8,48,.7);--card:#0e0624;--pop:#0e0624;--line:#3b1a6e;--text:#f5ecff;--muted:#a58cd0;--accent:#ff2bd6;--accent-fg:#14001a;--shadow:0 0 0 1px rgba(255,43,214,.3),0 0 18px rgba(255,43,214,.22);--grid:rgba(0,240,255,.07);--d1:rgba(255,43,214,.26);--d2:rgba(0,240,255,.2);--d3:rgba(124,58,237,.32)}
+
+/* 7. Brutal */
+[data-theme="brutal"]{--bg:#ffe14d;--surface:#ffe14d;--col:rgba(255,255,255,.55);--card:#fff;--pop:#fff;--line:#000;--text:#000;--muted:#3d3d3d;--accent:#ff3d6e;--accent-fg:#000;--shadow:4px 4px 0 #000;--radius-t:3px;--bw:2.5px;--font:"Space Grotesk",Inter,system-ui,sans-serif;--heading-weight:700;--heading-track:-.02em;--dots:rgba(0,0,0,.14)}
+[data-theme="brutal"][data-mode="dark"]{--bg:#121212;--surface:#121212;--col:#1b1b1b;--card:#242424;--pop:#242424;--line:#f5f5f5;--text:#fff;--muted:#bdbdbd;--accent:#ffe14d;--accent-fg:#000;--shadow:4px 4px 0 #ffe14d;--dots:rgba(255,255,255,.1)}
+
+/* 8. Sunset */
+[data-theme="sunset"]{--bg:linear-gradient(135deg,#fff1e6,#ffd9e2 50%,#e7d8ff);--surface:rgba(255,255,255,.5);--col:rgba(255,255,255,.5);--card:rgba(255,255,255,.88);--pop:#fff8f5;--line:rgba(244,63,94,.2);--text:#3a0f1f;--muted:#8a4a5e;--accent:#e11d48;--accent-fg:#fff;--shadow:0 8px 22px rgba(244,63,94,.14);--radius-t:22px;--blur:14px;--d1:rgba(251,146,60,.42);--d2:rgba(244,63,94,.3);--d3:rgba(168,85,247,.3);--heading-weight:700;--heading-track:-.03em}
+[data-theme="sunset"][data-mode="dark"]{--bg:#12050a;--surface:rgba(255,255,255,.05);--col:rgba(255,255,255,.045);--card:rgba(255,255,255,.08);--pop:#240b12;--line:rgba(255,140,100,.2);--text:#fff0ea;--muted:#d19a9f;--accent:#ff6a3d;--accent-fg:#1a0600;--shadow:0 8px 26px rgba(0,0,0,.5);--d1:rgba(255,106,61,.52);--d2:rgba(244,63,94,.42);--d3:rgba(168,85,247,.36)}
+
+/* 9. Terminal */
+[data-theme="terminal"]{--bg:#f1f5f1;--surface:rgba(241,245,241,.9);--col:#e4ebe4;--card:#fbfdfb;--pop:#fbfdfb;--line:#bccdbc;--text:#10281a;--muted:#587060;--accent:#0b7a32;--accent-fg:#fff;--shadow:none;--radius-t:2px;--font:"JetBrains Mono",ui-monospace,Menlo,monospace;--heading-weight:600;--grid:rgba(11,122,50,.05)}
+[data-theme="terminal"][data-mode="dark"]{--bg:#020a04;--surface:rgba(2,10,4,.85);--col:#06140a;--card:#0a1c10;--pop:#0a1c10;--line:#14402a;--text:#b8ffc9;--muted:#5fae78;--accent:#39ff6a;--accent-fg:#00170a;--shadow:0 0 14px rgba(57,255,106,.12);--grid:rgba(57,255,106,.06);--d1:rgba(57,255,106,.10);--d3:rgba(0,200,120,.08)}
+
+/* 10. Gelo */
+[data-theme="gelo"]{--bg:linear-gradient(180deg,#f4fbff,#e6f3fa);--surface:rgba(244,251,255,.8);--col:rgba(255,255,255,.7);--card:#fff;--pop:#fff;--line:#d1e5f0;--text:#0d2733;--muted:#4f6f80;--accent:#0e7490;--accent-fg:#fff;--shadow:0 2px 8px rgba(8,145,178,.08);--radius-t:14px;--blur:8px;--d1:rgba(34,211,238,.16);--d2:rgba(125,211,252,.14)}
+[data-theme="gelo"][data-mode="dark"]{--bg:#06141b;--surface:rgba(6,20,27,.8);--col:rgba(14,42,55,.55);--card:#0e2a37;--pop:#0e2a37;--line:#17404f;--text:#e6f6fc;--muted:#86b0c2;--accent:#22d3ee;--accent-fg:#04202a;--shadow:0 2px 10px rgba(0,0,0,.35);--d1:rgba(34,211,238,.2);--d2:rgba(56,189,248,.14)}
+
+/* ---------- refinos dos 10 originais: sombras em camadas (sem borda dura) e brilho interno ---------- */
+[data-theme="minimal"]{--shadow:0 0 0 1px rgba(0,0,0,.02),0 1px 2px -1px rgba(0,0,0,.08),0 2px 4px rgba(0,0,0,.04);--shadow-hover:0 0 0 1px rgba(0,0,0,.04),0 2px 4px -1px rgba(0,0,0,.1),0 8px 16px rgba(0,0,0,.06)}
+[data-theme="minimal"][data-mode="dark"]{--shadow:0 1px 2px rgba(0,0,0,.5);--shadow-hover:0 4px 14px rgba(0,0,0,.5);--hl:rgba(255,255,255,.04)}
+[data-theme="paper"]{--shadow:0 1px 0 rgba(90,70,30,.1),0 2px 6px rgba(90,70,30,.08);--shadow-hover:0 1px 0 rgba(90,70,30,.12),0 6px 14px rgba(90,70,30,.12)}
+[data-theme="paper"][data-mode="dark"]{--shadow:0 1px 0 rgba(0,0,0,.5);--shadow-hover:0 6px 14px rgba(0,0,0,.45);--hl:rgba(255,236,200,.05)}
+[data-theme="sage"]{--shadow:0 1px 2px rgba(40,70,50,.06),0 4px 10px rgba(40,70,50,.06);--shadow-hover:0 2px 4px rgba(40,70,50,.08),0 10px 20px rgba(40,70,50,.1)}
+[data-theme="sage"][data-mode="dark"]{--hl:rgba(180,255,210,.05);--shadow-hover:0 8px 20px rgba(0,0,0,.45)}
+[data-theme="ocean"],[data-theme="aurora"],[data-theme="sunset"],[data-theme="gelo"]{--hl:rgba(255,255,255,.6)}
+[data-theme="ocean"][data-mode="dark"],[data-theme="aurora"][data-mode="dark"],[data-theme="sunset"][data-mode="dark"],[data-theme="gelo"][data-mode="dark"]{--hl:rgba(255,255,255,.09)}
+[data-theme="neon"][data-mode="dark"]{--shadow-hover:0 0 0 1px rgba(255,43,214,.55),0 0 26px rgba(255,43,214,.32)}
+[data-theme="neon"]{--shadow-hover:5px 5px 0 #00d4e6}
+[data-theme="brutal"]{--shadow-hover:6px 6px 0 #000}
+[data-theme="brutal"][data-mode="dark"]{--shadow-hover:6px 6px 0 #ffe14d}
+[data-theme="terminal"][data-mode="dark"]{--shadow-hover:0 0 20px rgba(57,255,106,.2)}
+
+
+/* ================= 11–20: temas novos ================= */
+
+/* 11. Suíço — tipografia forte, réguas pretas, vermelho. Estático. */
+[data-theme="suico"]{--bg:#fff;--surface:rgba(255,255,255,.96);--col:#f3f3f3;--card:#fff;--pop:#fff;--line:#111;--text:#0a0a0a;--muted:#5c5c5c;--accent:#e30613;--accent-fg:#fff;--shadow:0 0 #0000;--radius-t:0px;--heading-weight:800;--heading-track:-.035em}
+[data-theme="suico"][data-mode="dark"]{--bg:#0a0a0a;--surface:rgba(10,10,10,.96);--col:#121212;--card:#0a0a0a;--pop:#0a0a0a;--line:rgba(255,255,255,.82);--text:#fff;--muted:#a0a0a0;--accent:#e02418;--accent-fg:#fff}
+
+/* 12. Argila — 3D macio e tátil (claymorphism). Estático. */
+[data-theme="argila"]{--bg:#fbe8e4;--surface:rgba(251,232,228,.85);--col:#f6d6cf;--card:#fff3ee;--pop:#fff3ee;--line:#fff;--text:#4a2420;--muted:#8f5f58;--accent:#cf3b31;--accent-fg:#fff;--shadow:inset -3px -3px 7px rgba(190,100,85,.14),inset 3px 3px 7px rgba(255,255,255,.95),5px 7px 14px rgba(190,100,85,.18);--shadow-hover:inset -3px -3px 7px rgba(190,100,85,.14),inset 3px 3px 7px rgba(255,255,255,.95),7px 10px 20px rgba(190,100,85,.24);--radius-t:22px;--bw:3px;--font:Nunito,Inter,system-ui,sans-serif;--heading-weight:800;--heading-track:-.01em}
+[data-theme="argila"][data-mode="dark"]{--bg:#2a1a23;--surface:rgba(42,26,35,.85);--col:#35212d;--card:#432a3a;--pop:#432a3a;--line:rgba(255,255,255,.1);--text:#ffe9ef;--muted:#cfa3b3;--accent:#ff8fa8;--accent-fg:#3a0b1c;--shadow:inset 2px 2px 6px rgba(255,255,255,.07),inset -3px -3px 8px rgba(0,0,0,.35),5px 7px 16px rgba(0,0,0,.4);--shadow-hover:inset 2px 2px 6px rgba(255,255,255,.07),inset -3px -3px 8px rgba(0,0,0,.35),7px 10px 22px rgba(0,0,0,.5)}
+
+/* 13. Y2K — cromado, iridescente e bolhas. Animado (fundo iridescente girando devagar). */
+[data-theme="y2k"]{--bg:linear-gradient(135deg,#ffe3f4,#e3f4ff 45%,#f1e6ff);--surface:rgba(255,255,255,.6);--col:rgba(255,255,255,.5);--card:rgba(255,255,255,.82);--pop:#fff8fd;--line:rgba(190,60,170,.28);--text:#35124a;--muted:#7d5a93;--accent:#c4147f;--accent-fg:#fff;--shadow:inset 0 0 0 1px rgba(255,255,255,.8),0 8px 24px rgba(148,0,211,.14);--shadow-hover:inset 0 0 0 1px rgba(255,255,255,.9),0 12px 30px rgba(148,0,211,.22);--radius-t:20px;--blur:14px;--bw:1.5px;--font-h:Orbitron,Inter,system-ui,sans-serif;--heading-weight:700;--heading-track:.02em}
+[data-theme="y2k"][data-mode="dark"]{--bg:#0d0618;--surface:rgba(13,6,24,.7);--col:rgba(255,255,255,.05);--card:rgba(255,255,255,.08);--pop:#1a0d2e;--line:rgba(255,255,255,.16);--text:#f6ecff;--muted:#b9a1d6;--accent:#ff5cc0;--accent-fg:#2a0020;--shadow:inset 0 0 0 1px rgba(255,255,255,.06),0 10px 30px rgba(0,0,0,.45);--shadow-hover:inset 0 0 0 1px rgba(255,255,255,.1),0 14px 36px rgba(255,92,192,.22)}
+
+/* 14. Caderno — papel pautado e post-its (claro) / quadro negro e giz (escuro). Estático. */
+[data-theme="caderno"]{--bg:repeating-linear-gradient(180deg,transparent 0 31px,rgba(70,120,200,.22) 31px 32px),linear-gradient(90deg,transparent 0 71px,rgba(220,70,70,.35) 71px 73px,transparent 73px),#fbf7ea;--surface:rgba(251,247,234,.94);--col:rgba(255,255,255,.35);--card:#fff9c4;--pop:#fffdf0;--line:rgba(60,50,30,.25);--text:#2b2a26;--muted:#6b6a60;--accent:#b4372a;--accent-fg:#fff;--shadow:1px 2px 0 rgba(0,0,0,.08),3px 5px 10px rgba(80,60,20,.16);--shadow-hover:2px 3px 0 rgba(0,0,0,.08),5px 9px 16px rgba(80,60,20,.2);--radius-t:3px;--font:"Patrick Hand","Segoe Print","Comic Sans MS",system-ui,sans-serif;--fs:16px;--heading-weight:400;--heading-track:0;--n1:#fff9c4;--n2:#ffdfe6;--n3:#dcf1ff;--n4:#e2f7d6}
+[data-theme="caderno"][data-mode="dark"]{--bg:repeating-linear-gradient(180deg,transparent 0 31px,rgba(255,255,255,.06) 31px 32px),radial-gradient(ellipse at 50% 0%,#2c3a3d,#1b2427 70%);--surface:rgba(27,36,39,.92);--col:rgba(255,255,255,.04);--card:rgba(255,255,255,.08);--pop:#243134;--line:rgba(255,255,255,.2);--text:#eef3ef;--muted:#a9b8b0;--accent:#ffd166;--accent-fg:#241a00;--shadow:0 2px 0 rgba(0,0,0,.25);--shadow-hover:0 6px 14px rgba(0,0,0,.35);--n1:rgba(255,236,140,.16);--n2:rgba(255,150,170,.16);--n3:rgba(140,200,255,.16);--n4:rgba(160,240,140,.16)}
+
+/* 15. Blueprint — planta técnica (cianotipia / azul clássico). Estático. */
+[data-theme="blueprint"]{--bg:#e6f0fb;--surface:rgba(230,240,251,.9);--col:rgba(255,255,255,.5);--card:#fbfdff;--pop:#fbfdff;--line:rgba(24,82,160,.45);--text:#0b2f66;--muted:#4b6fa0;--accent:#1852a0;--accent-fg:#fff;--shadow:0 0 #0000;--radius-t:2px;--grid:rgba(24,82,160,.1);--grid2:rgba(24,82,160,.05);--font:"JetBrains Mono",ui-monospace,Menlo,monospace;--fs:13.5px;--heading-weight:600}
+[data-theme="blueprint"][data-mode="dark"]{--bg:#0a2a5e;--surface:rgba(10,42,94,.88);--col:rgba(255,255,255,.05);--card:rgba(255,255,255,.07);--pop:#0e3470;--line:rgba(255,255,255,.38);--text:#eaf3ff;--muted:#9fc0ee;--accent:#8ad4ff;--accent-fg:#06264f;--grid:rgba(255,255,255,.1);--grid2:rgba(255,255,255,.045)}
+
+/* 16. Vaporwave — sol listrado e grade em perspectiva. Animado (a grade corre). */
+[data-theme="vaporwave"]{--bg:linear-gradient(180deg,#ffd9f4 0%,#e5d6ff 52%,#cdf3ff 100%);--surface:rgba(255,255,255,.55);--col:rgba(255,255,255,.45);--card:rgba(255,255,255,.82);--pop:#fff6fd;--line:rgba(185,103,255,.6);--text:#3b1259;--muted:#80579f;--accent:#c2188a;--accent-fg:#fff;--shadow:4px 4px 0 #01cdfe;--shadow-hover:6px 6px 0 #01cdfe;--radius-t:6px;--bw:1.5px;--blur:6px;--font:"Space Grotesk",Inter,system-ui,sans-serif;--font-h:Orbitron,"Space Grotesk",sans-serif;--heading-weight:700;--heading-track:.04em}
+[data-theme="vaporwave"][data-mode="dark"]{--bg:linear-gradient(180deg,#14042b 0%,#2a0a54 55%,#4b1170 100%);--surface:rgba(20,4,43,.7);--col:rgba(20,5,45,.55);--card:rgba(32,10,66,.75);--pop:#25094a;--line:rgba(185,103,255,.55);--text:#ffeafc;--muted:#c7a6e6;--accent:#ff71ce;--accent-fg:#2b0630;--shadow:0 0 0 1px rgba(185,103,255,.35),0 0 24px rgba(255,113,206,.22);--shadow-hover:0 0 0 1px rgba(1,205,254,.55),0 0 30px rgba(1,205,254,.3)}
+
+/* 17. Galáxia — campo de estrelas (escuro) / alvorada (claro). Animado (estrelas cintilando). */
+[data-theme="galaxia"]{--bg:linear-gradient(180deg,#eef0ff 0%,#f6ecff 55%,#fff0e6 100%);--surface:rgba(255,255,255,.6);--col:rgba(255,255,255,.5);--card:rgba(255,255,255,.85);--pop:#fbf9ff;--line:rgba(91,91,214,.2);--text:#1d1b4b;--muted:#63609b;--accent:#4f46e5;--accent-fg:#fff;--shadow:0 8px 24px rgba(79,70,229,.1);--radius-t:16px;--blur:10px;--star:#6a63e0;--d1:rgba(139,92,246,.18);--d2:rgba(244,114,182,.14);--d3:rgba(56,189,248,.14);--font-h:Orbitron,Inter,sans-serif;--heading-weight:600;--heading-track:.01em}
+[data-theme="galaxia"][data-mode="dark"]{--bg:radial-gradient(ellipse at 20% -10%,#1c1c52 0%,#0a0a24 55%,#03030c 100%);--surface:rgba(6,6,24,.7);--col:rgba(255,255,255,.04);--card:rgba(255,255,255,.07);--pop:#14143a;--line:rgba(255,255,255,.13);--text:#eceeff;--muted:#a6abd6;--accent:#9aa8ff;--accent-fg:#0b0d33;--shadow:0 8px 28px rgba(0,0,0,.5);--star:#fff;--d1:rgba(110,90,255,.22);--d2:rgba(255,90,200,.14);--d3:rgba(60,160,255,.16)}
+
+/* 18. Lava — bolhas de lava em movimento, contraste alto. Animado. */
+[data-theme="lava"]{--bg:#fff1e4;--surface:rgba(255,241,228,.75);--col:rgba(255,255,255,.5);--card:rgba(255,255,255,.9);--pop:#fffaf5;--line:rgba(232,66,10,.25);--text:#2c0f05;--muted:#8a4d36;--accent:#d93a05;--accent-fg:#fff;--shadow:0 6px 20px rgba(217,58,5,.12);--shadow-hover:0 10px 28px rgba(217,58,5,.2);--radius-t:10px;--blur:8px;--font-h:"Space Grotesk",Inter,sans-serif;--heading-weight:700;--d1:rgba(255,110,0,.45);--d2:rgba(255,40,80,.32);--d3:rgba(255,200,40,.4)}
+[data-theme="lava"][data-mode="dark"]{--bg:#0c0504;--surface:rgba(12,5,4,.72);--col:rgba(30,10,6,.6);--card:rgba(38,14,8,.82);--pop:#2a0e08;--line:rgba(255,120,60,.28);--text:#fff3ec;--muted:#d9a08a;--accent:#ff5a1f;--accent-fg:#1a0600;--shadow:0 6px 22px rgba(0,0,0,.5);--shadow-hover:0 10px 30px rgba(255,90,31,.22);--d1:rgba(255,70,0,.65);--d2:rgba(255,0,70,.5);--d3:rgba(255,190,0,.38)}
+
+/* 19. Ouro — preto e ouro, serifa elegante (escuro) / marfim e dourado (claro). Estático. */
+[data-theme="ouro"]{--bg:#faf7f0;--surface:rgba(250,247,240,.9);--col:#f1ecdf;--card:#fffdf8;--pop:#fffdf8;--line:#e2d9c0;--text:#1c1917;--muted:#7b7260;--accent:#8a5a05;--accent-fg:#fff;--shadow:0 0 0 1px rgba(161,98,7,.06),0 1px 2px rgba(60,40,0,.08),0 6px 16px rgba(60,40,0,.06);--shadow-hover:0 0 0 1px rgba(161,98,7,.12),0 2px 4px rgba(60,40,0,.1),0 12px 24px rgba(60,40,0,.1);--radius-t:4px;--font-h:Fraunces,Georgia,serif;--heading-weight:600;--heading-track:.01em}
+[data-theme="ouro"][data-mode="dark"]{--bg:#0b0a08;--surface:rgba(11,10,8,.85);--col:#12110f;--card:#181613;--pop:#1c1914;--line:#34301f;--text:#f5efe3;--muted:#aaa089;--accent:#d4af37;--accent-fg:#1a1405;--shadow:0 0 0 1px rgba(212,175,55,.1),0 8px 24px rgba(0,0,0,.5);--shadow-hover:0 0 0 1px rgba(212,175,55,.3),0 12px 30px rgba(0,0,0,.55);--hl:rgba(212,175,55,.08)}
+
+/* 20. Retrô 95 — janelas com relevo, barra de título azul. Estático. */
+[data-theme="retro95"]{--bg:#008080;--surface:#c0c0c0;--col:#c0c0c0;--card:#c0c0c0;--pop:#c0c0c0;--line:#808080;--text:#000;--muted:#404040;--accent:#000080;--accent-fg:#fff;--bevel-out:inset -1px -1px #0a0a0a,inset 1px 1px #fff,inset -2px -2px #808080,inset 2px 2px #dfdfdf;--bevel-in:inset -1px -1px #fff,inset 1px 1px #808080,inset -2px -2px #dfdfdf,inset 2px 2px #0a0a0a;--shadow:var(--bevel-out);--shadow-hover:var(--bevel-out);--radius-t:0px;--bw:0px;--font:Tahoma,"Segoe UI",Verdana,sans-serif;--heading-weight:700;--heading-track:0;--titlebar:linear-gradient(90deg,#000080,#1084d0)}
+[data-theme="retro95"][data-mode="dark"]{--bg:#0f3a3a;--surface:#2b2b2b;--col:#2b2b2b;--card:#333;--pop:#2b2b2b;--line:#555;--text:#e8e8e8;--muted:#a8a8a8;--accent:#6fa8ff;--accent-fg:#001233;--bevel-out:inset -1px -1px #000,inset 1px 1px #707070,inset -2px -2px #1b1b1b,inset 2px 2px #494949;--bevel-in:inset -1px -1px #707070,inset 1px 1px #1b1b1b,inset -2px -2px #494949,inset 2px 2px #000;--titlebar:linear-gradient(90deg,#1a1a5e,#2a56b8)}
+
+
+/* ================= camadas decorativas de fundo (#deco) =================
+   ::before = brilhos que derivam | ::after = grade/pontos | .d1 .d2 .d3 = camadas extras por tema
+   Controles do usuário: data-fx (liga/desliga), --fx-speed (0.5–2), --deco-o (intensidade 0–1). */
+#deco{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;opacity:var(--deco-o,1)}
+#deco i{position:absolute;display:none}
+#deco::before{content:"";position:absolute;inset:-25%;background:
+  radial-gradient(38% 38% at 18% 22%,var(--d1),transparent 70%),
+  radial-gradient(34% 34% at 82% 28%,var(--d2),transparent 70%),
+  radial-gradient(44% 44% at 52% 88%,var(--d3),transparent 70%);
+  animation:drift calc(26s / var(--fx-speed,1)) ease-in-out infinite alternate}
+#deco::after{content:"";position:absolute;inset:0;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px),radial-gradient(var(--dots) 1.5px,transparent 1.6px);
+  background-size:44px 44px,44px 44px,18px 18px;
+  -webkit-mask-image:radial-gradient(ellipse at 50% 30%,#000 30%,transparent 85%);mask-image:radial-gradient(ellipse at 50% 30%,#000 30%,transparent 85%)}
+@keyframes drift{0%{transform:translate3d(-3%,-2%,0) scale(1)}50%{transform:translate3d(3%,2%,0) scale(1.08)}100%{transform:translate3d(-2%,4%,0) scale(1.02)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes twinkle{from{opacity:.3}to{opacity:.95}}
+@keyframes grid-run{from{background-position:0 0,0 0,0 0}to{background-position:0 0,0 0,0 44px}}
+@keyframes lava1{to{transform:translate(24vmax,16vmax) scale(1.25)}}
+@keyframes lava2{to{transform:translate(-22vmax,12vmax) scale(.85)}}
+@keyframes lava3{to{transform:translate(14vmax,-20vmax) scale(1.2)}}
+
+[data-theme="brutal"] #deco::after,[data-theme="blueprint"] #deco::after{-webkit-mask-image:none;mask-image:none}
+
+/* Papel e Caderno: grão sutil de papel (estático) */
+[data-theme="paper"] #deco::after{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");background-size:160px;opacity:.07;-webkit-mask-image:none;mask-image:none}
+[data-theme="paper"][data-mode="dark"] #deco::after{opacity:.12;filter:invert(1)}
+
+/* Blueprint: malha fina por cima da grade principal */
+[data-theme="blueprint"] #deco .d1{display:block;inset:0;background-image:linear-gradient(var(--grid2) 1px,transparent 1px),linear-gradient(90deg,var(--grid2) 1px,transparent 1px);background-size:11px 11px}
+
+/* Terminal (escuro): linhas de varredura de monitor CRT (estáticas) */
+[data-theme="terminal"][data-mode="dark"] #deco .d1{display:block;inset:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px),radial-gradient(ellipse at 50% 40%,transparent 55%,rgba(0,0,0,.55))}
+
+/* Y2K: névoa iridescente girando devagar */
+[data-theme="y2k"] #deco::before{inset:-35%;background:conic-gradient(from 0deg at 35% 30%,#ff9de2,#9ee7ff,#d6b3ff,#fff3a8,#ff9de2);filter:blur(90px) saturate(1.25);opacity:.5;animation:spin calc(48s / var(--fx-speed,1)) linear infinite}
+[data-theme="y2k"][data-mode="dark"] #deco::before{background:conic-gradient(from 0deg at 35% 30%,#8a2cff,#ff2fa8,#00b4ff,#6a1bff,#8a2cff);opacity:.34;filter:blur(110px) saturate(1.4)}
+
+/* Vaporwave: sol listrado + grade em perspectiva */
+[data-theme="vaporwave"] #deco .d1{display:block;left:50%;bottom:7vh;width:min(46vmin,430px);aspect-ratio:1;transform:translateX(-50%);border-radius:50%;background:linear-gradient(180deg,#fff27a 0%,#ff71ce 55%,#b967ff 100%);-webkit-mask-image:linear-gradient(#000 0 52%,transparent 52% 56%,#000 56% 64%,transparent 64% 69%,#000 69% 76%,transparent 76% 82%,#000 82% 88%,transparent 88% 93%,#000 93%);mask-image:linear-gradient(#000 0 52%,transparent 52% 56%,#000 56% 64%,transparent 64% 69%,#000 69% 76%,transparent 76% 82%,#000 82% 88%,transparent 88% 93%,#000 93%);opacity:.7}
+[data-theme="vaporwave"] #deco .d2{display:block;left:-50%;right:-50%;bottom:0;height:42vh;background:linear-gradient(180deg,transparent,rgba(1,205,254,.18)),repeating-linear-gradient(90deg,rgba(185,103,255,.65) 0 1px,transparent 1px 70px),repeating-linear-gradient(0deg,rgba(185,103,255,.65) 0 1px,transparent 1px 44px);transform:perspective(380px) rotateX(62deg);transform-origin:50% 100%;-webkit-mask-image:linear-gradient(transparent,#000 45%);mask-image:linear-gradient(transparent,#000 45%);animation:grid-run calc(2.6s / var(--fx-speed,1)) linear infinite}
+[data-theme="vaporwave"] #deco::before{display:none}
+
+/* Galáxia: duas camadas de estrelas cintilando fora de fase */
+[data-theme="galaxia"] #deco .d1,[data-theme="galaxia"] #deco .d2{display:block;inset:0}
+[data-theme="galaxia"] #deco .d1{background-image:radial-gradient(1.6px 1.6px at 12px 18px,var(--star),transparent),radial-gradient(1.8px 1.8px at 88px 52px,var(--star),transparent),radial-gradient(1.5px 1.5px at 150px 120px,var(--star),transparent),radial-gradient(2px 2px at 40px 160px,var(--star),transparent),radial-gradient(1.5px 1.5px at 190px 20px,var(--star),transparent),radial-gradient(1.4px 1.4px at 120px 175px,var(--star),transparent);background-size:210px 190px;animation:twinkle calc(5s / var(--fx-speed,1)) ease-in-out infinite alternate}
+[data-theme="galaxia"] #deco .d2{background-image:radial-gradient(2.2px 2.2px at 60px 40px,var(--star),transparent),radial-gradient(1.6px 1.6px at 210px 150px,var(--star),transparent),radial-gradient(1.9px 1.9px at 130px 250px,var(--star),transparent),radial-gradient(1.5px 1.5px at 300px 90px,var(--star),transparent);background-size:340px 300px;animation:twinkle calc(7s / var(--fx-speed,1)) ease-in-out -3s infinite alternate}
+
+/* Lava: três bolhas desfocadas à deriva */
+[data-theme="lava"] #deco::before{display:none}
+[data-theme="lava"] #deco i{display:block;border-radius:50%;filter:blur(46px);width:46vmax;height:46vmax;will-change:transform}
+[data-theme="lava"] #deco .d1{left:-12vmax;top:-10vmax;background:radial-gradient(circle,var(--d1),transparent 68%);animation:lava1 calc(19s / var(--fx-speed,1)) ease-in-out infinite alternate}
+[data-theme="lava"] #deco .d2{right:-14vmax;top:12vmax;background:radial-gradient(circle,var(--d2),transparent 68%);animation:lava2 calc(23s / var(--fx-speed,1)) ease-in-out infinite alternate}
+[data-theme="lava"] #deco .d3{left:22vmax;bottom:-24vmax;background:radial-gradient(circle,var(--d3),transparent 68%);animation:lava3 calc(27s / var(--fx-speed,1)) ease-in-out infinite alternate}
+
+/* ---- controles de animação (efeitos de fundo x animações da interface) ---- */
+html[data-fx="off"] #deco::before,html[data-fx="off"] #deco::after,html[data-fx="off"] #deco i{animation:none!important}
+html[data-motion="off"] *,html[data-motion="off"] #deco::before,html[data-motion="off"] #deco::after{animation:none!important;transition:none!important}
+@media (prefers-reduced-motion:reduce){#deco::before,#deco::after,#deco i{animation:none!important}*{transition-duration:.01ms!important}}
+
+
+/* ================= detalhes de componentes por tema ================= */
+/* Suíço: caixa-alta e réguas */
+[data-theme="suico"] :is(.col-title,.th-btn){text-transform:uppercase;letter-spacing:.06em;font-weight:800}
+[data-theme="suico"] .column{border-top-width:3px}
+
+/* Caderno: post-its levemente tortos, cores alternadas */
+[data-theme="caderno"] .card{background:var(--n1)}
+[data-theme="caderno"] .card:nth-child(4n+2){background:var(--n2)}
+[data-theme="caderno"] .card:nth-child(4n+3){background:var(--n3)}
+[data-theme="caderno"] .card:nth-child(4n+4){background:var(--n4)}
+[data-theme="caderno"] .card:nth-child(odd){transform:rotate(-.35deg)}
+[data-theme="caderno"] .card:nth-child(even){transform:rotate(.45deg)}
+[data-theme="caderno"] .card:hover{transform:rotate(0) translateY(-2px)}
+[data-theme="caderno"] .col-title,[data-theme="caderno"] .brand{font-size:1.15em}
+
+/* Blueprint: contornos tracejados de projeto */
+[data-theme="blueprint"] :is(.card,.column,.input,.select,.textarea,.add-input,.kpi,.list-table){border-style:dashed}
+
+/* Vaporwave */
+[data-theme="vaporwave"] :is(.brand,.col-title,.th-btn){text-transform:uppercase;letter-spacing:.08em}
+[data-theme="vaporwave"] .btn.primary{background:linear-gradient(135deg,#ff71ce,#b967ff);border-color:transparent;color:#fff;text-shadow:0 1px 0 rgba(0,0,0,.2)}
+
+/* Y2K: botão cromado e cartão com borda iridescente */
+[data-theme="y2k"] .btn.primary{background:linear-gradient(180deg,#ff9bd8,var(--accent) 55%,#8a0f5a);border-color:rgba(255,255,255,.6);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.75),0 4px 14px rgba(255,62,165,.4)}
+[data-theme="y2k"] .card{border:1.5px solid transparent;background:linear-gradient(var(--pop),var(--pop)) padding-box,linear-gradient(135deg,#ff9de2,#9ee7ff,#d6b3ff) border-box}
+
+/* Lava */
+[data-theme="lava"] :is(.col-title,.brand){text-transform:uppercase;letter-spacing:.07em}
+[data-theme="lava"] .column{border-top:3px solid var(--accent)}
+
+/* Ouro */
+[data-theme="ouro"] .btn.primary{background:linear-gradient(180deg,#f2dc8a,#c9a227);border-color:#a8861b;color:#1a1405}
+[data-theme="ouro"] .column{border-top:2px solid #c9a227}
+[data-theme="ouro"] :is(.brand,.col-title,.kpi-v,.auth-card h1){font-feature-settings:"liga","kern"}
+
+/* Neon (escuro): brilho no texto de destaque */
+[data-theme="neon"][data-mode="dark"] :is(.brand,.col-title,.kpi-v){text-shadow:0 0 14px color-mix(in srgb,var(--accent) 55%,transparent)}
+
+/* Retrô 95: relevo, campos fundos e barras de título */
+[data-theme="retro95"] :is(.btn,.chip,.seg,.card,.column,.modal,.popover,.topbar,.list-table,.kpi,.att,.cal-grid,.toast,.auth-card,.swatch,.theme-tile .theme-name){box-shadow:var(--bevel-out)}
+[data-theme="retro95"] :is(.btn:active,.chip.on,.seg button.on){box-shadow:var(--bevel-in)}
+[data-theme="retro95"] :is(.input,.select,.textarea,.add-input,.search input,.cl-text:focus,.tags-edit){border:0;background:#fff;color:#000;box-shadow:var(--bevel-in)}
+[data-theme="retro95"][data-mode="dark"] :is(.input,.select,.textarea,.add-input,.search input,.tags-edit){background:#1a1a1a;color:#eee}
+[data-theme="retro95"] .col-head{background:var(--titlebar);color:#fff;margin:3px 3px 0;padding:5px 8px}
+[data-theme="retro95"] .col-head :is(.col-title,.col-count,.btn){color:#fff}
+[data-theme="retro95"] .col-count{background:rgba(255,255,255,.2)}
+[data-theme="retro95"] .col-dot{box-shadow:0 0 0 1px #fff}
+[data-theme="retro95"] .modal-head{background:var(--titlebar);color:#fff;margin:3px 3px 0;padding:6px 10px}
+[data-theme="retro95"] .modal-head .btn{color:#fff}
+[data-theme="retro95"] .tag,[data-theme="retro95"] .avatar{border-radius:0}
+[data-theme="retro95"] .card:hover{transform:none}
+[data-theme="retro95"] .seg{padding:3px}
+[data-theme="retro95"] .overlay{background:rgba(0,0,0,.35);backdrop-filter:none}
