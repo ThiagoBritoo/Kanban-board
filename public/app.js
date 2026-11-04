@@ -99,6 +99,7 @@ const THEMES = [
   ['comando', 'Comando', 'teclas e coral sobre preto', 'Minimalistas', false],
   ['editorial', 'Editorial', 'pergaminho e serifa', 'Minimalistas', false],
   ['estudio', 'Estúdio', 'fino, industrial', 'Minimalistas', false],
+  ['brasa', 'Brasa', 'pergaminho, tinta e âmbar', 'Minimalistas', false],
   ['suico', 'Suíço', 'réguas pretas, vermelho', 'Minimalistas', false],
   ['paper', 'Papel', 'calmo, com grão', 'Minimalistas', false],
   ['gelo', 'Gelo', 'azul glacial, arejado', 'Minimalistas', false],
@@ -108,6 +109,7 @@ const THEMES = [
   ['sunset', 'Sunset', 'gradiente quente', 'Suaves e coloridos', true],
   ['argila', 'Argila', '3D macio e tátil', 'Suaves e coloridos', false],
   ['adesivo', 'Adesivo', 'pastel e cores de adesivo', 'Suaves e coloridos', false],
+  ['limao', 'Limão', 'lima elétrica, cantos grandes', 'Suaves e coloridos', false],
   ['neon', 'Neon', 'cyber, contraste alto', 'Impactantes', false],
   ['brutal', 'Brutal', 'contorno grosso', 'Impactantes', false],
   ['lava', 'Lava', 'bolhas em movimento', 'Impactantes', true],
@@ -120,6 +122,9 @@ const THEMES = [
   ['retro95', 'Retrô 95', 'janelas com relevo', 'Únicos', false],
   ['ouro', 'Ouro', 'preto e dourado, serifa', 'Únicos', false],
   ['liquido', 'Líquido', 'P&B com brilho iridescente', 'Únicos', true],
+  ['galeria', 'Galeria', 'noturna, serifa leve', 'Únicos', false],
+  ['meialuz', 'Meia-luz', 'painéis claros e escuros', 'Únicos', false],
+  ['camara', 'Câmara Escura', 'breu quente, creme, tracejado', 'Únicos', false],
 ];
 const DEFAULT_PREFS = { theme: 'minimal', mode: 'system', accent: null, font: 'auto', radius: null, density: 'comfortable', motion: true, autoAssign: true, hideOldDone: true, view: 'board', bg: 'theme', bgUrl: '', notify: false,
   fx: true, fxSpeed: 100, fxIntensity: 100, cardStyle: 'theme', border: 'theme', shadow: 'theme', size: 'normal' };
@@ -889,6 +894,18 @@ function openSettings(tab = 'look') {
   draw();
 }
 
+const themeFilterState = { q: '', fx: 'all' };
+function filterThemes(field, patch) {
+  Object.assign(themeFilterState, patch);
+  const words = norm(themeFilterState.q).split(/\s+/).filter(Boolean);
+  let shown = 0;
+  field.querySelectorAll('.theme-tile').forEach((t) => {
+    const ok = words.every((w) => t.dataset.search.includes(w)) && (themeFilterState.fx === 'all' || (themeFilterState.fx === 'fx') === (t.dataset.fx === '1'));
+    t.classList.toggle('hidden', !ok); if (ok) shown++;
+  });
+  field.querySelectorAll('.theme-group').forEach((g) => g.classList.toggle('hidden', !g.querySelector('.theme-tile:not(.hidden)')));
+  field.querySelector('.theme-empty').classList.toggle('hidden', shown > 0);
+}
 function viewLook() {
   const p = S.prefs, mode = resolvedMode();
   const seg = (key, opts) => h('div', { class: 'seg' }, opts.map(([v, l]) => h('button', { type: 'button', class: p[key] === v ? 'on' : '', onclick: () => setPrefs({ [key]: v }) }, l)));
@@ -896,12 +913,16 @@ function viewLook() {
   const swatchColors = ['#6366f1', '#2563eb', '#0ea5e9', '#14b8a6', '#22c55e', '#eab308', '#f97316', '#ef4444', '#ec4899', '#a855f7'];
   return h('div', { class: 'modal-body' },
     h('div', { class: 'field' }, h('label', null, `Tema (${THEMES.length})`),
-      h('div', { class: 'theme-tools' }, h('button', { class: 'btn sm', onclick: () => { const others = THEMES.filter((t) => t[0] !== p.theme); setPrefs({ theme: others[Math.floor(Math.random() * others.length)][0] }); } }, 'Surpreenda-me'),
-        h('span', { class: 'help' }, 'Todos têm modo claro e escuro. “Animado” = tem efeito de fundo (dá para desligar ou ajustar abaixo).')),
-      [...new Set(THEMES.map((t) => t[3]))].map((cat) => h('div', null, h('div', { class: 'theme-cat' }, cat),
-        h('div', { class: 'theme-grid' }, THEMES.filter((t) => t[3] === cat).map(([id, name, sub, , fx]) => h('button', { class: 'theme-tile' + (p.theme === id ? ' on' : ''), dataset: { theme: id, mode }, title: name, onclick: () => setPrefs({ theme: id }) },
+      h('div', { class: 'theme-tools' },
+        h('input', { class: 'input', style: { maxWidth: '220px' }, placeholder: 'Buscar tema…', type: 'search', 'aria-label': 'Buscar tema', oninput: (e) => filterThemes(e.target.closest('.field'), { q: e.target.value }) }),
+        h('div', { class: 'seg theme-filter' }, [['all', 'Todos'], ['fx', 'Animados'], ['static', 'Estáticos']].map(([k, l]) => h('button', { type: 'button', class: k === 'all' ? 'on' : '', onclick: (e) => { const f = e.target.closest('.field'); f.querySelectorAll('.theme-filter button').forEach((b) => b.classList.toggle('on', b === e.target)); filterThemes(f, { fx: k }); } }, l))),
+        h('button', { class: 'btn sm', onclick: () => { const others = THEMES.filter((t) => t[0] !== p.theme); setPrefs({ theme: others[Math.floor(Math.random() * others.length)][0] }); } }, 'Surpreenda-me')),
+      h('span', { class: 'help' }, 'Todos têm modo claro e escuro. “Animado” = tem efeito de fundo (dá para desligar ou ajustar abaixo).'),
+      [...new Set(THEMES.map((t) => t[3]))].map((cat) => h('div', { class: 'theme-group' }, h('div', { class: 'theme-cat' }, cat),
+        h('div', { class: 'theme-grid' }, THEMES.filter((t) => t[3] === cat).map(([id, name, sub, , fx]) => h('button', { class: 'theme-tile' + (p.theme === id ? ' on' : ''), dataset: { theme: id, mode, search: norm(name + ' ' + sub + ' ' + cat), fx: fx ? '1' : '0' }, title: name, onclick: () => setPrefs({ theme: id }) },
           h('div', { class: 'theme-prev' }, h('i', null, h('b'), h('b')), h('i', null, h('b'), h('b'), h('b')), h('i', null, h('b'))),
-          h('div', { class: 'theme-name' }, h('b', null, name, fx && h('span', { class: 'fx-badge' }, 'animado')), h('span', null, sub)))))))),
+          h('div', { class: 'theme-name' }, h('b', null, name, fx && h('span', { class: 'fx-badge' }, 'animado')), h('span', null, sub))))))),
+      h('div', { class: 'help theme-empty hidden' }, 'Nenhum tema encontrado.')),
     h('div', { class: 'row' },
       h('div', { class: 'field' }, h('label', null, 'Modo'), seg('mode', [['light', 'Claro'], ['dark', 'Escuro'], ['system', 'Sistema']])),
       h('div', { class: 'field' }, h('label', null, 'Densidade'), seg('density', [['compact', 'Compacta'], ['comfortable', 'Normal'], ['roomy', 'Ampla']]))),
