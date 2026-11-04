@@ -1,0 +1,8 @@
+{
+  "name": "kanban-board",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Kanban da empresa: Supabase (login, banco, tempo real) + front estático",
+  "type": "module",
+  "scripts": { "start": "node scripts/serve.js" }
+}
