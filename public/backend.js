@@ -19,7 +19,11 @@
   };
   const unwrap = ({ data, error }) => { if (error) throw new Error(friendly(error)); return data; };
   const ts = (v) => (v ? Date.parse(v) : null);
-  const toTask = (r) => ({ ...r, created_at: ts(r.created_at), updated_at: ts(r.updated_at), completed_at: ts(r.completed_at) });
+  const toTask = (r) => ({ ...r, created_at: ts(r.created_at), updated_at: ts(r.updated_at), completed_at: ts(r.completed_at), checklist: Array.isArray(r.checklist) ? r.checklist : [] });
+  const cleanChecklist = (arr) => {
+    if (!Array.isArray(arr)) throw new Error('Checklist inválido');
+    return arr.slice(0, 50).map((i) => ({ text: String((i && i.text) || '').trim().slice(0, 200), done: !!(i && i.done) })).filter((i) => i.text);
+  };
   const cleanLabels = (arr) => {
     if (!Array.isArray(arr)) throw new Error('Etiquetas inválidas');
     const seen = new Set(), out = [];
@@ -38,8 +42,8 @@
   const routes = [
     ['GET', /^\/api\/board$/, async () => {
       const [c, t, u] = await Promise.all([
-        sb.from('board_columns').select('id,name,position,kind').order('position').order('id'),
-        sb.from('tasks').select('*').order('position').order('id').limit(5000),
+        sb.from('board_columns').select('id,name,position,kind,color').order('position').order('id'),
+        sb.from('tasks').select('*').is('deleted_at', null).order('position').order('id').limit(5000),
         sb.from('profiles').select('id,name,email,role,color,approved').eq('approved', true).order('created_at'),
       ]);
       return { columns: unwrap(c), tasks: unwrap(t).map(toTask), users: unwrap(u) };
@@ -50,6 +54,7 @@
       const row = { title, column_id: body.column_id };
       for (const k of ['description', 'diary', 'assignee_id', 'priority', 'due_date']) if (body[k] !== undefined) row[k] = body[k];
       if (body.labels) row.labels = cleanLabels(body.labels);
+      if (body.checklist) row.checklist = cleanChecklist(body.checklist);
       return toTask(unwrap(await sb.from('tasks').insert(row).select().single()));
     }],
     ['PATCH', /^\/api\/tasks\/(\d+)$/, async ({ m, body }) => {
@@ -57,11 +62,15 @@
       for (const k of ['title', 'description', 'diary', 'assignee_id', 'priority', 'due_date']) if (k in body) patch[k] = body[k];
       if ('title' in patch) { patch.title = String(patch.title).trim(); if (!patch.title) throw new Error('Título é obrigatório'); }
       if ('labels' in body) patch.labels = cleanLabels(body.labels);
+      if ('checklist' in body) patch.checklist = cleanChecklist(body.checklist);
       return toTask(unwrap(await sb.from('tasks').update(patch).eq('id', Number(m[1])).select().single()));
     }],
     ['POST', /^\/api\/tasks\/(\d+)\/move$/, async ({ m, body }) => unwrap(await sb.rpc('move_task', { p_task: Number(m[1]), p_column: Number(body.column_id), p_before: body.before_id ?? null }))],
     ['POST', /^\/api\/tasks\/(\d+)\/worked$/, async ({ m }) => unwrap(await sb.rpc('log_worked', { p_task: Number(m[1]) }))],
-    ['DELETE', /^\/api\/tasks\/(\d+)$/, async ({ m }) => unwrap(await sb.from('tasks').delete().eq('id', Number(m[1])))],
+    // exclusão vai para a lixeira (dá para desfazer); nada é apagado de verdade
+    ['DELETE', /^\/api\/tasks\/(\d+)$/, async ({ m }) => unwrap(await sb.from('tasks').update({ deleted_at: new Date().toISOString() }).eq('id', Number(m[1])))],
+    ['POST', /^\/api\/tasks\/(\d+)\/restore$/, async ({ m }) => unwrap(await sb.from('tasks').update({ deleted_at: null }).eq('id', Number(m[1])))],
+    ['POST', /^\/api\/tasks\/(\d+)\/comments$/, async ({ m, body }) => unwrap(await sb.rpc('add_comment', { p_task: Number(m[1]), p_text: String(body.text || '') }))],
     ['GET', /^\/api\/tasks\/(\d+)\/events$/, async ({ m }) => unwrap(await sb.from('events').select('id,type,data,at,user_id,profiles(name)').eq('task_id', Number(m[1])).order('id', { ascending: false }).limit(50))
       .map((e) => ({ id: e.id, type: e.type, data: e.data, user_id: e.user_id, user_name: e.profiles && e.profiles.name, at: ts(e.at) }))],
 
@@ -74,6 +83,7 @@
       const id = Number(m[1]), patch = {};
       if ('name' in body) { patch.name = String(body.name).trim(); if (!patch.name) throw new Error('Nome é obrigatório'); }
       if ('kind' in body) patch.kind = body.kind;
+      if ('color' in body) patch.color = body.color || null;
       if (Object.keys(patch).length) unwrap(await sb.from('board_columns').update(patch).eq('id', id));
       if (body.dir === -1 || body.dir === 1) unwrap(await sb.rpc('move_column', { p_id: id, p_dir: body.dir }));
       return { ok: true };

@@ -1,0 +1,114 @@
+// API Supabase FALSA em memória, só para testar a interface (não é o banco real).
+const crypto = require('crypto');
+const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+module.exports = function makeFake() {
+  const uid = 'aaaaaaaa-0000-0000-0000-000000000001', uid2 = 'bbbbbbbb-0000-0000-0000-000000000002';
+  const db = {
+    profiles: [
+      { id: uid, name: 'Thiago', email: 't@x.com', role: 'admin', approved: true, color: '#6366f1', prefs: {}, created_at: '2026-01-01T00:00:00Z' },
+      { id: uid2, name: 'Maria', email: 'm@x.com', role: 'member', approved: true, color: '#ec4899', prefs: {}, created_at: '2026-01-02T00:00:00Z' },
+    ],
+    board_columns: [['A fazer', 'todo'], ['Em andamento', 'doing'], ['Revisão', 'doing'], ['Concluído', 'done']].map(([name, kind], i) => ({ id: i + 1, name, position: i, kind, color: null })),
+    tasks: [], events: [], nextTask: 1, nextEv: 1, calls: [],
+  };
+  const now = () => new Date().toISOString();
+  const ev = (task_id, user_id, type, data = {}) => db.events.push({ id: db.nextEv++, task_id, user_id, type, data, at: now() });
+  const col = (id) => db.board_columns.find((c) => c.id === id);
+  const parseFilters = (q) => {
+    const f = [];
+    for (const [k, v] of q.entries()) {
+      if (['select', 'order', 'limit', 'offset', 'on_conflict', 'columns'].includes(k)) continue;
+      const m = /^(eq|is)\.(.*)$/.exec(v); if (m) f.push([k, m[1], m[2]]);
+    }
+    return f;
+  };
+  const test = (row, [k, op, val]) => op === 'is' ? (val === 'null' ? row[k] == null : row[k] === (val === 'true')) : String(row[k]) === val;
+  const filt = (rows, q) => rows.filter((r) => parseFilters(q).every((f) => test(r, f)));
+  const order = (rows, q) => {
+    const o = q.get('order'); if (!o) return rows;
+    const keys = o.split(',').map((p) => p.split('.'));
+    return [...rows].sort((a, b) => { for (const [k, d] of keys) { if (a[k] < b[k]) return d === 'desc' ? 1 : -1; if (a[k] > b[k]) return d === 'desc' ? -1 : 1; } return 0; });
+  };
+  const insertTask = (b, user) => {
+    const id = db.nextTask++;
+    const k = col(b.column_id);
+    const t = { description: '', diary: '', assignee_id: null, priority: 1, due_date: null, labels: [], checklist: [], deleted_at: null, completed_at: k.kind === 'done' ? now() : null, ...b, id, creator_id: user,
+      position: Math.max(-1, ...db.tasks.filter((x) => x.column_id === b.column_id).map((x) => x.position)) + 1, created_at: now(), updated_at: now() };
+    db.tasks.push(t); ev(id, user, 'created', { column: k.name }); if (t.assignee_id) ev(id, user, 'assigned', { to: t.assignee_id }); return t;
+  };
+  const patchTask = (t, b, user) => {
+    const before = JSON.stringify([t.title, t.description, t.diary, t.priority, t.due_date, t.labels, t.checklist]);
+    if ('assignee_id' in b && b.assignee_id !== t.assignee_id) ev(t.id, user, 'assigned', { to: b.assignee_id });
+    Object.assign(t, b, { updated_at: now() });
+    if (JSON.stringify([t.title, t.description, t.diary, t.priority, t.due_date, t.labels, t.checklist]) !== before) {
+      const last = db.events.filter((e) => e.task_id === t.id).pop();
+      if (last && last.type === 'edited' && last.user_id === user) last.at = now(); else ev(t.id, user, 'edited');
+    }
+  };
+  const rpc = (fn, a, user) => {
+    if (fn === 'move_task') {
+      const t = db.tasks.find((x) => x.id === a.p_task); const to = col(a.p_column);
+      if (t.column_id !== a.p_column) {
+        ev(t.id, user, 'moved', { from: col(t.column_id).name, to: to.name, kind: to.kind });
+        t.completed_at = to.kind === 'done' ? now() : null;
+        if (to.kind === 'doing' && !t.assignee_id) { t.assignee_id = user; ev(t.id, user, 'assigned', { to: user }); }
+        t.column_id = a.p_column;
+      }
+      const arr = db.tasks.filter((x) => x.column_id === a.p_column && x.id !== t.id && !x.deleted_at).sort((p, q) => p.position - q.position || p.id - q.id);
+      let i = a.p_before ? arr.findIndex((x) => x.id === a.p_before) : -1; if (i < 0) i = arr.length; arr.splice(i, 0, t); arr.forEach((x, k) => (x.position = k)); return null;
+    }
+    if (fn === 'add_comment') { if (!a.p_text.trim()) throw { code: 'P0001', message: 'Comentário inválido (1 a 2000 caracteres)' }; ev(a.p_task, user, 'comment', { text: a.p_text.trim() }); return null; }
+    if (fn === 'log_worked') { ev(a.p_task, user, 'worked'); return null; }
+    if (fn === 'move_column') { const arr = [...db.board_columns].sort((x, y) => x.position - y.position); const i = arr.findIndex((c) => c.id === a.p_id), j = i + a.p_dir; if (j >= 0 && j < arr.length) { [arr[i], arr[j]] = [arr[j], arr[i]]; arr.forEach((c, k) => (c.position = k)); } return null; }
+    if (fn === 'diary') {
+      const f = Date.parse(a.p_from), to = Date.parse(a.p_to); const out = []; const seen = new Set();
+      for (const t of db.tasks.filter((x) => !x.deleted_at)) {
+        const es = db.events.filter((e) => e.task_id === t.id && Date.parse(e.at) >= f && Date.parse(e.at) <= to && (a.p_team || e.user_id === user));
+        if (es.length) { seen.add(t.id); out.push({ id: t.id, title: t.title, diary: t.diary, column_name: col(t.column_id).name, kind: col(t.column_id).kind, first_at: es[0].at, source: 'activity' }); }
+      }
+      if (a.p_doing) for (const t of db.tasks.filter((x) => !x.deleted_at && col(x.column_id).kind === 'doing' && x.assignee_id === user && !seen.has(x.id))) out.push({ id: t.id, title: t.title, diary: t.diary, column_name: col(t.column_id).name, kind: 'doing', first_at: t.created_at, source: 'doing' });
+      return out;
+    }
+    throw { code: '42883', message: 'função desconhecida ' + fn };
+  };
+
+  const jwt = (u) => `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: u.id, email: u.email, role: 'authenticated', aud: 'authenticated', exp: Math.floor(Date.now() / 1000) + 3600 })}.sig`;
+  const userObj = (p) => ({ id: p.id, aud: 'authenticated', role: 'authenticated', email: p.email, app_metadata: {}, user_metadata: { name: p.name }, created_at: p.created_at });
+  const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*', 'access-control-expose-headers': '*' };
+
+  async function handle(route) {
+    const req = route.request(), url = new URL(req.url()), m = req.method();
+    if (m === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    const send = (status, body, extra = {}) => route.fulfill({ status, headers: { ...cors, 'content-type': 'application/json', ...extra }, body: body === undefined ? '' : JSON.stringify(body) });
+    const p = url.pathname;
+    try {
+      if (p.startsWith('/auth/v1/token')) {
+        const b = JSON.parse(req.postData() || '{}'); const u = db.profiles.find((x) => x.email === b.email);
+        if (!u || b.password !== 'senha123') return send(400, { code: 400, error_code: 'invalid_credentials', msg: 'Invalid login credentials', message: 'Invalid login credentials' });
+        const exp = Math.floor(Date.now() / 1000) + 3600;
+        return send(200, { access_token: jwt(u), token_type: 'bearer', expires_in: 3600, expires_at: exp, refresh_token: 'r' + u.id, user: userObj(u) });
+      }
+      if (p.startsWith('/auth/v1/user')) { const h = req.headers().authorization || ''; const sub = JSON.parse(Buffer.from(h.split('.')[1] || 'e30', 'base64url').toString() || '{}').sub; const u = db.profiles.find((x) => x.id === sub) || db.profiles[0]; return send(200, userObj(u)); }
+      if (p.startsWith('/auth/v1/logout')) return send(204);
+      if (!p.startsWith('/rest/v1/')) return send(404, { message: 'x' });
+      const auth = req.headers().authorization || ''; const sub = JSON.parse(Buffer.from((auth.split('.')[1]) || 'e30', 'base64url').toString() || '{}').sub || uid;
+      const name = p.replace('/rest/v1/', ''); const q = url.searchParams; const wantObj = /vnd\.pgrst\.object/.test(req.headers().accept || '');
+      const body = req.postData() ? JSON.parse(req.postData()) : null;
+      db.calls.push(`${m} ${name}${url.search ? '?' + url.search.slice(1, 80) : ''}`);
+      const out = (rows) => wantObj ? (rows.length === 1 ? send(200, rows[0]) : send(406, { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned', details: `The result contains ${rows.length} rows` })) : send(200, rows);
+      if (name.startsWith('rpc/')) { try { const r = rpc(name.slice(4), body || {}, sub); return send(200, r); } catch (e) { return send(400, { code: e.code || 'P0001', message: e.message }); } }
+      if (name === 'events' && m === 'GET') { const rows = order(filt(db.events, q), q).map((e) => ({ ...e, profiles: { name: (db.profiles.find((x) => x.id === e.user_id) || {}).name } })); return out(q.get('limit') ? rows.slice(0, Number(q.get('limit'))) : rows); }
+      const table = db[name]; if (!table) return send(404, { message: 'tabela ' + name });
+      if (m === 'GET') { let rows = order(filt(table, q), q); if (q.get('limit')) rows = rows.slice(0, Number(q.get('limit'))); return out(rows); }
+      if (m === 'POST' && name === 'tasks') return send(201, insertTask(body, sub));
+      if (m === 'POST' && name === 'board_columns') { const c = { id: db.board_columns.length + 10, position: db.board_columns.length, color: null, kind: 'todo', ...body }; db.board_columns.push(c); return send(201, c); }
+      if (m === 'PATCH') {
+        const rows = filt(table, q); rows.forEach((r) => (name === 'tasks' ? patchTask(r, body, sub) : Object.assign(r, body)));
+        return out(rows);
+      }
+      if (m === 'DELETE') return send(204);
+      return send(405, { message: 'nao suportado' });
+    } catch (e) { return send(500, { message: String(e && e.message || e) }); }
+  }
+  return { db, handle, uid, uid2 };
+};
