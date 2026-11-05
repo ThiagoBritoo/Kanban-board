@@ -119,7 +119,7 @@ void main(){
     W = Math.max(64, Math.round(innerWidth * s)); H = Math.max(64, Math.round(innerHeight * s));
     if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
     if (gcv && glOk) { const g = Math.min(1.5, window.devicePixelRatio || 1) * 0.75; gcv.width = Math.max(64, Math.round(innerWidth * g)); gcv.height = Math.max(64, Math.round(innerHeight * g)); }
-    streaks = []; parts = []; inkReset = true;
+    streaks = []; parts = []; inkReset = true; hole = null;
     draw((performance.now() - t0) / 1000, 0.033);
   }
   const fill = (c) => { ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = rgba(c, 1); ctx.fillRect(0, 0, W, H); };
@@ -140,27 +140,66 @@ void main(){
     }
   }
 
-  // ---------- Grid Hole: grade que é sugada por um buraco que segue o mouse
-  function gridhole(t) {
-    const c = cfg, bg = c.bgc; fill(bg);
-    const hx = (0.5 + (mx - 0.5) * 0.9) * W, hy = (0.5 + (my - 0.5) * 0.9) * H + Math.sin(t * 0.2 * c.sp) * H * 0.03;
-    const R = Math.min(W, H) * 0.13 * (0.7 + c.amt * 0.3), reach = Math.min(W, H) * 0.75;
-    const step = Math.max(14, Math.round(Math.min(W, H) / (14 * c.amt ** 0.4))), off = (t * 6 * c.sp) % step;
-    const warp = (x, y) => { const dx = x - hx, dy = y - hy, d = Math.hypot(dx, dy) || 1, pull = Math.exp(-d / (reach * 0.35)) * 0.92, nd = Math.max(R * 0.55, d * (1 - pull) + (d < R * 3 ? 0 : 0));
-      return [hx + (dx / d) * nd, hy + (dy / d) * nd, 1 - Math.min(1, d / reach)]; };
-    ctx.lineWidth = 1; const seg = 6;
-    const line = (x0, y0, x1, y1) => {
-      const n = Math.max(2, Math.round(Math.hypot(x1 - x0, y1 - y0) / seg)); let px, py, pg;
-      for (let i = 0; i <= n; i++) {
-        const [x, y, g] = warp(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n);
-        if (i) { ctx.strokeStyle = rgba(mix(c.c1, c.c2, g), 0.18 + g * 0.62); ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(x, y); ctx.stroke(); }
-        px = x; py = y; pg = g;
-      }
-    };
-    for (let x = -step + off; x < W + step; x += step) line(x, -step, x, H + step);
-    for (let y = -step + off; y < H + step; y += step) line(-step, y, W + step, y);
-    const g = ctx.createRadialGradient(hx, hy, R * 0.4, hx, hy, R * 1.9); g.addColorStop(0, rgba(bg, 1)); g.addColorStop(0.5, rgba(bg, 0.95)); g.addColorStop(0.62, rgba(c.c2, 0.55)); g.addColorStop(1, rgba(c.c2, 0));
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(hx, hy, R * 1.9, 0, 6.3); ctx.fill();
+  // ---------- Grid Hole: funil visto de cima. Anéis elípticos fluem para dentro do buraco (espaçamento exponencial),
+  // linhas radiais curvas, túnel recortado, partículas subindo em leque, vinheta e brilho embaixo.
+  let hole = null;
+  function holeBuild() {
+    const c = cfg, N = 80, A = { x: W * 0.5, y: H * 0.45, w: W * 0.75, h: H * 0.7 }, B = { y: H * 0.95 };
+    const at = (p) => ({ x: A.x, y: A.y + (B.y - A.y) * (p === 0 ? 0 : Math.pow(2, 10 * (p - 1))), w: A.w * (1 - p), h: A.h * (1 - p) });
+    // o anel de menor "fundo" define a boca do túnel (elipse + retângulo acima do centro)
+    let mouth = at(0), prev = H;
+    for (let i = 0; i < N; i++) { const d = at(i / N); if (d.y + d.h <= prev) mouth = d; prev = d.y + d.h; }
+    const clip = new Path2D(); clip.ellipse(mouth.x, mouth.y, mouth.w, mouth.h, 0, 0, 6.2832); clip.rect(mouth.x - mouth.w, 0, mouth.w * 2, mouth.y);
+    // linhas radiais: percorrem os anéis parados; fora da boca ficam inteiras, dentro dela são recortadas
+    const off = document.createElement('canvas'); off.width = W; off.height = H; const o = off.getContext('2d');
+    const L = 80, ring = []; for (let i = 0; i < N; i++) ring.push(at(i / N));
+    o.strokeStyle = rgba(c.c1, 1); o.lineWidth = Math.max(1, W / 1200); o.lineJoin = o.lineCap = 'round';
+    const poly = (pts) => { if (pts.length < 2) return; o.beginPath(); o.moveTo(pts[0][0], pts[0][1]); for (let j = 1; j < pts.length; j++) o.lineTo(pts[j][0], pts[j][1]); o.stroke(); };
+    for (let k = 0; k < L; k++) {
+      const an = (k / L) * 6.2832, pts = ring.map((d) => [d.x + Math.cos(an) * d.w, d.y + Math.sin(an) * d.h]);
+      let enter = -1; for (let j = 1; j < pts.length; j++) if (o.isPointInPath(clip, pts[j][0], pts[j][1]) || o.isPointInStroke(clip, pts[j][0], pts[j][1])) { enter = j; break; }
+      if (enter < 0) { poly(pts); continue; }
+      poly(pts.slice(0, enter + 1)); o.save(); o.clip(clip); poly(pts.slice(enter)); o.restore();
+    }
+    const area = { sw: mouth.w * 0.5, ew: mouth.w * 2, h: H * 0.85 }; area.sx = (W - area.sw) / 2; area.ex = (W - area.ew) / 2;
+    hole = { at, mouth, clip, off, area, parts: null };
+  }
+  function holePart(start) {
+    const a = hole.area, sx = a.sx + a.sw * rnd(), ex = a.ex + a.ew * rnd();
+    return { sx, dx: ex - sx, y: start ? a.h * rnd() : a.h, vy: (0.5 + rnd()) * 0.6, r: (0.5 + rnd() * 4) * 0.6, al: 0.15 + rnd() * 0.85 };
+  }
+  function gridhole(t, dt) {
+    const c = cfg, bg = c.bgc, dark = lum(bg) < 0.5; if (!hole) holeBuild();
+    fill(bg); ctx.save(); ctx.translate((mx - 0.5) * W * 0.03, 0);
+    const base = dark ? 0.3 : 0.4, lw = Math.max(1, W / 1200);
+    // linhas radiais (já desenhadas) e anéis em movimento
+    ctx.globalAlpha = base; ctx.drawImage(hole.off, 0, 0); ctx.globalAlpha = 1;
+    ctx.strokeStyle = rgba(c.c1, base * 1.5); ctx.lineWidth = lw;
+    const N = 80, ph = (t * 0.06 * c.sp) % 1, m = hole.mouth;
+    for (let i = 0; i < N; i += 5) {
+      const d = hole.at((i / N + ph) % 1), inner = d.w < m.w - 5;
+      if (inner) { ctx.save(); ctx.clip(hole.clip); }
+      ctx.beginPath(); ctx.ellipse(d.x, d.y, Math.max(0.1, d.w), Math.max(0.1, d.h), 0, 0, 6.2832); ctx.stroke(); if (inner) ctx.restore();
+    }
+    ctx.beginPath(); const A = hole.at(0); ctx.ellipse(A.x, A.y, A.w, A.h, 0, 0, 6.2832); ctx.stroke();
+    // partículas sobem do fundo do funil e abrem em leque
+    const want = Math.round(300 * c.amt * qual * (W * H) / (1000 * 600)), n = Math.max(40, Math.min(600, want));
+    if (!hole.parts) hole.parts = [];
+    while (hole.parts.length < n) hole.parts.push(holePart(true)); hole.parts.length = n;
+    ctx.save(); ctx.clip(hole.clip);
+    for (let i = 0; i < n; i++) {
+      const q = hole.parts[i], p = 1 - q.y / hole.area.h; q.y -= q.vy * 60 * c.sp * dt;
+      if (q.y < 0) { hole.parts[i] = holePart(false); continue; }
+      ctx.fillStyle = rgba(dark ? mix(c.c2, [255, 255, 255], 0.35) : c.c2, q.al * (dark ? 0.9 : 0.8));
+      ctx.beginPath(); ctx.arc(q.sx + q.dx * p, q.y, q.r / 2 + 0.2, 0, 6.2832); ctx.fill();
+    }
+    ctx.restore(); ctx.restore();
+    // vinheta (apaga as bordas) e brilho do fundo do buraco
+    const vg = ctx.createRadialGradient(W * 0.5, H * 0.55, Math.min(W, H) * 0.12, W * 0.5, H * 0.55, Math.max(W, H) * 0.75);
+    vg.addColorStop(0, rgba(bg, 0)); vg.addColorStop(0.7, rgba(bg, 0.8)); vg.addColorStop(1, rgba(bg, 1)); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+    ctx.save(); ctx.translate(W * 0.5, H * 0.78); ctx.scale(1, 0.55); const gg = ctx.createRadialGradient(0, 0, 0, 0, 0, W * 0.5);
+    gg.addColorStop(0, rgba(c.c2, dark ? 0.5 : 0.28)); gg.addColorStop(1, rgba(c.c2, 0)); ctx.globalCompositeOperation = dark ? 'lighter' : 'source-over'; ctx.fillStyle = gg; ctx.fillRect(-W, -H * 2, W * 2, H * 4); ctx.restore();
+    ctx.globalCompositeOperation = 'source-over';
   }
 
   // ---------- Ink Flow Field: partículas seguem um campo de fluxo e deixam rastros de tinta
@@ -240,7 +279,7 @@ void main(){
       const bgc = rgb(p.fxBg || '#05060f');
       cfg = { type, bgc, c1: rgb(p.fxC1 || '#7c9cff'), c2: rgb(p.fxC2 || '#ff5fd2'), sp: Math.max(0.05, (p.fxSp ?? 100) / 100), amt: Math.max(0.2, (p.fxAmt ?? 100) / 100),
         animate: p.fx !== false && p.motion !== false };
-      qual = 1; ema = 0; streaks = []; parts = []; inkReset = true; seed = 7; resize(); stop();
+      qual = 1; ema = 0; streaks = []; parts = []; inkReset = true; hole = null; seed = 7; resize(); stop();
       if (!animated()) for (let i = 0; i < (cfg.type === 'ink' ? 260 : 3); i++) draw(i / 30, 0.033); // quadro estático já "desenvolvido"
       run();
     },
