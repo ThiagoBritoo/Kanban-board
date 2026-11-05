@@ -1064,13 +1064,13 @@ function openTask(id) {
           onkeydown: (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.target.blur(); } }, // Enter confirma; Shift+Enter quebra linha
           onchange: (e) => { const v = e.target.value.trim(); if (!v) items.splice(idx, 1); else it.text = v; drawCl(); saveCl(); } }),
         h('button', { class: 'btn ghost icon sm', title: 'Remover item', 'aria-label': 'Remover item', onclick: () => { items.splice(idx, 1); drawCl(); saveCl(); } }, icon('x')))),
-      items.length < 150 && h('input', { class: 'input cl-add', placeholder: '+ Adicionar item (Enter) · ou cole uma lista', maxLength: 2000,
+      items.length < 300 && h('input', { class: 'input cl-add', placeholder: '+ Adicionar item (Enter) · ou cole uma lista', maxLength: 2000,
         onpaste: (e) => {
           const list = parseChecklistText((e.clipboardData || window.clipboardData).getData('text'));
           if (list.length < 2) return; // um item só: cola normal
           e.preventDefault();
-          const room = 150 - items.length, add = list.slice(0, room); items.push(...add); drawCl(); saveCl();
-          toast(`${add.length} ite${add.length > 1 ? 'ns adicionados' : 'm adicionado'}${list.length > room ? ' (limite de 150)' : ''}`);
+          const room = 300 - items.length, add = list.slice(0, room); items.push(...add); drawCl(); saveCl();
+          toast(`${add.length} ite${add.length > 1 ? 'ns adicionados' : 'm adicionado'}${list.length > room ? ' (limite de 300)' : ''}`);
           const n = clBox.querySelector('.cl-add'); n && n.focus();
         },
         onkeydown: (e) => {
