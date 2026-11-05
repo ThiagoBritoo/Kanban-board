@@ -67,5 +67,10 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   ok(Math.max(...hs) > 60 && Math.min(...hs) < 40, 'o campo do item cresce conforme o texto (alturas ' + Math.min(...hs) + '–' + Math.max(...hs) + 'px)');
   await p.locator('textarea.cl-text').nth(0).fill('primeira linha\nsegunda linha'); await p.locator('textarea.cl-text').nth(0).blur(); await p.waitForTimeout(500);
   ok((await p.evaluate(() => KBApp.S.tasks.find((t) => t.title === 'Task para edição').checklist[0].text)) === 'primeira linha\nsegunda linha', 'editar item com quebra de linha mantém a quebra');
+  // limite de 150 itens
+  const cento = Array.from({ length: 120 }, (_, i) => '- item ' + i).join('\n');
+  await paste(cento); await p.waitForTimeout(700);
+  const n = await p.evaluate(() => KBApp.S.tasks.find((t) => t.title === 'Task para edição').checklist.length);
+  ok(n > 100 && n <= 150, 'checklist passa de 50 itens (agora ' + n + ', limite 150)');
   await b.close(); srv.close(); process.exit(fails ? 1 : 0);
 })();
