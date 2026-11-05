@@ -101,11 +101,13 @@ Regra daqui em diante: **abrir a página do componente**, olhar as variantes, an
 - Itens listados na home: Globe, **Kanban board**, Fluted glass, Mac screen, Analytics chart, Folded card, Merging bubbles,
   Circuit board, Security checkpoint, Apple Watch Ultra, Collab toolbar, Shadow card, Dynamic Island, mockups de dispositivos.
 - Separado, existe "AI SDK Agents" (150+ blocos full-stack, compra única 💲) — produto diferente.
-- **Uso:** referência de cards/estatísticas/kanban; copiar ideia, não dependência.
+- **Acesso por MCP:** não tem MCP próprio; usa o **MCP do shadcn** (`npx shadcn@latest mcp`) + registro `@cult-ui` em `components.json` (guia: https://www.cult-ui.com/docs/mcp-server). Sem `npx`: `curl https://www.cult-ui.com/r/<nome>.json` traz o código.
+- **Uso:** referência de cards/estatísticas/kanban/Timer/Dynamic Island/Border Beam/Halo; copiar ideia, não dependência (não rodar `shadcn add` sem React/Tailwind).
 
-### OriginKit — https://www.originkit.dev ⚠️
-- Só consegui ler o título ("Free animated component library for modern websites"); o conteúdo é renderizado no cliente.
-  Sua nota: 50 componentes MIT, inseridos por MCP, chave grátis com 10 consultas/dia — **não verificado agora**.
+### OriginKit — https://www.originkit.dev ✅ (via MCP; o site dá 503 daqui)
+- Biblioteca de componentes animados (React/Tailwind), com **MCP** (`https://mcp.originkit.dev/mcp`, chave em `ORIGINKIT_API_KEY`). Plano Free: **3 `get`/dia** (`list`/`search` grátis; 15/hora = pausa de 4 h).
+- Lido de verdade em 05/11/2026: **Lightfall** (shader WebGL), **Grid Hole** (Canvas 2D, funil), **Ink Flow Field** (fluido WebGL) — código em `docs/originkit-cache/`. Faltam Vertical Parallax e Pulsating Border.
+- **Uso:** recriar o efeito com código próprio (ver `docs/PROCESSO_COMPONENTES.md`).
 
 ### "shadcn expanded" ⚠️
 - Não existe com esse nome. Candidatos (não verificados agora): shadcnui-expansions, shadcn-vue extended, shadcn extension (BelkacemYerfa).
@@ -282,6 +284,6 @@ Total hoje: **34 temas** (todos claro + escuro), 5 vistas (Quadro, Lista, Calend
 ## 8. Limitações desta consulta (04/11/2026)
 
 - A ferramenta de leitura de páginas da sessão não alcançava os sites; li via `curl` (sem disfarçar User-Agent). Tentar disfarçar foi bloqueado pelo sistema, com razão.
-- OriginKit, os 3 "shadcn expanded" e a página do shadcn extension **não** foram lidos.
+- Os 3 "shadcn expanded" e a página do shadcn extension **não** foram lidos. (OriginKit foi lido depois, via MCP; ver acima.)
 - Shader Gradient: só o README no GitHub (o site é SPA).
 - Preços/limites de Skiper UI, Cult UI e OriginKit mudam: confirme antes de depender.
