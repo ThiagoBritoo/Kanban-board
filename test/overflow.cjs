@@ -66,7 +66,12 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   for (let i = 0; i < views; i++) { await p.locator('.topbar .seg button').nth(i).click(); await p.waitForTimeout(400); await run('vista' + i); await shot('vista' + i + '-' + W); }
   await p.locator('.topbar .seg button').first().click(); await p.waitForTimeout(300);
   // modal da task
-  await p.locator('.card').first().click(); await p.waitForSelector('.modal'); await p.waitForTimeout(300); await run('modal-task'); await shot('modal-' + W); await p.keyboard.press('Escape'); await p.waitForTimeout(250);
+  await p.locator('.card').first().click(); await p.waitForSelector('.modal'); await p.waitForTimeout(300);
+  await p.fill('.cl-add', LONG); await p.press('.cl-add', 'Enter'); await p.waitForTimeout(250);
+  await p.fill('textarea[placeholder^="Detalhes"]', LONG + ' ' + LONG); await p.locator('textarea[placeholder^="Detalhes"]').blur(); await p.waitForTimeout(200);
+  await p.fill('input[placeholder^="Digite e Enter"]', 'etiquetamuitolongasemespacosparaestourar' + LONG.slice(0, 30)).catch(() => {}); await p.press('input[placeholder^="Digite e Enter"]', 'Enter').catch(() => {}); await p.waitForTimeout(200);
+  await p.fill('textarea[placeholder^="Escrever"]', LONG); await p.press('textarea[placeholder^="Escrever"]', 'Control+Enter'); await p.waitForTimeout(400);
+  await run('modal-task'); await shot('modal-' + W); await p.keyboard.press('Escape'); await p.waitForTimeout(250);
   // palette e diario
   await p.keyboard.press('Control+k'); await p.waitForTimeout(250); await run('paleta'); await p.keyboard.press('Escape'); await p.waitForTimeout(200);
   // personalizar: todas as abas
