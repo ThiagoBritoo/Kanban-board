@@ -6,7 +6,7 @@ Use cores, tipografia e espaçamento do design system; derive campos, textos e e
 ## Como o projeto funciona
 - Site estático em `public/` (HTML/CSS/JS puro, sem build) + Supabase (login, banco com RLS, tempo real, storage). Deploy: Vercel a cada merge na `main`.
 - Banco: `supabase/migrations/` (rodar em ordem). Só migrações **aditivas**; nunca quebrar o que já está em produção.
-- Temas: `public/themes.css` (cada tema tem claro e escuro). Núcleo: `public/app.js`; vistas: `views.js`; fundo WebGL: `shader.js`.
+- Temas: `public/themes.css` (cada tema tem claro e escuro). Núcleo: `public/app.js`; vistas: `views.js`; fundo WebGL: `shader.js`, `terrain.js` (fundo Canvas 2D).
 
 ## Como verificar (obrigatório antes de dar por pronto)
 ```bash
@@ -21,4 +21,5 @@ Olhe as capturas (claro e escuro, desktop e celular). O teste usa uma API falsa:
 - Não confie só em código: abra a tela (Playwright) e olhe.
 - Contraste mínimo: texto/pop 7:1, apoio 3,5:1, texto do botão sobre o acento 4,5:1 — nos dois modos.
 - Sem animações pulsando; saídas mais sutis que as entradas; respeitar `prefers-reduced-motion`.
+- Ao usar biblioteca de componentes (OriginKit, Cult UI, Skiper UI) abra a **página do componente** (variantes e controles), não só a home do site, e reproduza o *efeito* com código próprio.
 - Não disfarçar User-Agent nem contornar proteção de site ao pesquisar referências (use `scripts/browse-sites.cjs`).

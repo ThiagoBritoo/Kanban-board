@@ -178,6 +178,10 @@
 [data-theme="hud"]{--bg:#eaf7fa;--surface:rgba(234,247,250,.92);--col:rgba(255,255,255,.5);--card:#fff;--pop:#fff;--line:rgba(0,140,160,.5);--text:#052a33;--muted:#3d7480;--accent:#007c91;--accent-fg:#fff;--shadow:0 0 #0000;--shadow-hover:0 0 0 1px #007c91;--radius-t:2px;--grid:rgba(0,124,145,.07);--font:"JetBrains Mono",ui-monospace,Menlo,monospace;--font-h:Orbitron,"JetBrains Mono",monospace;--fs:13.5px;--heading-weight:600;--heading-track:.04em}
 [data-theme="hud"][data-mode="dark"]{--bg:#020b14;--surface:rgba(2,11,20,.9);--col:rgba(0,255,255,.03);--card:rgba(0,20,32,.85);--pop:#031522;--line:rgba(0,230,255,.45);--text:#d9fbff;--muted:#7ec8d6;--accent:#19f0ff;--accent-fg:#00222a;--shadow:0 0 14px rgba(25,240,255,.1);--shadow-hover:0 0 0 1px #19f0ff,0 0 20px rgba(25,240,255,.3);--grid:rgba(25,240,255,.06)}
 
+/* 34. Topografia — curvas de nível em perspectiva (terreno de arame), inspirada no Wire Terrain do OriginKit. Animado. */
+[data-theme="topografia"]{--bg:#f1ecdf;--surface:rgba(241,236,223,.82);--col:rgba(255,252,244,.62);--card:#fffaf0;--pop:#fffaf0;--line:rgba(74,90,76,.35);--text:#26302a;--muted:#566559;--accent:#bf4a28;--accent-fg:#fff;--shadow:0 1px 0 rgba(60,70,50,.08),0 4px 14px rgba(60,70,50,.1);--shadow-hover:0 1px 0 rgba(60,70,50,.12),0 10px 24px rgba(60,70,50,.16);--radius-t:6px;--blur:6px;--font:"Space Grotesk",Inter,system-ui,sans-serif;--heading-weight:600;--heading-track:-.01em}
+[data-theme="topografia"][data-mode="dark"]{--bg:#050403;--surface:rgba(8,5,4,.78);--col:rgba(255,255,255,.04);--card:rgba(24,16,12,.88);--pop:#1a120d;--line:rgba(255,90,30,.3);--text:#f6ece6;--muted:#b99d90;--accent:#ff5a1f;--accent-fg:#1a0600;--shadow:0 0 0 1px rgba(255,90,30,.12),0 8px 24px rgba(0,0,0,.55);--shadow-hover:0 0 0 1px rgba(255,90,30,.45),0 12px 30px rgba(0,0,0,.6)}
+
 /* ================= camadas decorativas de fundo (#deco) =================
    ::before = brilhos que derivam | ::after = grade/pontos | .d1 .d2 .d3 = camadas extras por tema
    Controles do usuário: data-fx (liga/desliga), --fx-speed (0.5–2), --deco-o (intensidade 0–1). */

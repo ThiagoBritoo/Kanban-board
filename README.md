@@ -50,13 +50,13 @@ Também serve Cloudflare Pages ou Netlify: conecte este repositório. **Sem coma
 - **Arrastar** cards entre colunas; no celular, abra o card e troque o *Status*.
 - **Gerar diário**: bullets do que você criou, moveu, editou, comentou ou marcou com *Trabalhei hoje* (mais suas tasks em andamento). Períodos: Hoje, Ontem, Semana (com o dia como título) ou um dia à escolha.
   O campo *Texto para o diário* da task define como a linha aparece.
-- **Personalizar** (paleta): **33 temas** (minimalistas, suaves, impactantes e únicos), todos com claro/escuro/sistema; os animados têm um selo e dá para desligar o fundo animado, ajustar velocidade e intensidade. Também: fundo (gradientes, imagem https ou **shader WebGL** com tipo, cores, velocidade, força e grão), cor de destaque, fonte, cantos, densidade, estilo dos cartões (sólido/vidro/contorno/dobrado), bordas, sombras e tamanho do texto. Cor por coluna no menu `⋯` da coluna. Segue a sua conta.
+- **Personalizar** (paleta): **34 temas** (minimalistas, suaves, impactantes e únicos), todos com claro/escuro/sistema; os animados têm um selo e dá para desligar o fundo animado, ajustar velocidade e intensidade. Também: fundo (gradientes, imagem https, **terreno de arame** ou **shader WebGL** com tipo, cores, velocidade, força e grão), cor de destaque, fonte, cantos, densidade, estilo dos cartões (sólido/vidro/contorno/dobrado), bordas, sombras e tamanho do texto. Cor por coluna no menu `⋯` da coluna. Segue a sua conta.
 - **Instalar no celular**: abra o site no Chrome/Safari e use *Adicionar à tela inicial*.
 - Atalhos: `N` nova task · `/` buscar · `Esc` fecha.
 
 ## Estrutura
 
-- `public/` site estático: `themes.css` (os 33 temas e efeitos de fundo), `shader.js` (fundo WebGL), `island.js` (ilha do cronômetro), `app.js` (núcleo), `views.js` (lista, calendário, resumo, exportar), `palette.js`, `touch.js`, `backend.js` (camada Supabase), `app.css` (temas)
+- `public/` site estático: `themes.css` (os 33 temas e efeitos de fundo), `shader.js` (fundo WebGL), `terrain.js` (terreno de arame), `island.js` (ilha do cronômetro), `app.js` (núcleo), `views.js` (lista, calendário, resumo, exportar), `palette.js`, `touch.js`, `backend.js` (camada Supabase), `app.css` (temas)
 - `vercel.json` cabeçalhos de segurança (CSP etc.); `public/_headers` é o equivalente para Netlify/Cloudflare
 - `supabase/migrations/` esquema, RLS, gatilhos de histórico e funções (rode na ordem, no SQL Editor, num projeto novo)
 - `CLAUDE.md` + `docs/DESIGN.md` design system do projeto (o `CLAUDE.md` manda ler o DESIGN.md antes de mexer na interface) · `scripts/browse-sites.cjs` abre sites num Chromium para a IA "ver" referências · `docs/REFERENCIAS_DESIGN.md` referências e o que foi aplicado de cada uma

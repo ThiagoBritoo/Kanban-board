@@ -533,3 +533,7 @@ html[data-fx="off"] .sk,html[data-motion="off"] .sk{animation:none}
 .netbar .btn{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.4);color:#fff}
 .state-error{margin:48px auto;max-width:420px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;padding:28px;border:var(--bw) dashed var(--line);border-radius:calc(var(--radius) + 6px)}
 .state-error svg{width:28px;height:28px;color:var(--p3)}.state-error p{margin:0;color:var(--muted)}
+
+/* terreno de arame */
+#terrainbg{position:absolute;inset:0;width:100%;height:100%;display:block}
+html[data-terrain="on"] #deco::before,html[data-terrain="on"] #deco::after,html[data-terrain="on"] #deco i{display:none}

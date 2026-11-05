@@ -36,6 +36,17 @@ Dica do próprio Refero: `CLAUDE.md` com `@docs/DESIGN.md` (já criado neste rep
 - **Cult UI**: cartões com **zona de conteúdo em cima, linha fina e rodapé** de metadados em caixa-alta miúda; muito respiro. → virou a anatomia do cartão do Kanban (rótulos à esquerda, indicadores + dono à direita, separados por linha fina).
 - **OriginKit**: **barra lateral** com categorias e **contadores**, abas no topo, grade de prévias (805 componentes: Background 295, Interactive 132, Animations 102, Text 91…). → virou a barra lateral de filtros do Kanban.
 
+### Erro de método (corrigido em 05/11/2026): olhar os **componentes**, não só a página
+Nos sites de biblioteca (OriginKit, Cult UI, Skiper UI) o valor está nos **componentes**, não no layout do site. Eu tinha lido só a home de cada um.
+Regra daqui em diante: **abrir a página do componente**, olhar as variantes, anotar os **controles** (cores, sliders) e reproduzir o *efeito*, não o site.
+- **OriginKit → Wire Terrain** (`/components/wire-terrain`, variantes `/02` `/03` `/04`): paisagem 3D em perspectiva feita de **linhas de nível**, com sol, névoa, rolagem para a frente e parallax no hover.
+  Variantes vistas: (1) carvão + laranja, (2) synthwave com vale em arame, grade e sol listrado, (3) papel creme com curvas de nível verdes e vermelhas e sol terracota gigante, (4) terreno de pontos.
+  Controles do original: *Background, Line Color, Accent, Density, Speed, Relief, Sun Size, Camera Height, Hover, Interval*.
+  → recriado do zero em Canvas 2D (`public/terrain.js`) com **os mesmos controles**, 4 presets e o tema **Topografia**. Teste: `test/terrain.cjs`.
+- **Fila de candidatos do OriginKit** (nomes lidos na barra "Similar Components"; vale abrir cada um antes de decidir): Accretion Disc (1–4), Acrylic Pour, Aetherglint, Aetherloom,
+  Wave Ribbons, Wind Pyre, Wire Throat, Wireframe Globe, Wireframe Terrain Noise, Purple Wireframe Room, Glowing Sphere, Wobbling Lattice Sphere, Twisting Vortex, Twinkling Particle Orb.
+  Categorias do site: Background 295 · Interactive Elements 132 · Animations 102 · Text 91 · Image 43 · Button 29 · Loader 28 · Cursor 24 · Image Gallery 50 · Games 7 · Border 4.
+
 ### Guias do Refero que viraram regra (https://styles.refero.design/ai-agents/…)
 - **settings-page-design-prompts**: *agrupe preferências rotineiras separadas das arriscadas; mostre valores atuais, comportamento de salvar e confirmação/desfazer* → Personalizar em 5 grupos, "Salvo automaticamente" e **Restaurar padrões com desfazer**.
 - **dashboard-design-prompts**: *mostre estados de carregando, vazio e erro* → esqueleto de carregamento, estados vazios nos blocos do Painel, **tela de erro com "tentar de novo"** e faixa **"sem conexão"**.
@@ -191,7 +202,7 @@ Y2K (cromado, bolhas) · Memphis · E-Ink/Paper · Anti-Polish/Raw (rotação al
 
 ---
 
-## 6. O que foi construído no Kanban a partir disso (33 temas, todos com claro + escuro)
+## 6. O que foi construído no Kanban a partir disso (34 temas, todos com claro + escuro)
 
 Arquivo: `public/themes.css`. Selo **animado** = tem efeito de fundo (liga/desliga, velocidade e intensidade nas preferências).
 
@@ -215,6 +226,7 @@ Arquivo: `public/themes.css`. Selo **animado** = tem efeito de fundo (liga/desli
 | | **Blueprint** | HUD/planta técnica (cianotipia / azul clássico) |
 | | Terminal · **Retrô 95** | Terminal-Core + scanlines · janelas com relevo |
 | | **HUD** | UI UX Pro Max (HUD/FUI) — linhas finas, colchetes nos cantos, ciano |
+| | **Topografia** ⚡ | OriginKit (Wire Terrain) — curvas de nível em 3D, sol e névoa |
 | | **Ouro** | Luxo `#1C1917/#A16207` + dourado, serifa |
 | | **Líquido** ⚡ | monopo (Refero) — P&B, pílulas, brilho iridescente |
 | | **Galeria** | Origin Financial (Refero) — `#090a0b`, serifa em peso 300, réguas `#847dff` `#00b3dd` `#dd90d8` |
@@ -235,9 +247,9 @@ Arquivo: `public/themes.css`. Selo **animado** = tem efeito de fundo (liga/desli
 | **Awesome Claude Design** | Famílias estéticas como mapa para escolher temas; *anti-slop kit* como regras do `docs/DESIGN.md` (faixa à esquerda do card só para prioridade; máx. 2 níveis de aninhamento; sem acento ciano padrão; sem indicador pulsando). | `docs/DESIGN.md` |
 | **taste (Hmbown)** | Processo, não código: **aterrar no artefato real** (li as páginas e DESIGN.md em vez de lembrar de cabeça), **checagem pré-entrega** (contraste por script, 49 verificações de interface, folha de contato visual) e "produzir só o que a ocasião pede". | checklist em `docs/DESIGN.md` |
 | **Refero Styles** | 10 temas com tokens lidos nas páginas (Comando, Editorial, Estúdio, Adesivo, Líquido, Brasa, Limão, Galeria, Meia-luz, Câmara Escura). | `themes.css` |
-| **OriginKit** ⚠️ | **Não aplicado**: o site é renderizado no cliente e nada ficou legível por `curl`. Se você me passar um componente específico, eu replico a ideia. | — |
+| **OriginKit** | **Wire Terrain** recriado (4 variantes, mesmos controles) como fundo "Terreno" e tema **Topografia**; barra lateral com contadores (do layout do site). | `public/terrain.js` · `themes.css` |
 
-Total hoje: **33 temas** (todos claro + escuro), 5 vistas (Quadro, Lista, Calendário, Painel + paleta), fundo shader e 5 estilos de cartão.
+Total hoje: **34 temas** (todos claro + escuro), 5 vistas (Quadro, Lista, Calendário, Painel + paleta), fundo shader e 5 estilos de cartão.
 
 ### Como extrair tokens de um estilo do Refero (receita)
 1. Abra `https://styles.refero.design` e copie o link de um estilo (`/style/<uuid>`); as páginas `/ai-agents/design-md-examples` listam vários.
