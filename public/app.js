@@ -1060,7 +1060,16 @@ function openTask(id) {
         h('input', { type: 'checkbox', checked: it.done, 'aria-label': 'Concluir item', onchange: (e) => { it.done = e.target.checked; drawCl(); saveCl(); } }),
         h('input', { class: 'cl-text', value: it.text, maxLength: 200, onchange: (e) => { const v = e.target.value.trim(); if (!v) items.splice(idx, 1); else it.text = v; drawCl(); saveCl(); } }),
         h('button', { class: 'btn ghost icon sm', title: 'Remover item', 'aria-label': 'Remover item', onclick: () => { items.splice(idx, 1); drawCl(); saveCl(); } }, icon('x')))),
-      items.length < 50 && h('input', { class: 'input cl-add', placeholder: '+ Adicionar item (Enter)', maxLength: 200, onkeydown: (e) => {
+      items.length < 50 && h('input', { class: 'input cl-add', placeholder: '+ Adicionar item (Enter) · ou cole uma lista', maxLength: 200,
+        onpaste: (e) => {
+          const list = parseChecklistText((e.clipboardData || window.clipboardData).getData('text'));
+          if (list.length < 2) return; // um item só: cola normal
+          e.preventDefault();
+          const room = 50 - items.length, add = list.slice(0, room); items.push(...add); drawCl(); saveCl();
+          toast(`${add.length} ite${add.length > 1 ? 'ns adicionados' : 'm adicionado'}${list.length > room ? ' (limite de 50)' : ''}`);
+          const n = clBox.querySelector('.cl-add'); n && n.focus();
+        },
+        onkeydown: (e) => {
         if (e.key === 'Enter' && e.target.value.trim()) { e.preventDefault(); items.push({ text: e.target.value.trim(), done: false }); drawCl(); saveCl(); const n = clBox.querySelector('.cl-add'); n && n.focus(); }
       } }));
     clBox.querySelectorAll('.btn svg').forEach((v) => Object.assign(v.style, { width: '14px', height: '14px' }));
@@ -1433,6 +1442,15 @@ function tokenBox() {
   return h('div', { class: 'field' }, h('label', null, 'Acesso por API (IA / VS Code)'),
     h('div', { class: 'help' }, 'Crie tasks de fora do Runtime (ex.: pela IA no VS Code) com um token pessoal.'), list,
     h('div', null, h('button', { class: 'btn sm', onclick: gen }, icon('plus'), 'Gerar token')));
+}
+// transforma texto colado (marcadores *, -, •, 1., [ ] ou uma linha por item) em itens de checklist
+function parseChecklistText(text) {
+  return String(text || '').split(/\r?\n/).map((l) => {
+    let done = false;
+    let t = l.replace(/^\s*(?:[-*•·–—▪◦‣]+|\d+[.)])\s+/, '');
+    t = t.replace(/^\[([ xX]?)\]\s*/, (_, c) => { done = /x/i.test(c); return ''; }).trim();
+    return { text: t.slice(0, 200), done };
+  }).filter((i) => i.text);
 }
 function viewAccount() {
   const name = h('input', { class: 'input', value: S.me.name, maxLength: 80 });

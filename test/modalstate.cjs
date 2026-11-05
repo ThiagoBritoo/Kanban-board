@@ -43,5 +43,18 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   ok((await p.inputValue('textarea[placeholder^="Escrever"]')) === 'comentario ainda nao enviado', 'comentário digitado sobrevive à atualização');
   ok((await p.inputValue('textarea[placeholder^="Detalhes"]')) === 'descricao em edicao', 'descrição em edição sobrevive à atualização');
   ok((await p.inputValue('.cl-add')) === 'item em digitacao', 'item de checklist em digitação sobrevive');
+  // colar lista no checklist
+  const paste = (txt) => p.evaluate((txt) => { const i = document.querySelector('.cl-add'); const dt = new DataTransfer(); dt.setData('text', txt); i.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); }, txt);
+  await paste('Implementação do modo escuro no mapa.\n\n* Investigação de falhas no módulo de abastecimento relacionadas ao envio de registros sem imagem.\n* Implementação de uma tela de aviso para informar quando o abastecimento ainda não foi sincronizado com o Supabase.');
+  await p.waitForTimeout(500);
+  const itens = () => p.evaluate(() => [...document.querySelectorAll('.cl-item, .checklist .item, .cl-row')].length);
+  const t1 = await p.evaluate(() => KBApp.S.tasks.find((t) => t.title === 'Task para edição').checklist.map((i) => i.text));
+  ok(t1.length === 3 && t1[0].startsWith('Implementação do modo escuro') && t1[1].startsWith('Investigação') && !t1[1].startsWith('*'), 'colar bullets cria 3 itens do checklist: ' + t1.length);
+  await paste('1. primeiro\n2) segundo\n- [x] terceiro feito\n[ ] quarto');
+  await p.waitForTimeout(500);
+  const t2 = await p.evaluate(() => KBApp.S.tasks.find((t) => t.title === 'Task para edição').checklist);
+  ok(t2.length === 7 && t2[3].text === 'primeiro' && t2[5].done === true && t2[5].text === 'terceiro feito', 'numeração, [x] e [ ] são entendidos (' + t2.length + ' itens)');
+  await paste('uma linha só');
+  ok((await p.evaluate(() => KBApp.S.tasks.find((t) => t.title === 'Task para edição').checklist.length)) === 7, 'colar uma linha só não cria item sozinho (cola normal)');
   await b.close(); srv.close(); process.exit(fails ? 1 : 0);
 })();
