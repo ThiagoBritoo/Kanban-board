@@ -84,5 +84,13 @@ estrutura: barra lateral com contadores, modal da task em 2 colunas, cartão com
 - Refero: estilos ainda não transformados em tema (Warp, Prisma, Vercel, Perplexity, Brex, Freitag, B&O, Reflect…).
 - Primeira abertura **real** das versões novas no site de produção ainda não foi vista por mim (só por testes com API falsa e capturas).
 
+## 9b. Sessão de 05/11 (noite): correções e acabamento — o que mudou e como conferir
+- **Sessão/login:** `start()` tenta ler a sessão até 3× (só se há token guardado no `localStorage`) e `api()` tenta renovar o token e repetir antes de deslogar (`KB.refresh()` em `backend.js`). Se mesmo assim o Thiago cair no login ao trocar celular↔desktop: no iPhone o app instalado (tela inicial) e o Safari têm armazenamento **separado**; e cada aparelho/navegador tem a sua própria sessão (é esperado). E-mail do último login fica preenchido.
+- **Personalizar → Tema:** filtro Animados/Estáticos e busca persistem ao escolher tema (`themeFilterState` não é mais zerado em `viewLook`).
+- **Palavras estourando:** `body{overflow-wrap:break-word}`, toast, descrição do cartão, chips da barra, calendário no celular, sliders, abas/segmentos do Personalizar; lista no celular vira linhas empilhadas; topo ≤900 px sem rótulos nos botões. Ferramenta: `node test/overflow.cjs <largura>` (varre quadro, vistas, modais, Personalizar, toast) e `test/overflow-themes.cjs` (43 temas × claro/escuro).
+- **Bug do quadro:** a cada atualização (tempo real, mover etc.) o quadro voltava para a 1ª coluna (`el.focus()` rolava); agora `focus({preventScroll:true})` e a rolagem é lida antes de redesenhar. `test/scrollstate.cjs` confere.
+- **Novidades:** filtro por prioridade (barra lateral + paleta), tecla `?` (atalhos), Duplicar no menu do cartão, **Lixeira** (Mais → Lixeira; `GET /api/trash` + restaurar), números que rolam, indicador de soltura, abas com direção, desfoque progressivo nas colunas (`public/polish.js`).
+- **Testes novos:** `regress.cjs`, `overflow.cjs`, `overflow-themes.cjs`, `scrollstate.cjs`, `modalstate.cjs`, `polish.cjs`, `tour.cjs`, `island.cjs`, `authshots.cjs`. Cache SW atual: ver `public/sw.js`.
+
 ## 10. Mapa de documentos
 `AGENTS.md` (entrada; `CLAUDE.md` só importa ele) · `docs/HANDOFF.md` (este) · `docs/DESIGN.md` (design system) · `docs/PROCESSO_COMPONENTES.md` (**playbook portátil**: do componente de referência ao código próprio) · `docs/REFERENCIAS_DESIGN.md` (referências, o que foi aplicado de cada, como a IA vê sites) · `docs/originkit-cache/` (código do OriginKit já baixado) · `README.md` (uso) · `supabase/migrations/` · `test/` · `scripts/browse-sites.cjs`.

@@ -1,6 +1,6 @@
 // Service worker "rede primeiro": sempre tenta a versão nova; o cache só serve se estiver sem internet.
 // Só mexe em arquivos do próprio site (nunca em chamadas ao Supabase).
-const CACHE = 'kanban-v17';
+const CACHE = 'kanban-v21';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));

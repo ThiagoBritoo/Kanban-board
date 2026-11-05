@@ -18,11 +18,12 @@ module.exports = function makeFake() {
     const f = [];
     for (const [k, v] of q.entries()) {
       if (['select', 'order', 'limit', 'offset', 'on_conflict', 'columns'].includes(k)) continue;
+      const nm = /^not\.is\.(.*)$/.exec(v); if (nm) { f.push([k, 'notis', nm[1]]); continue; }
       const m = /^(eq|is)\.(.*)$/.exec(v); if (m) f.push([k, m[1], m[2]]);
     }
     return f;
   };
-  const test = (row, [k, op, val]) => op === 'is' ? (val === 'null' ? row[k] == null : row[k] === (val === 'true')) : String(row[k]) === val;
+  const test = (row, [k, op, val]) => op === 'notis' ? !(val === 'null' ? row[k] == null : row[k] === (val === 'true')) : op === 'is' ? (val === 'null' ? row[k] == null : row[k] === (val === 'true')) : String(row[k]) === val;
   const filt = (rows, q) => rows.filter((r) => parseFilters(q).every((f) => test(r, f)));
   const order = (rows, q) => {
     const o = q.get('order'); if (!o) return rows;

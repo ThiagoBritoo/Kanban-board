@@ -419,7 +419,8 @@ function renderAuth(mode = 'login') {
   const signup = mode === 'signup', forgot = mode === 'forgot';
   const err = h('div', { class: 'err-msg' }), info = h('div', { class: 'help' });
   const name = h('input', { class: 'input', placeholder: 'Seu nome', autocomplete: 'name' });
-  const email = h('input', { class: 'input', type: 'email', placeholder: 'voce@empresa.com', autocomplete: 'username' });
+  let lastEmail = ''; try { lastEmail = localStorage.getItem('kb-email') || ''; } catch { /* ok */ }
+  const email = h('input', { class: 'input', type: 'email', placeholder: 'voce@empresa.com', autocomplete: 'username', value: signup ? '' : lastEmail });
   const pass = h('input', { class: 'input', type: 'password', placeholder: signup ? 'Mínimo 6 caracteres' : 'Senha', autocomplete: signup ? 'new-password' : 'current-password' });
   const go = (m) => h('button', { type: 'button', class: 'btn ghost sm', onclick: () => renderAuth(m) });
   const submit = async (e) => {
@@ -430,7 +431,7 @@ function renderAuth(mode = 'login') {
         if (!name.value.trim()) throw new Error('Informe seu nome');
         const r = await KB.signUp(name.value, email.value, pass.value);
         if (r.needsConfirm) { info.textContent = 'Conta criada! Confirme seu e-mail (veja a caixa de entrada) e depois entre.'; return; }
-      } else await KB.signIn(email.value, pass.value);
+      } else { await KB.signIn(email.value, pass.value); try { localStorage.setItem('kb-email', email.value.trim()); } catch { /* ok */ } }
       await start();
     } catch (x) { err.textContent = x.message; }
   };
@@ -478,6 +479,7 @@ function moreMenu() {
     'hr',
     { label: 'Resumo da equipe', icon: 'chart', onClick: () => A.openSummary && A.openSummary() },
     { label: 'Atividade recente', icon: 'pulse', onClick: () => A.openActivity && A.openActivity() },
+    { label: 'Lixeira (restaurar excluídas)', icon: 'trash', onClick: () => openTrash() },
     'hr',
     { label: 'Exportar tasks (CSV)', icon: 'download', onClick: () => A.exportCsv && A.exportCsv() },
     { label: 'Backup completo (JSON)', icon: 'download', onClick: () => A.exportJson && A.exportJson() },
@@ -605,6 +607,7 @@ function renderSkeleton() {
 }
 function renderBoard() {
   const board = $('#board'); if (!board) return;
+  const sx = board.scrollLeft; // lido antes de qualquer redesenho (senão o quadro volta para a 1ª coluna a cada atualização)
   renderToolbar(); renderSidebar(); syncViewSeg(); window.KBApp.updateIsland && window.KBApp.updateIsland();
   const view = S.prefs.view || 'board';
   if (view !== 'board' && window.KBApp.views[view]) {
@@ -614,7 +617,7 @@ function renderBoard() {
     return;
   }
   board.className = 'board';
-  const keep = { x: board.scrollLeft, y: {} };
+  const keep = { x: sx, y: {} };
   board.querySelectorAll('.col-body').forEach((b) => { keep.y[b.parentElement.dataset.id] = b.scrollTop; });
   const fa = document.activeElement;
   const focusCol = fa && fa.classList && fa.classList.contains('add-input') ? { id: fa.dataset.col, pos: fa.selectionStart } : null;
@@ -627,7 +630,7 @@ function renderBoard() {
 
   board.scrollLeft = keep.x;
   board.querySelectorAll('.col-body').forEach((b) => { const y = keep.y[b.parentElement.dataset.id]; if (y) b.scrollTop = y; });
-  if (focusCol) { const el = board.querySelector(`.add-input[data-col="${focusCol.id}"]`); if (el) { el.focus(); try { el.setSelectionRange(focusCol.pos, focusCol.pos); } catch { /* ok */ } } }
+  if (focusCol) { const el = board.querySelector(`.add-input[data-col="${focusCol.id}"]`); if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(focusCol.pos, focusCol.pos); } catch { /* ok */ } } }
   S.seen = new Set(S.tasks.map((t) => t.id));
 }
 
@@ -721,9 +724,22 @@ function cardMenu(t) {
     { label: 'Abrir', icon: 'edit', onClick: () => openTask(t.id) },
     mine ? { label: 'Soltar (ficar sem dono)', icon: 'x', onClick: guard(async () => { upsertTask(await api('PATCH', `/api/tasks/${t.id}`, { assignee_id: null })); renderBoard(); }) }
       : { label: 'Pegar pra mim', icon: 'take', onClick: guard(async () => { upsertTask(await api('PATCH', `/api/tasks/${t.id}`, { assignee_id: S.me.id })); renderBoard(); toast('Task é sua'); }) },
+    { label: 'Duplicar', icon: 'copy', onClick: guard(async () => {
+      const n = await api('POST', '/api/tasks', { title: (t.title.slice(0, 288) + ' (cópia)'), column_id: t.column_id, description: t.description, diary: t.diary, priority: t.priority, due_date: t.due_date, assignee_id: t.assignee_id, labels: t.labels, checklist: (t.checklist || []).map((i) => ({ text: i.text, done: false })) });
+      upsertTask(n); renderBoard(); toast('Task duplicada');
+    }) },
     'hr', ...S.columns.map((c) => ({ label: 'Mover para ' + c.name, checked: c.id === t.column_id, onClick: guard(() => c.id === t.column_id ? null : moveTask(t.id, c.id, null)) })),
     'hr', { label: 'Excluir', icon: 'trash', danger: true, onClick: guard(() => deleteTask(t)) },
   ];
+}
+async function openTrash() {
+  const list = h('div', { class: 'trash-list' }, h('div', { class: 'help' }, 'Carregando…'));
+  const close = openModal([modalHead('Lixeira', () => close()), h('div', { class: 'modal-body' }, h('div', { class: 'help' }, 'Tasks excluídas ficam aqui para você restaurar (as 60 mais recentes).'), list)]);
+  const row = (r, rows) => h('div', { class: 'trash-row' },
+    h('div', { class: 'trash-info' }, h('div', { class: 'trash-title' }, r.title), h('div', { class: 'help' }, `${(colById(r.column_id) || { name: 'coluna removida' }).name} · excluída em ${fmtTime(r.deleted_at)}`)),
+    h('button', { class: 'btn sm', onclick: guard(async () => { await api('POST', `/api/tasks/${r.id}/restore`); await loadBoard(); draw(rows.filter((x) => x.id !== r.id)); toast('Task restaurada'); }) }, 'Restaurar'));
+  const draw = (rows) => list.replaceChildren(...(rows.length ? rows.map((r) => row(r, rows)) : [h('div', { class: 'empty-note' }, 'A lixeira está vazia.')]));
+  try { draw(await api('GET', '/api/trash')); } catch (e) { list.replaceChildren(h('div', { class: 'err-msg' }, e.message)); }
 }
 async function deleteTask(t) {
   await api('DELETE', `/api/tasks/${t.id}`);
@@ -1192,6 +1208,17 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   if (!S.me || modalStack.length || e.ctrlKey || e.metaKey || e.altKey) return;
+  // setas navegam entre cartões (Enter abre, como já era)
+  const cur = document.activeElement;
+  if (cur && cur.classList && cur.classList.contains('card') && /^Arrow(Up|Down|Left|Right)$/.test(e.key)) {
+    const col = cur.closest('.column'); if (!col) return;
+    const cards = [...col.querySelectorAll('.col-body > .card')], i = cards.indexOf(cur); let next = null;
+    if (e.key === 'ArrowDown') next = cards[i + 1]; else if (e.key === 'ArrowUp') next = cards[i - 1];
+    else { let c = col; do { c = e.key === 'ArrowRight' ? c.nextElementSibling : c.previousElementSibling; } while (c && !(c.classList.contains('column') && c.querySelector('.col-body > .card')));
+      if (c) { const cs = c.querySelectorAll('.col-body > .card'); next = cs[Math.min(i, cs.length - 1)]; } }
+    if (next) { e.preventDefault(); next.focus(); next.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+    return;
+  }
   const tag = (document.activeElement && document.activeElement.tagName) || '';
   if (/INPUT|TEXTAREA|SELECT/.test(tag)) return;
   if (e.key === 'n' || e.key === 'c') { e.preventDefault(); openQuickAdd(); }
@@ -1199,7 +1226,7 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === '?') { e.preventDefault(); openShortcuts(); }
 });
 function openShortcuts() {
-  const rows = [['N ou C', 'Nova task'], ['/', 'Buscar'], ['Ctrl+K', 'Paleta de comandos'], ['?', 'Esta lista'], ['Esc', 'Fechar janela ou menu'], ['Enter', 'Abrir a task em foco / criar (nos campos)'], ['Ctrl+Enter', 'Criar e continuar · enviar comentário'], ['Ctrl+V', 'Colar print como anexo (dentro da task)']];
+  const rows = [['N ou C', 'Nova task'], ['/', 'Buscar'], ['← ↑ ↓ →', 'Navegar entre os cartões (com um cartão em foco)'], ['Ctrl+K', 'Paleta de comandos'], ['?', 'Esta lista'], ['Esc', 'Fechar janela ou menu'], ['Enter', 'Abrir a task em foco / criar (nos campos)'], ['Ctrl+Enter', 'Criar e continuar · enviar comentário'], ['Ctrl+V', 'Colar print como anexo (dentro da task)']];
   const close = openModal([modalHead('Atalhos do teclado', () => close()), h('div', { class: 'modal-body' }, h('div', { class: 'kbd-list' }, rows.map(([k, d]) => h('div', { class: 'kbd-row' }, h('span', { class: 'kbd' }, k), h('span', null, d)))))]);
 }
 
@@ -1222,7 +1249,7 @@ async function boot(user) {
 }
 window.KBApp = {
   S, h, $, icon, api, toast, guard, openModal, modalHead, popover, askText, confirmBox, setPrefs, resolvedMode, THEMES,
-  eventText, openTask, openQuickAdd, openDiary, openShortcuts, openSettings, renderBoard, loadBoard, moveTask, deleteTask, upsertTask, userById, colById, avatar,
+  eventText, openTask, openQuickAdd, openDiary, openShortcuts, openTrash, openSettings, renderBoard, loadBoard, moveTask, deleteTask, upsertTask, userById, colById, avatar,
   matches, filtersActive, clearFilters, dueState, fmtDay, fmtTime, fmtDur, totalSecs, ymd, pad, addDays, norm, hueOf, cap, PRIO_NAME, views: {},
 };
 (async function init() {

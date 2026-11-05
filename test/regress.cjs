@@ -51,6 +51,20 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   ok((await p.locator('.card').count()) === 1 && total > 1, 'filtro de prioridade: só as urgentes (' + total + ' -> 1)');
   await p.click('.sb-foot .btn:has-text("Limpar")'); await p.waitForTimeout(200);
   await p.keyboard.press('?'); await p.waitForSelector('.kbd-list'); ok(true, 'tecla ? abre a lista de atalhos'); await p.keyboard.press('Escape'); await p.waitForTimeout(250);
+  // duplicar task pelo menu do cartão
+  const nCards = await p.locator('.card').count();
+  await p.locator('.card').first().hover(); await p.locator('.card').first().locator('.card-menu').click(); await p.click('.popover >> text=Duplicar'); await p.waitForTimeout(500);
+  ok((await p.locator('.card').count()) === nCards + 1 && (await p.locator('.card-title', { hasText: '(cópia)' }).count()) === 1, 'Duplicar cria a cópia');
+  // lixeira: excluir, ver na lixeira e restaurar
+  const n0 = await p.locator('.card').count();
+  await p.locator('.card').first().hover(); await p.locator('.card').first().locator('.card-menu').click(); await p.click('.popover >> text=Excluir'); await p.waitForTimeout(500);
+  ok((await p.locator('.card').count()) === n0 - 1, 'excluir tira o cartão');
+  await p.evaluate(() => KBApp.openTrash()); await p.waitForSelector('.trash-row'); ok((await p.locator('.trash-row').count()) === 1, 'lixeira lista a task excluída');
+  await p.click('.trash-row .btn'); await p.waitForTimeout(600); ok((await p.locator('.card').count()) === n0, 'restaurar devolve o cartão ao quadro');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(250);
+  // setas navegam entre cartões
+  await p.locator('.column:nth-child(1) .card').first().focus(); await p.keyboard.press('ArrowDown'); await p.waitForTimeout(100);
+  ok(await p.evaluate(() => document.activeElement.classList.contains('card') && document.activeElement === document.querySelectorAll('.column:nth-child(1) .col-body > .card')[1]), 'seta para baixo vai para o próximo cartão');
   // 2) sessão sobrevive a recarregar, mesmo se a leitura do perfil falhar na 1ª vez
   let n = 0;
   await p.route('**/rest/v1/profiles?*', (r) => { if (n++ < 1) return r.abort(); return fake.handle(r); });

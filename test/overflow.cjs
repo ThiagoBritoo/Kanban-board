@@ -55,6 +55,7 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
         else if (q.width && r.width && q.right > r.right + 2 && cs.overflowX === 'visible') out.push(['passa da caixa', sel(e), Math.round(q.right - r.right) + 'px', n.nodeValue.trim().slice(0, 40)]); }
     }
     for (const c of document.querySelectorAll('.card, .modal-body, .modal .field')) { const cr = c.getBoundingClientRect(); for (const e of c.querySelectorAll('*')) { const r = e.getBoundingClientRect(); if (r.width && r.right > cr.right + 1 && !e.closest('svg') && getComputedStyle(e).position !== 'absolute' && getComputedStyle(e).textOverflow !== 'ellipsis') out.push(['filho passa do pai', sel(e), Math.round(r.right - cr.right) + 'px', (e.textContent || '').trim().slice(0, 30)]); } }
+    for (const e of document.querySelectorAll('.topbar > *')) { const r = e.getBoundingClientRect(); if (r.width && r.right > vw + 1) out.push(['topo fora da tela', sel(e), Math.round(r.right) + '>' + vw, '']); }
     if (document.documentElement.scrollWidth > vw + 1) out.push(['pagina', 'html', document.documentElement.scrollWidth + '>' + vw, '']);
     const seen = new Set(); return out.filter((o) => { const k = o[0] + o[1]; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 25).map((o) => label + ' | ' + o.join(' | '));
   }, label);
