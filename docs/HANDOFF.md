@@ -85,4 +85,4 @@ estrutura: barra lateral com contadores, modal da task em 2 colunas, cartão com
 - Primeira abertura **real** das versões novas no site de produção ainda não foi vista por mim (só por testes com API falsa e capturas).
 
 ## 10. Mapa de documentos
-`AGENTS.md` (entrada; `CLAUDE.md` só importa ele) · `docs/HANDOFF.md` (este) · `docs/DESIGN.md` (design system) · `docs/REFERENCIAS_DESIGN.md` (referências, o que foi aplicado de cada, como a IA vê sites) · `README.md` (uso) · `supabase/migrations/` · `test/` · `scripts/browse-sites.cjs`.
+`AGENTS.md` (entrada; `CLAUDE.md` só importa ele) · `docs/HANDOFF.md` (este) · `docs/DESIGN.md` (design system) · `docs/PROCESSO_COMPONENTES.md` (**playbook portátil**: do componente de referência ao código próprio) · `docs/REFERENCIAS_DESIGN.md` (referências, o que foi aplicado de cada, como a IA vê sites) · `docs/originkit-cache/` (código do OriginKit já baixado) · `README.md` (uso) · `supabase/migrations/` · `test/` · `scripts/browse-sites.cjs`.
