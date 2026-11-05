@@ -43,6 +43,14 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   ok((await p.locator('.theme-filter button.on').textContent()) === 'Animados', 'filtro "Animados" continua ligado');
   ok((await vis()) === before && before > 0 && before < 38, 'lista continua filtrada (' + before + ' temas)');
   await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+  // filtro de prioridade e atalhos
+  await p.fill('.column:nth-child(1) .add-input', 'Normal aqui'); await p.press('.column:nth-child(1) .add-input', 'Enter'); await p.waitForTimeout(300);
+  await p.fill('.column:nth-child(1) .add-input', 'Urgente aqui !urgente'); await p.press('.column:nth-child(1) .add-input', 'Enter'); await p.waitForTimeout(400);
+  const total = await p.locator('.card').count();
+  await p.click('.sb-item:has-text("Urgente")'); await p.waitForTimeout(200);
+  ok((await p.locator('.card').count()) === 1 && total > 1, 'filtro de prioridade: só as urgentes (' + total + ' -> 1)');
+  await p.click('.sb-foot .btn:has-text("Limpar")'); await p.waitForTimeout(200);
+  await p.keyboard.press('?'); await p.waitForSelector('.kbd-list'); ok(true, 'tecla ? abre a lista de atalhos'); await p.keyboard.press('Escape'); await p.waitForTimeout(250);
   // 2) sessão sobrevive a recarregar, mesmo se a leitura do perfil falhar na 1ª vez
   let n = 0;
   await p.route('**/rest/v1/profiles?*', (r) => { if (n++ < 1) return r.abort(); return fake.handle(r); });
