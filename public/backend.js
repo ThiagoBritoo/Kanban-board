@@ -39,16 +39,29 @@
   }
   const userOut = (p) => ({ id: p.id, name: p.name, email: p.email, role: p.role, color: p.color, approved: p.approved, avatar_url: p.avatar_url || null, prefs: p.prefs || {} });
 
+  // Projetos: só ligam se a migração 0006 existir no banco (senão o app segue no modo antigo, sem projetos)
+  let projectsOn = false, curProject = null;
+  const missingTable = (e) => e && (e.code === '42P01' || e.code === 'PGRST205' || /schema cache|does not exist|Could not find the table/i.test(e.message || ''));
+  const inProject = (q) => (projectsOn && curProject ? q.eq('project_id', curProject) : q);
+
   const routes = [
     ['GET', /^\/api\/board$/, async () => {
+      if (projectsOn && !curProject) { // ainda sem nenhum projeto
+        const me = unwrap(await sb.from('profiles').select('id,name,email,role,color,approved,avatar_url').eq('approved', true));
+        return { columns: [], tasks: [], users: me };
+      }
+      const users = projectsOn
+        ? sb.from('project_members').select('profiles(id,name,email,role,color,approved,avatar_url),role,created_at').eq('project_id', curProject).order('created_at')
+        : sb.from('profiles').select('id,name,email,role,color,approved,avatar_url').eq('approved', true).order('created_at');
       const [c, t, u, a] = await Promise.all([
-        sb.from('board_columns').select('id,name,position,kind,color,wip_limit,auto_days,auto_to,collapsed').order('position').order('id'),
-        sb.from('tasks').select('*').is('deleted_at', null).order('position').order('id').limit(5000),
-        sb.from('profiles').select('id,name,email,role,color,approved,avatar_url').eq('approved', true).order('created_at'),
+        inProject(sb.from('board_columns').select('id,name,position,kind,color,wip_limit,auto_days,auto_to,collapsed' + (projectsOn ? ',project_id' : ''))).order('position').order('id'),
+        inProject(sb.from('tasks').select('*')).is('deleted_at', null).order('position').order('id').limit(5000),
+        users,
         sb.from('attachments').select('task_id').limit(5000),
       ]);
       const counts = {}; unwrap(a).forEach((r) => { counts[r.task_id] = (counts[r.task_id] || 0) + 1; });
-      return { columns: unwrap(c), tasks: unwrap(t).map((r) => ({ ...toTask(r), attachments: counts[r.id] || 0 })), users: unwrap(u) };
+      const ulist = projectsOn ? unwrap(u).filter((r) => r.profiles && r.profiles.approved).map((r) => ({ ...r.profiles, prole: r.role })) : unwrap(u);
+      return { columns: unwrap(c), tasks: unwrap(t).map((r) => ({ ...toTask(r), attachments: counts[r.id] || 0 })), users: ulist };
     }],
     ['POST', /^\/api\/tasks$/, async ({ body }) => {
       const title = String(body.title || '').trim();
@@ -68,9 +81,35 @@
       return toTask(unwrap(await sb.from('tasks').update(patch).eq('id', Number(m[1])).select().single()));
     }],
     ['POST', /^\/api\/tasks\/(\d+)\/move$/, async ({ m, body }) => unwrap(await sb.rpc('move_task', { p_task: Number(m[1]), p_column: Number(body.column_id), p_before: body.before_id ?? null }))],
+    ['GET', /^\/api\/projects$/, async () => {
+      const { data: { session } } = await sb.auth.getSession();
+      const r = await sb.from('projects').select('id,name,owner_id,created_at').order('id');
+      if (r.error) { if (missingTable(r.error)) { projectsOn = false; return { available: false, projects: [], invites: [] }; } throw new Error(friendly(r.error)); }
+      projectsOn = true;
+      const mem = unwrap(await sb.from('project_members').select('project_id,role').eq('user_id', session.user.id));
+      const role = Object.fromEntries(mem.map((x) => [x.project_id, x.role]));
+      const inv = unwrap(await sb.rpc('my_invites'));
+      const list = r.data.filter((p) => role[p.id]).map((p) => ({ ...p, role: role[p.id] }));
+      if (!list.some((p) => p.id === curProject)) curProject = list[0] ? list[0].id : null;
+      return { available: true, projects: list, invites: inv, current: curProject };
+    }],
+    ['POST', /^\/api\/projects$/, async ({ body }) => ({ id: unwrap(await sb.rpc('create_project', { p_name: String(body.name || '') })) })],
+    ['PATCH', /^\/api\/projects\/(\d+)$/, async ({ m, body }) => unwrap(await sb.rpc('rename_project', { p_project: Number(m[1]), p_name: String(body.name || '') }))],
+    ['DELETE', /^\/api\/projects\/(\d+)$/, async ({ m }) => unwrap(await sb.rpc('delete_project', { p_project: Number(m[1]) }))],
+    ['GET', /^\/api\/projects\/(\d+)\/members$/, async ({ m }) => {
+      const id = Number(m[1]);
+      const mem = unwrap(await sb.from('project_members').select('user_id,role,profiles(id,name,email,color,avatar_url)').eq('project_id', id).order('created_at'));
+      const inv = await sb.from('project_invites').select('id,invitee_id,profiles!project_invites_invitee_id_fkey(name,email)').eq('project_id', id);
+      return { members: mem.map((x) => ({ id: x.user_id, role: x.role, ...(x.profiles || {}) })), invites: inv.error ? [] : inv.data.map((i) => ({ id: i.id, name: i.profiles && i.profiles.name, email: i.profiles && i.profiles.email })) };
+    }],
+    ['POST', /^\/api\/projects\/(\d+)\/invite$/, async ({ m, body }) => unwrap(await sb.rpc('invite_to_project', { p_project: Number(m[1]), p_email: String(body.email || '') }))],
+    ['DELETE', /^\/api\/projects\/(\d+)\/members\/([0-9a-f-]{36})$/, async ({ m }) => unwrap(await sb.rpc('remove_member', { p_project: Number(m[1]), p_user: m[2] }))],
+    ['POST', /^\/api\/projects\/(\d+)\/members\/([0-9a-f-]{36})\/role$/, async ({ m, body }) => unwrap(await sb.rpc('set_member_role', { p_project: Number(m[1]), p_user: m[2], p_role: body.role }))],
+    ['POST', /^\/api\/invites\/(\d+)\/respond$/, async ({ m, body }) => ({ project: unwrap(await sb.rpc('respond_invite', { p_invite: Number(m[1]), p_accept: !!body.accept })) })],
+    ['DELETE', /^\/api\/invites\/(\d+)$/, async ({ m }) => unwrap(await sb.rpc('cancel_invite', { p_invite: Number(m[1]) }))],
     ['POST', /^\/api\/rules\/apply$/, async () => ({ moved: unwrap(await sb.rpc('apply_column_rules')) })],
-    ['GET', /^\/api\/notes$/, async () => unwrap(await sb.from('notes').select('*').order('updated_at', { ascending: false }).limit(500))],
-    ['POST', /^\/api\/notes$/, async ({ body }) => unwrap(await sb.from('notes').insert({ title: String(body.title || '').slice(0, 120), body: String(body.body || '').slice(0, 20000) }).select().single())],
+    ['GET', /^\/api\/notes$/, async () => unwrap(await inProject(sb.from('notes').select('*')).order('updated_at', { ascending: false }).limit(500))],
+    ['POST', /^\/api\/notes$/, async ({ body }) => unwrap(await sb.from('notes').insert({ title: String(body.title || '').slice(0, 120), body: String(body.body || '').slice(0, 20000), ...(projectsOn && curProject ? { project_id: curProject } : {}) }).select().single())],
     ['PATCH', /^\/api\/notes\/(\d+)$/, async ({ m, body }) => {
       const patch = { updated_at: new Date().toISOString() };
       if ('title' in body) patch.title = String(body.title).slice(0, 120);
@@ -89,7 +128,7 @@
     ['POST', /^\/api\/tasks\/(\d+)\/worked$/, async ({ m }) => unwrap(await sb.rpc('log_worked', { p_task: Number(m[1]) }))],
     // exclusão vai para a lixeira (dá para desfazer); nada é apagado de verdade
     ['DELETE', /^\/api\/tasks\/(\d+)$/, async ({ m }) => unwrap(await sb.from('tasks').update({ deleted_at: new Date().toISOString() }).eq('id', Number(m[1])))],
-    ['GET', /^\/api\/trash$/, async () => unwrap(await sb.from('tasks').select('id,title,deleted_at,column_id').not('deleted_at', 'is', null).order('deleted_at', { ascending: false }).limit(60))],
+    ['GET', /^\/api\/trash$/, async () => unwrap(await inProject(sb.from('tasks').select('id,title,deleted_at,column_id')).not('deleted_at', 'is', null).order('deleted_at', { ascending: false }).limit(60))],
     ['POST', /^\/api\/tasks\/(\d+)\/restore$/, async ({ m }) => unwrap(await sb.from('tasks').update({ deleted_at: null }).eq('id', Number(m[1])))],
     ['POST', /^\/api\/tasks\/(\d+)\/comments$/, async ({ m, body }) => unwrap(await sb.rpc('add_comment', { p_task: Number(m[1]), p_text: String(body.text || '') }))],
     ['GET', /^\/api\/tasks\/(\d+)\/events$/, async ({ m }) => unwrap(await sb.from('events').select('id,type,data,at,user_id,profiles(name)').eq('task_id', Number(m[1])).order('id', { ascending: false }).limit(50))
@@ -98,7 +137,7 @@
     ['POST', /^\/api\/columns$/, async ({ body }) => {
       const name = String(body.name || '').trim();
       if (!name) throw new Error('Nome é obrigatório');
-      return unwrap(await sb.from('board_columns').insert({ name, kind: ['todo', 'doing', 'done'].includes(body.kind) ? body.kind : 'todo' }).select().single());
+      return unwrap(await sb.from('board_columns').insert({ name, kind: ['todo', 'doing', 'done'].includes(body.kind) ? body.kind : 'todo', ...(projectsOn && curProject ? { project_id: curProject } : {}) }).select().single());
     }],
     ['PATCH', /^\/api\/columns\/(\d+)$/, async ({ m, body }) => {
       const id = Number(m[1]), patch = {};
@@ -121,12 +160,12 @@
     ['POST', /^\/api\/tasks\/(\d+)\/timer$/, async ({ m }) => unwrap(await sb.rpc('toggle_timer', { p_task: Number(m[1]) }))],
     ['GET', /^\/api\/tasks\/(\d+)\/attachments$/, async ({ m }) => unwrap(await sb.from('attachments').select('id,name,path,size,mime,user_id,created_at').eq('task_id', Number(m[1])).order('created_at', { ascending: false }))],
     ['POST', /^\/api\/columns\/(\d+)\/sort$/, async ({ m, body }) => unwrap(await sb.rpc('reorder_column', { p_column: Number(m[1]), p_ids: (body.ids || []).map(Number) }))],
-    ['GET', /^\/api\/activity$/, async () => unwrap(await sb.from('events').select('id,type,data,at,user_id,task_id,profiles(name),tasks(title,deleted_at)').order('id', { ascending: false }).limit(120))
-      .filter((e) => e.tasks && !e.tasks.deleted_at)
+    ['GET', /^\/api\/activity$/, async () => unwrap(await sb.from('events').select('id,type,data,at,user_id,task_id,profiles(name),tasks(title,deleted_at,project_id)').order('id', { ascending: false }).limit(300))
+      .filter((e) => e.tasks && !e.tasks.deleted_at && (!projectsOn || !curProject || e.tasks.project_id === curProject)).slice(0, 120)
       .map((e) => ({ id: e.id, type: e.type, data: e.data, at: ts(e.at), user_id: e.user_id, user_name: e.profiles && e.profiles.name, task_id: e.task_id, task_title: e.tasks.title }))],
     ['GET', /^\/api\/diary$/, async ({ url }) => {
       const q = url.searchParams;
-      const rows = unwrap(await sb.rpc('diary', { p_from: new Date(Number(q.get('from'))).toISOString(), p_to: new Date(Number(q.get('to'))).toISOString(), p_team: q.get('scope') === 'team', p_doing: q.get('doing') === '1' }));
+      const rows = unwrap(await sb.rpc('diary', { p_from: new Date(Number(q.get('from'))).toISOString(), p_to: new Date(Number(q.get('to'))).toISOString(), p_team: q.get('scope') === 'team', p_doing: q.get('doing') === '1', ...(projectsOn && curProject ? { p_project: curProject } : {}) }));
       return { items: rows };
     }],
 
@@ -176,6 +215,7 @@
       const p = await profile(session.user.id);
       return p ? { user: userOut(p) } : { user: null };
     },
+    setProject(id) { curProject = id || null; },
     hasStoredSession() { try { return Object.keys(localStorage).some((k) => /^sb-.*-auth-token$/.test(k) && localStorage.getItem(k)); } catch { return false; } },
     // renova o token: 'ok' | 'invalid' (sessão realmente inválida) | 'error' (rede/instabilidade: não deslogar)
     async refresh() {
@@ -214,7 +254,7 @@
     subscribe(cb, opts = {}) {
       need();
       const ch = sb.channel('kanban', opts.presence ? { config: { presence: { key: opts.presence.id } } } : undefined);
-      ['tasks', 'board_columns', 'profiles', 'attachments', 'notes'].forEach((table) => ch.on('postgres_changes', { event: '*', schema: 'public', table }, cb));
+      ['tasks', 'board_columns', 'profiles', 'attachments', 'notes', ...(projectsOn ? ['projects', 'project_members', 'project_invites'] : [])].forEach((table) => ch.on('postgres_changes', { event: '*', schema: 'public', table }, cb));
       if (opts.onPresence) ch.on('presence', { event: 'sync' }, () => { try { opts.onPresence(Object.keys(ch.presenceState())); } catch { /* ok */ } });
       ch.subscribe(async (status) => {
         if (status === 'SUBSCRIBED' && opts.presence) { try { await ch.track({ id: opts.presence.id, name: opts.presence.name, at: Date.now() }); } catch { /* presença é opcional */ } }

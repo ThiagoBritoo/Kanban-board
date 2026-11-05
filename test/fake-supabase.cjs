@@ -11,6 +11,7 @@ module.exports = function makeFake() {
     board_columns: [['A fazer', 'todo'], ['Em andamento', 'doing'], ['Revisão', 'doing'], ['Concluído', 'done']].map(([name, kind], i) => ({ id: i + 1, name, position: i, kind, color: null, wip_limit: null, auto_days: null, auto_to: null, collapsed: false })),
     tasks: [], events: [], attachments: [], notes: [], api_tokens: [], nextNote: 1, files: {}, nextTask: 1, nextEv: 1, nextAtt: 1, calls: [],
   };
+  let projectsOn = false;
   const now = () => new Date().toISOString();
   const ev = (task_id, user_id, type, data = {}) => db.events.push({ id: db.nextEv++, task_id, user_id, type, data, at: now() });
   const col = (id) => db.board_columns.find((c) => c.id === id);
@@ -35,6 +36,7 @@ module.exports = function makeFake() {
     const k = col(b.column_id);
     const t = { description: '', diary: '', assignee_id: null, priority: 1, due_date: null, labels: [], checklist: [], deleted_at: null, time_spent: 0, timer_started_at: null, timer_user: null, completed_at: k.kind === 'done' ? now() : null, started_at: k.kind !== 'todo' ? now() : null, finished_at: k.kind === 'done' ? now() : null, column_since: now(), notes: '', ...b, id, creator_id: user,
       position: Math.max(-1, ...db.tasks.filter((x) => x.column_id === b.column_id).map((x) => x.position)) + 1, created_at: now(), updated_at: now() };
+    if (projectsOn) t.project_id = k.project_id;
     db.tasks.push(t); ev(id, user, 'created', { column: k.name }); if (t.assignee_id) ev(id, user, 'assigned', { to: t.assignee_id }); return t;
   };
   const patchTask = (t, b, user) => {
@@ -60,6 +62,18 @@ module.exports = function makeFake() {
       const arr = db.tasks.filter((x) => x.column_id === a.p_column && x.id !== t.id && !x.deleted_at).sort((p, q) => p.position - q.position || p.id - q.id);
       let i = a.p_before ? arr.findIndex((x) => x.id === a.p_before) : -1; if (i < 0) i = arr.length; arr.splice(i, 0, t); arr.forEach((x, k) => (x.position = k)); return null;
     }
+    if (fn === 'create_project') {
+      const pid = (db.projects.reduce((m, x) => Math.max(m, x.id), 0)) + 1; db.projects.push({ id: pid, name: a.p_name, owner_id: user, created_at: now() });
+      db.project_members.push({ project_id: pid, user_id: user, role: 'owner', created_at: now() });
+      ['A fazer:todo', 'Em andamento:doing', 'Revisão:doing', 'Concluído:done'].forEach((x, i) => db.board_columns.push({ id: 100 + db.board_columns.length, name: x.split(':')[0], kind: x.split(':')[1], position: i, project_id: pid, color: null, wip_limit: null, auto_days: null, auto_to: null, collapsed: false }));
+      return pid;
+    }
+    if (fn === 'my_invites') return db.project_invites.filter((i) => i.invitee_id === user).map((i) => ({ id: i.id, project_id: i.project_id, project_name: db.projects.find((p) => p.id === i.project_id).name, inviter_name: (db.profiles.find((x) => x.id === i.invited_by) || {}).name }));
+    if (fn === 'invite_to_project') { const u = db.profiles.find((x) => x.email === a.p_email); if (!u) throw { code: 'P0001', message: 'Não achei uma conta aprovada com esse e-mail' }; db.project_invites.push({ id: db.project_invites.length + 1, project_id: a.p_project, invitee_id: u.id, invited_by: user }); return null; }
+    if (fn === 'respond_invite') { const i = db.project_invites.find((x) => x.id === a.p_invite); db.project_invites = db.project_invites.filter((x) => x !== i); if (a.p_accept) db.project_members.push({ project_id: i.project_id, user_id: i.invitee_id, role: 'member', created_at: now() }); return a.p_accept ? i.project_id : null; }
+    if (fn === 'rename_project') { db.projects.find((p) => p.id === a.p_project).name = a.p_name; return null; }
+    if (fn === 'remove_member') { db.project_members = db.project_members.filter((m) => !(m.project_id === a.p_project && m.user_id === a.p_user)); return null; }
+    if (fn === 'delete_project') { db.projects = db.projects.filter((p) => p.id !== a.p_project); db.board_columns = db.board_columns.filter((c) => c.project_id !== a.p_project); db.tasks = db.tasks.filter((t) => t.project_id !== a.p_project); db.project_members = db.project_members.filter((m) => m.project_id !== a.p_project); return null; }
     if (fn === 'apply_column_rules') {
       let n = 0;
       db.board_columns.filter((c) => c.auto_days && c.auto_to).forEach((c) => {
@@ -126,11 +140,13 @@ module.exports = function makeFake() {
       const out = (rows) => wantObj ? (rows.length === 1 ? send(200, rows[0]) : send(406, { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned', details: `The result contains ${rows.length} rows` })) : send(200, rows);
       if (name.startsWith('rpc/')) { try { const r = rpc(name.slice(4), body || {}, sub); return send(200, r); } catch (e) { return send(400, { code: e.code || 'P0001', message: e.message }); } }
       if (name === 'events' && m === 'GET') { const rows = order(filt(db.events, q), q).map((e) => { const tk = db.tasks.find((x) => x.id === e.task_id); return { ...e, profiles: { name: (db.profiles.find((x) => x.id === e.user_id) || {}).name }, tasks: tk ? { title: tk.title, deleted_at: tk.deleted_at } : null }; }); return out(q.get('limit') ? rows.slice(0, Number(q.get('limit'))) : rows); }
-      const table = db[name]; if (!table) return send(404, { message: 'tabela ' + name });
+      const table = db[name]; if (!table) return send(404, { code: 'PGRST205', message: "Could not find the table 'public." + name + "' in the schema cache" });
+      if (m === 'GET' && name === 'project_members' && /profiles/.test(q.get('select') || '')) { return out(filt(table, q).map((r) => ({ ...r, profiles: db.profiles.find((x) => x.id === r.user_id) }))); }
+      if (m === 'GET' && name === 'project_invites') { return out(filt(table, q).map((r) => ({ ...r, profiles: db.profiles.find((x) => x.id === r.invitee_id) }))); }
       if (m === 'GET') { let rows = order(filt(table, q), q); if (q.get('limit')) rows = rows.slice(0, Number(q.get('limit'))); return out(rows); }
       if (m === 'POST' && name === 'tasks') return send(201, insertTask(body, sub));
       if (m === 'POST' && name === 'attachments') { const a = { id: db.nextAtt++, created_at: now(), mime: null, ...body }; db.attachments.push(a); ev(a.task_id, sub, 'attachment', { name: a.name }); return send(201, a); }
-      if (m === 'POST' && name === 'board_columns') { const c = { id: db.board_columns.length + 10, position: db.board_columns.length, color: null, kind: 'todo', ...body }; db.board_columns.push(c); return send(201, c); }
+      if (m === 'POST' && name === 'board_columns') { const c = { project_id: body.project_id, id: db.board_columns.length + 10, position: db.board_columns.length, color: null, kind: 'todo', ...body }; db.board_columns.push(c); return send(201, c); }
       if (m === 'POST' && (name === 'notes' || name === 'api_tokens')) { const r = { id: db.nextNote++, created_at: now(), updated_at: now(), created_by: sub, user_id: sub, title: '', body: '', ...body }; table.push(r); return send(201, r); }
       if (m === 'PATCH') {
         const rows = filt(table, q); rows.forEach((r) => (name === 'tasks' ? patchTask(r, body, sub) : Object.assign(r, body)));
@@ -140,5 +156,13 @@ module.exports = function makeFake() {
       return send(405, { message: 'nao suportado' });
     } catch (e) { return send(500, { message: String(e && e.message || e) }); }
   }
-  return { db, handle, uid, uid2 };
+  // liga o modo "com projetos" (migração 0006): tabelas novas, tudo no projeto 1 "Geral"
+  const enableProjects = () => {
+    projectsOn = true;
+    db.projects = [{ id: 1, name: 'Geral', owner_id: uid, created_at: now() }];
+    db.project_members = [{ project_id: 1, user_id: uid, role: 'owner', created_at: now() }, { project_id: 1, user_id: uid2, role: 'member', created_at: now() }];
+    db.project_invites = [];
+    db.board_columns.forEach((c) => (c.project_id = 1)); db.tasks.forEach((t) => (t.project_id = 1));
+  };
+  return { db, handle, uid, uid2, enableProjects };
 };
