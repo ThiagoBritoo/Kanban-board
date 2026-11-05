@@ -133,6 +133,7 @@ const THEMES = [
   ['y2k', 'Y2K', 'cromado e iridescente', 'Impactantes', true],
   ['caderno', 'Caderno', 'post-its / quadro negro', 'Únicos', false],
   ['blueprint', 'Blueprint', 'planta técnica', 'Únicos', false],
+  ['topografia', 'Topografia', 'curvas de nível em 3D', 'Únicos', true],
   ['hud', 'HUD', 'linhas finas e colchetes', 'Únicos', false],
   ['terminal', 'Terminal', 'verde sobre preto, CRT', 'Únicos', false],
   ['retro95', 'Retrô 95', 'janelas com relevo', 'Únicos', false],
@@ -144,6 +145,7 @@ const THEMES = [
 ];
 const DEFAULT_PREFS = { theme: 'minimal', mode: 'system', accent: null, font: 'auto', radius: null, density: 'comfortable', motion: true, autoAssign: true, hideOldDone: true, view: 'board', bg: 'theme', bgUrl: '', notify: false,
   shType: 'plane', shC1: '#52ff89', shC2: '#dbba95', shC3: '#d0bce1', shSpeed: 40, shStrength: 50, shDensity: 40, shGrain: 4, shDim: 0,
+  trType: 'linhas', trBg: '#f1ecdf', trLine: '#4a5a4c', trAccent: '#c8522e', trSun: 170, trRelief: 100, trDensity: 110, trSpeed: 40, trCam: 100, trHover: 40, trInterval: 5, trSoft: 0,
   sidebar: true, fx: true, fxSpeed: 100, fxIntensity: 100, cardStyle: 'theme', border: 'theme', shadow: 'theme', size: 'normal' };
 const S = { me: null, users: [], columns: [], tasks: [], prefs: { ...DEFAULT_PREFS }, filter: { q: '', who: 'all', due: null, label: null }, drafts: {}, drag: null, seen: null, showAllDone: false, online: new Set(), lastWrite: 0, loadedOnce: false };
 
@@ -185,6 +187,7 @@ function applyPrefs() {
     const v = p[key]; v && v !== 'theme' && v !== 'normal' ? (r.dataset[attr] = v) : delete r.dataset[attr];
   }
   window.KBShader && window.KBShader.update(p, resolvedMode());
+  window.KBTerrain && window.KBTerrain.update(p, resolvedMode(), p.theme);
   const bg = bgCss(p, resolvedMode());
   if (bg) { r.style.setProperty('--bg-user', bg); r.dataset.bg = 'user'; } else { r.style.removeProperty('--bg-user'); delete r.dataset.bg; }
   p.font && p.font !== 'auto' ? (r.dataset.font = p.font) : delete r.dataset.font;
@@ -975,6 +978,22 @@ function filterThemes(field, patch) {
   field.querySelectorAll('.theme-group').forEach((g) => g.classList.toggle('hidden', !g.querySelector('.theme-tile:not(.hidden)')));
   field.querySelector('.theme-empty').classList.toggle('hidden', shown > 0);
 }
+function terrainControls(p) {
+  const slider = (key, label, min, max, fmt = (v) => v) => h('div', { class: 'range-row' }, h('span', { class: 'help', style: { width: '96px' } }, label),
+    h('input', { type: 'range', min, max, value: p[key], oninput: (e) => { setPrefs({ [key]: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = fmt(e.target.value); } }), h('output', null, fmt(p[key])));
+  const color = (key, label) => h('label', { class: 'color-pick', title: label }, h('input', { type: 'color', value: p[key], oninput: (e) => setPrefs({ [key]: e.target.value }, { refreshSettings: false }), onchange: () => S.refreshSettings && S.refreshSettings() }), h('span', null, label));
+  const PR = (window.KBTerrain && window.KBTerrain.PRESETS) || {};
+  const names = { papel: 'Papel', carvao: 'Carvão', synth: 'Synthwave', pontos: 'Pontos' };
+  return h('div', { class: 'shader-box' },
+    h('div', { class: 'swatches' }, Object.entries(PR).map(([k, v]) => h('button', { type: 'button', class: 'preset-chip' + (p.trBg === v.trBg && p.trLine === v.trLine && p.trAccent === v.trAccent && p.trType === v.trType ? ' on' : ''), title: names[k], onclick: () => setPrefs({ ...v }),
+      style: { background: `linear-gradient(135deg,${v.trBg} 40%,${v.trAccent} 41%,${v.trLine})` } }, h('span', null, names[k])))),
+    h('div', { class: 'row' },
+      h('div', { class: 'field' }, h('label', null, 'Tipo'), h('div', { class: 'seg' }, [['linhas', 'Linhas'], ['synth', 'Synthwave'], ['pontos', 'Pontos']].map(([v, l]) => h('button', { type: 'button', class: p.trType === v ? 'on' : '', onclick: () => setPrefs({ trType: v }) }, l)))),
+      h('div', { class: 'field' }, h('label', null, 'Cores'), h('div', { class: 'swatches' }, color('trBg', 'Fundo'), color('trLine', 'Linha'), color('trAccent', 'Destaque')))),
+    slider('trDensity', 'Densidade', 20, 160), slider('trSpeed', 'Velocidade', 0, 150), slider('trRelief', 'Relevo', 0, 200, (v) => v + '%'), slider('trSun', 'Tamanho do sol', 0, 250, (v) => v + '%'),
+    slider('trCam', 'Altura da câmera', 30, 200, (v) => v + '%'), slider('trHover', 'Hover (mouse)', 0, 200, (v) => v + '%'), slider('trInterval', 'Linha de destaque a cada', 2, 12), slider('trSoft', 'Suavizar linhas', 0, 80, (v) => v + '%'),
+    h('div', { class: 'help' }, 'Mova o mouse: a câmera acompanha. Com “Fundo animado” desligado (ou movimento reduzido no sistema) o terreno fica parado.'));
+}
 function shaderControls(p) {
   const slider = (key, label, min, max, fmt = (v) => v) => h('div', { class: 'range-row' }, h('span', { class: 'help', style: { width: '90px' } }, label),
     h('input', { type: 'range', min, max, value: p[key], oninput: (e) => { setPrefs({ [key]: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = fmt(e.target.value); } }), h('output', null, fmt(p[key])));
@@ -1035,8 +1054,10 @@ function viewLook() {
         h('div', { class: 'bg-grid' }, BGS.map(([id, name, l, d]) => h('button', { type: 'button', class: 'bg-tile' + (p.bg === id ? ' on' : ''), title: name, onclick: () => setPrefs({ bg: id }),
           style: l ? { background: mode === 'dark' ? d : l } : null }, h('span', null, name))),
           h('button', { type: 'button', class: 'bg-tile' + (p.bg === 'custom' ? ' on' : ''), title: 'Imagem (link)', onclick: () => setPrefs({ bg: 'custom' }) }, h('span', null, 'Imagem')),
-          h('button', { type: 'button', class: 'bg-tile' + (p.bg === 'shader' ? ' on' : ''), title: 'Gradiente shader (WebGL)', onclick: () => setPrefs({ bg: 'shader' }), style: { background: `linear-gradient(135deg,${p.shC1},${p.shC2},${p.shC3})` } }, h('span', null, 'Shader'))),
-        p.bg === 'shader' && shaderControls(p),
+          h('button', { type: 'button', class: 'bg-tile' + (p.bg === 'terrain' ? ' on' : ''), title: 'Terreno de arame (curvas de nível em 3D)', onclick: () => setPrefs({ bg: 'terrain' }), style: { background: `linear-gradient(180deg,${p.trBg} 55%,${p.trAccent} 56%,${p.trLine})` } }, h('span', null, 'Terreno')),
+        h('button', { type: 'button', class: 'bg-tile' + (p.bg === 'shader' ? ' on' : ''), title: 'Gradiente shader (WebGL)', onclick: () => setPrefs({ bg: 'shader' }), style: { background: `linear-gradient(135deg,${p.shC1},${p.shC2},${p.shC3})` } }, h('span', null, 'Shader'))),
+        p.bg === 'terrain' && terrainControls(p),
+      p.bg === 'shader' && shaderControls(p),
         p.bg === 'custom' && h('input', { class: 'input', placeholder: 'https://…/imagem.jpg (link https)', value: p.bgUrl || '', onchange: (e) => setPrefs({ bgUrl: e.target.value.trim() }) })),
       h('div', { class: 'field' }, h('label', null, 'Efeitos de fundo'),
         toggle('fx', 'Fundo animado (estrelas, lava, grade…) — desligue para ficar estático'),
