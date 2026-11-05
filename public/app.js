@@ -302,6 +302,8 @@ function notifyAssigned(t) {
 }
 async function loadBoard() {
   const d = await api('GET', '/api/board');
+  // nada mudou em relação ao que já está na tela (eco do tempo real): não redesenha o quadro inteiro
+  if (S.loadedOnce && d.users.some((u) => u.id === S.me.id) && JSON.stringify([S.columns, S.tasks, S.users]) === JSON.stringify([d.columns, d.tasks, d.users])) return;
   const prevAssignee = S.loadedOnce ? new Map(S.tasks.map((t) => [t.id, t.assignee_id])) : null;
   S.columns = d.columns; S.tasks = d.tasks; S.users = d.users;
   if (prevAssignee && Date.now() - S.lastWrite > 4000) {
