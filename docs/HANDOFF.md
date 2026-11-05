@@ -79,7 +79,7 @@ estrutura: barra lateral com contadores, modal da task em 2 colunas, cartão com
 ## 9. Pendências e ideias
 - Confirmar com o Thiago (não sei se já fez): Supabase → Authentication → **URL Configuration** (Site URL = endereço da Vercel), decidir **Confirm email**, e **Leaked password protection** (pode exigir plano pago).
 - Ele quer **mais componentes** dos sites de referência. Fila do OriginKit (ver `docs/REFERENCIAS_DESIGN.md`; já feitos: Wire Terrain, Lightfall, Grid Hole, Ink Flow, Parallax, Pulsating Border): Accretion Disc, Acrylic Pour, Wave Ribbons, Wind Pyre, Wire Throat, Wireframe Globe, Twisting Vortex, Wobbling Lattice Sphere… Perguntar quais ele curte; abrir cada um e recriar.
-- Cult UI (MCP configurado, ver §5c) e Skiper UI: componentes ainda **não abertos** (só as homes).
+- Cult UI e Skiper UI **abertos em 05/11** (sem OriginKit): código em `docs/cultui-cache/` (20 componentes + `INDICE.md` com os 307 do registro) e `docs/skiper-cache/` (12 grátis; Dynamic island e demais são Pro, não acessados). MCP `shadcn` ainda não tinha subido; foi por `curl` (`/r/<nome>.json`). Lista de candidatos entregue ao Thiago; **aguardando ele escolher** antes de implementar.
 - Candidatos de produto: notificações push reais, tarefas recorrentes, vários quadros/projetos, integração de e-mail.
 - Refero: estilos ainda não transformados em tema (Warp, Prisma, Vercel, Perplexity, Brex, Freitag, B&O, Reflect…).
 - Primeira abertura **real** das versões novas no site de produção ainda não foi vista por mim (só por testes com API falsa e capturas).
