@@ -15,7 +15,7 @@ Idioma da interface e das conversas: **português do Brasil**.
 | GitHub | `ThiagoBritoo/Kanban-board` — branch padrão `main`; branch de trabalho `claude/kanban-tarefas-empresa-7s5zgh` |
 | Vercel | projeto `kanban-board` (`prj_4CRK99K4wnUp5s6u4CJm1Xd5q9kD`), time `team_81Icx9qhcrIF6EBaUeEJIgcW`; deploy automático a cada merge na `main`; saída = pasta `public`, sem build |
 | Supabase | projeto **`kanban-empresa`** ref `obmbjszdfvwhajgvkfpi` (sa-east-1, org `lhstkmmuoghaiwfpmmdh`). **Não mexer nos outros projetos da conta** (conexao-api, gerenciamento-de-ativos, locativo-teste, o do e-mail, Vantablack-Financas) |
-| Migrações aplicadas no Supabase | `0001` esquema+RLS+gatilhos · `0002` trava funções · `0003` checklist/lixeira/comentários/cor de coluna · `0004` limite WIP, cronômetro, anexos (+ bucket privado `attachments`, 10 MB) |
+| Migrações aplicadas no Supabase | `0001` esquema+RLS+gatilhos · `0002` trava funções · `0003` checklist/lixeira/comentários/cor de coluna · `0004` limite WIP, cronômetro, anexos (+ bucket privado `attachments`, 10 MB) · `0005` datas início/fim, regras por coluna, colunas recolhidas, anotações, avatar, tokens de API (**aplicada em 05/11**) · `0006` projetos (**ESCRITA E TESTADA NUM POSTGRES LOCAL, MAS AINDA NÃO APLICADA NO SUPABASE**: o MCP pediu confirmação humana por causa dos `drop policy`/`drop function`) |
 | Contas | a primeira conta criada vira admin; as demais ficam pendentes até aprovação em avatar → Equipe |
 
 ## 3. Fluxo de trabalho que o Thiago autorizou
@@ -91,6 +91,10 @@ estrutura: barra lateral com contadores, modal da task em 2 colunas, cartão com
 - **Bug do quadro:** a cada atualização (tempo real, mover etc.) o quadro voltava para a 1ª coluna (`el.focus()` rolava); agora `focus({preventScroll:true})` e a rolagem é lida antes de redesenhar. `test/scrollstate.cjs` confere.
 - **Novidades:** filtro por prioridade (barra lateral + paleta), tecla `?` (atalhos), Duplicar no menu do cartão, **Lixeira** (Mais → Lixeira; `GET /api/trash` + restaurar), números que rolam, indicador de soltura, abas com direção, desfoque progressivo nas colunas (`public/polish.js`).
 - **Testes novos:** `regress.cjs`, `overflow.cjs`, `overflow-themes.cjs`, `scrollstate.cjs`, `modalstate.cjs`, `polish.cjs`, `tour.cjs`, `island.cjs`, `authshots.cjs`. Cache SW atual: ver `public/sw.js`.
+
+## 9c. Pedido grande de 05/11 (madrugada) — estado
+- **Pronto e no ar:** tempo por datas (iniciada em / finalizada em; mover para Concluído grava o fim, voltar limpa o fim e mantém o início; cronômetro/ilha removidos), regras por coluna ("depois de N dias vai para…", roda ao abrir e a cada 10 min), colunas recolhidas ("Mostrar" no fim do quadro), comentários separados do histórico (histórico recolhido), anotações da task e anotações gerais (Mais → Anotações), anexos em ladrilhos, foto de perfil (Conta), caixas de texto sem alça de redimensionar, nome **Runtime**.
+- **Falta (próximos passos, nesta ordem):** (1) aplicar `0006_projetos.sql` (teste local: `bash /tmp/pg` não persiste; recriar Postgres local com stub de `auth`/`storage` e rodar 0001–0006) → (2) front de projetos (seletor no topo, `S.project`, `/api/board?project`, convites, membros) → (3) função de borda `api` + `scripts/runtime-mcp.cjs` (criar task pela IA do VS Code; tokens em Conta) → (4) renomear URL na Vercel (confirmar com o Thiago; mudar Site URL no Supabase Auth) → (5) Popover Form, Expandable Card, Border Beam.
 
 ## 10. Mapa de documentos
 `AGENTS.md` (entrada; `CLAUDE.md` só importa ele) · `docs/HANDOFF.md` (este) · `docs/DESIGN.md` (design system) · `docs/PROCESSO_COMPONENTES.md` (**playbook portátil**: do componente de referência ao código próprio) · `docs/REFERENCIAS_DESIGN.md` (referências, o que foi aplicado de cada, como a IA vê sites) · `docs/originkit-cache/` (código do OriginKit já baixado) · `README.md` (uso) · `supabase/migrations/` · `test/` · `scripts/browse-sites.cjs`.
