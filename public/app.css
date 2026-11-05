@@ -537,3 +537,19 @@ html[data-fx="off"] .sk,html[data-motion="off"] .sk{animation:none}
 /* terreno de arame */
 #terrainbg{position:absolute;inset:0;width:100%;height:100%;display:block}
 html[data-terrain="on"] #deco::before,html[data-terrain="on"] #deco::after,html[data-terrain="on"] #deco i{display:none}
+
+/* ---- fundos de efeito (fx.js) e efeitos nos cartões ---- */
+#fxbg{position:absolute;inset:0;width:100%;height:100%;display:block}
+html[data-fxbg]:not([data-fxbg="off"]) #deco::before,html[data-fxbg]:not([data-fxbg="off"]) #deco::after,html[data-fxbg]:not([data-fxbg="off"]) #deco i{display:none}
+/* borda pulsante: anel que se afasta e some (outline não conflita com ::before da faixa nem ::after do cartão dobrado) */
+@keyframes ring{0%{outline-color:color-mix(in srgb,var(--p3) 75%,transparent);outline-offset:0}70%,100%{outline-color:color-mix(in srgb,var(--p3) 0%,transparent);outline-offset:6px}}
+html[data-pulse="high"] .card[data-p="2"],html[data-pulse="high"] .card[data-p="3"],html[data-pulse="urgent"] .card[data-p="3"]{outline:2px solid color-mix(in srgb,var(--p3) 55%,transparent);outline-offset:0}
+html[data-pulse="high"][data-fx="on"][data-motion="on"] .card[data-p="2"],html[data-pulse="high"][data-fx="on"][data-motion="on"] .card[data-p="3"],html[data-pulse="urgent"][data-fx="on"][data-motion="on"] .card[data-p="3"]{animation:ring 2.6s var(--ease,cubic-bezier(.23,1,.32,1)) infinite}
+html[data-pulse="high"] .card[data-p="2"]{--p3:var(--p2)}
+/* luz caindo no cartão (só no hover; 4 fios em velocidades diferentes) */
+@keyframes cardfall{to{background-position:14% 104px,38% 140px,62% 88px,86% 180px}}
+html[data-cardlight="on"][data-fx="on"][data-motion="on"] .card:hover{background-image:
+  linear-gradient(180deg,transparent,color-mix(in srgb,var(--accent) 70%,transparent),transparent),linear-gradient(180deg,transparent,color-mix(in srgb,var(--accent) 55%,transparent),transparent),
+  linear-gradient(180deg,transparent,color-mix(in srgb,var(--accent) 60%,transparent),transparent),linear-gradient(180deg,transparent,color-mix(in srgb,var(--accent) 45%,transparent),transparent);
+  background-size:1px 52px,1px 70px,1px 44px,1px 90px;background-repeat:repeat-y;background-position:14% 0,38% 0,62% 0,86% 0;animation:cardfall 1.6s linear infinite}
+@media (prefers-reduced-motion:reduce){.card{animation:none!important}}
