@@ -12,6 +12,7 @@ create table public.project_members (
   project_id bigint not null references public.projects(id) on delete cascade,
   user_id    uuid not null references public.profiles(id) on delete cascade,
   role       text not null default 'member' check (role in ('owner', 'member')),
+  can_invite boolean not null default false,   -- o dono libera quem mais pode convidar
   created_at timestamptz not null default now(),
   primary key (project_id, user_id)
 );
@@ -34,13 +35,18 @@ create function public.is_project_owner(pid bigint) returns boolean
 language sql stable security definer set search_path = '' as $$
   select public.is_member() and exists (select 1 from public.project_members where project_id = pid and user_id = (select auth.uid()) and role = 'owner')
 $$;
+create function public.can_invite_to(pid bigint) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select public.is_member() and exists (select 1 from public.project_members
+    where project_id = pid and user_id = (select auth.uid()) and (role = 'owner' or can_invite))
+$$;
 create function public.shares_project(uid uuid) returns boolean
 language sql stable security definer set search_path = '' as $$
   select exists (select 1 from public.project_members a join public.project_members b on a.project_id = b.project_id
                   where a.user_id = (select auth.uid()) and b.user_id = uid)
 $$;
-revoke all on function public.is_project_member(bigint), public.is_project_owner(bigint), public.shares_project(uuid) from public, anon;
-grant execute on function public.is_project_member(bigint), public.is_project_owner(bigint), public.shares_project(uuid) to authenticated;
+revoke all on function public.is_project_member(bigint), public.is_project_owner(bigint), public.can_invite_to(bigint), public.shares_project(uuid) from public, anon;
+grant execute on function public.is_project_member(bigint), public.is_project_owner(bigint), public.can_invite_to(bigint), public.shares_project(uuid) to authenticated;
 
 /* ============ projeto "Geral" com tudo o que já existe ============ */
 alter table public.board_columns add column project_id bigint references public.projects(id) on delete cascade;
@@ -53,8 +59,9 @@ begin
   insert into public.projects(name, owner_id)
     values ('Geral', (select id from public.profiles where role = 'admin' and approved order by created_at limit 1))
     returning id into pid;
-  insert into public.project_members(project_id, user_id, role)
-    select pid, id, case when id = (select owner_id from public.projects where id = pid) then 'owner' else 'member' end
+  insert into public.project_members(project_id, user_id, role, can_invite)
+    select pid, id, case when id = (select owner_id from public.projects where id = pid) then 'owner' else 'member' end,
+           id = (select owner_id from public.projects where id = pid)
       from public.profiles where approved;
   alter table public.tasks disable trigger tasks_bu;
   update public.board_columns set project_id = pid;
@@ -181,7 +188,7 @@ alter table public.project_invites enable row level security;
 create policy projects_select on public.projects for select to authenticated using (public.is_project_member(id));
 create policy members_select on public.project_members for select to authenticated using (public.is_project_member(project_id));
 create policy invites_select on public.project_invites for select to authenticated
-  using (invitee_id = (select auth.uid()) or public.is_project_owner(project_id));
+  using (invitee_id = (select auth.uid()) or public.can_invite_to(project_id));
 revoke all on public.projects, public.project_members, public.project_invites from anon;
 revoke insert, update, delete on public.projects, public.project_members, public.project_invites from authenticated;
 grant select on public.projects, public.project_members, public.project_invites to authenticated;
@@ -195,7 +202,7 @@ begin
   if nm is null or char_length(nm) not between 1 and 60 then raise exception 'Nome do projeto: 1 a 60 caracteres'; end if;
   if (select count(*) from public.project_members where user_id = uid and role = 'owner') >= 20 then raise exception 'Limite de projetos atingido'; end if;
   insert into public.projects(name, owner_id) values (nm, uid) returning id into pid;
-  insert into public.project_members(project_id, user_id, role) values (pid, uid, 'owner');
+  insert into public.project_members(project_id, user_id, role, can_invite) values (pid, uid, 'owner', true);
   insert into public.board_columns(project_id, name, kind) values
     (pid, 'A fazer', 'todo'), (pid, 'Em andamento', 'doing'), (pid, 'Revisão', 'doing'), (pid, 'Concluído', 'done');
   return pid;
@@ -221,7 +228,7 @@ create function public.invite_to_project(p_project bigint, p_email text) returns
 language plpgsql security definer set search_path = '' as $$
 declare u uuid;
 begin
-  if not public.is_project_owner(p_project) then raise exception 'Só o dono do projeto pode convidar'; end if;
+  if not public.can_invite_to(p_project) then raise exception 'Você não tem permissão para convidar neste projeto'; end if;
   select id into u from public.profiles where lower(email) = lower(trim(p_email)) and approved;
   if u is null then raise exception 'Não achei uma conta aprovada com esse e-mail (a pessoa precisa se cadastrar e ser aprovada antes)'; end if;
   if exists (select 1 from public.project_members where project_id = p_project and user_id = u) then raise exception 'Essa pessoa já está no projeto'; end if;
@@ -252,7 +259,7 @@ end $$;
 create function public.cancel_invite(p_invite bigint) returns void
 language plpgsql security definer set search_path = '' as $$
 begin
-  delete from public.project_invites where id = p_invite and public.is_project_owner(project_id);
+  delete from public.project_invites where id = p_invite and (public.is_project_owner(project_id) or invited_by = (select auth.uid()));
 end $$;
 
 -- o dono remove alguém; qualquer um pode sair (menos o único dono)
@@ -280,6 +287,16 @@ begin
   end if;
   update public.project_members set role = p_role where project_id = p_project and user_id = p_user;
 end $$;
+
+create function public.set_member_can_invite(p_project bigint, p_user uuid, p_can boolean) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.is_project_owner(p_project) then raise exception 'Só o dono do projeto pode fazer isso'; end if;
+  update public.project_members set can_invite = p_can where project_id = p_project and user_id = p_user and role <> 'owner';
+end $$;
+
+revoke all on function public.set_member_can_invite(bigint, uuid, boolean) from public, anon;
+grant execute on function public.set_member_can_invite(bigint, uuid, boolean) to authenticated;
 
 revoke all on function public.create_project(text), public.rename_project(bigint, text), public.delete_project(bigint),
   public.invite_to_project(bigint, text), public.my_invites(), public.respond_invite(bigint, boolean), public.cancel_invite(bigint),

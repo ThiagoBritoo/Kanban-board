@@ -86,10 +86,10 @@
       const r = await sb.from('projects').select('id,name,owner_id,created_at').order('id');
       if (r.error) { if (missingTable(r.error)) { projectsOn = false; return { available: false, projects: [], invites: [] }; } throw new Error(friendly(r.error)); }
       projectsOn = true;
-      const mem = unwrap(await sb.from('project_members').select('project_id,role').eq('user_id', session.user.id));
-      const role = Object.fromEntries(mem.map((x) => [x.project_id, x.role]));
+      const mem = unwrap(await sb.from('project_members').select('project_id,role,can_invite').eq('user_id', session.user.id));
+      const role = Object.fromEntries(mem.map((x) => [x.project_id, x.role])), canInv = Object.fromEntries(mem.map((x) => [x.project_id, x.role === 'owner' || x.can_invite]));
       const inv = unwrap(await sb.rpc('my_invites'));
-      const list = r.data.filter((p) => role[p.id]).map((p) => ({ ...p, role: role[p.id] }));
+      const list = r.data.filter((p) => role[p.id]).map((p) => ({ ...p, role: role[p.id], can_invite: !!canInv[p.id] }));
       if (!list.some((p) => p.id === curProject)) curProject = list[0] ? list[0].id : null;
       return { available: true, projects: list, invites: inv, current: curProject };
     }],
@@ -98,13 +98,14 @@
     ['DELETE', /^\/api\/projects\/(\d+)$/, async ({ m }) => unwrap(await sb.rpc('delete_project', { p_project: Number(m[1]) }))],
     ['GET', /^\/api\/projects\/(\d+)\/members$/, async ({ m }) => {
       const id = Number(m[1]);
-      const mem = unwrap(await sb.from('project_members').select('user_id,role,profiles(id,name,email,color,avatar_url)').eq('project_id', id).order('created_at'));
+      const mem = unwrap(await sb.from('project_members').select('user_id,role,can_invite,profiles(id,name,email,color,avatar_url)').eq('project_id', id).order('created_at'));
       const inv = await sb.from('project_invites').select('id,invitee_id,profiles!project_invites_invitee_id_fkey(name,email)').eq('project_id', id);
-      return { members: mem.map((x) => ({ id: x.user_id, role: x.role, ...(x.profiles || {}) })), invites: inv.error ? [] : inv.data.map((i) => ({ id: i.id, name: i.profiles && i.profiles.name, email: i.profiles && i.profiles.email })) };
+      return { members: mem.map((x) => ({ id: x.user_id, role: x.role, can_invite: x.can_invite, ...(x.profiles || {}) })), invites: inv.error ? [] : inv.data.map((i) => ({ id: i.id, name: i.profiles && i.profiles.name, email: i.profiles && i.profiles.email })) };
     }],
     ['POST', /^\/api\/projects\/(\d+)\/invite$/, async ({ m, body }) => unwrap(await sb.rpc('invite_to_project', { p_project: Number(m[1]), p_email: String(body.email || '') }))],
     ['DELETE', /^\/api\/projects\/(\d+)\/members\/([0-9a-f-]{36})$/, async ({ m }) => unwrap(await sb.rpc('remove_member', { p_project: Number(m[1]), p_user: m[2] }))],
     ['POST', /^\/api\/projects\/(\d+)\/members\/([0-9a-f-]{36})\/role$/, async ({ m, body }) => unwrap(await sb.rpc('set_member_role', { p_project: Number(m[1]), p_user: m[2], p_role: body.role }))],
+    ['POST', /^\/api\/projects\/(\d+)\/members\/([0-9a-f-]{36})\/can_invite$/, async ({ m, body }) => unwrap(await sb.rpc('set_member_can_invite', { p_project: Number(m[1]), p_user: m[2], p_can: !!body.can }))],
     ['POST', /^\/api\/invites\/(\d+)\/respond$/, async ({ m, body }) => ({ project: unwrap(await sb.rpc('respond_invite', { p_invite: Number(m[1]), p_accept: !!body.accept })) })],
     ['DELETE', /^\/api\/invites\/(\d+)$/, async ({ m }) => unwrap(await sb.rpc('cancel_invite', { p_invite: Number(m[1]) }))],
     ['POST', /^\/api\/rules\/apply$/, async () => ({ moved: unwrap(await sb.rpc('apply_column_rules')) })],

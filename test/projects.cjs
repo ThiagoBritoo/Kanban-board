@@ -45,6 +45,11 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   await p.fill('.proj-body input[type=email]', 'm@x.com'); await p.click('.proj-body button:has-text("Convidar")'); await p.waitForTimeout(600);
   ok(fake.db.project_invites.length === 1, 'convite criado para a pessoa pelo e-mail');
   await p.keyboard.press('Escape'); await p.waitForTimeout(250);
+  // permissão de convidar: Maria (membro) ganha "pode convidar" pelo dono
+  await p.click('#brand'); await p.click('.popover >> text=Membros e configurações'); await p.waitForSelector('.member-row');
+  await p.locator('.member-row', { hasText: 'Maria' }).locator('input[type=checkbox]').check(); await p.waitForTimeout(700);
+  ok(fake.db.project_members.find((m) => m.user_id === fake.uid2 && m.project_id === 1).can_invite === true, 'dono libera "pode convidar" para um membro');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(250);
   // convite recebido para o projeto Locativo (Maria convida Thiago? simulamos um convite novo para Thiago em um projeto da Maria)
   fake.db.projects.push({ id: 9, name: 'Academia', owner_id: fake.uid2, created_at: new Date().toISOString() });
   fake.db.project_members.push({ project_id: 9, user_id: fake.uid2, role: 'owner', created_at: new Date().toISOString() });

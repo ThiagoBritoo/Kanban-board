@@ -677,3 +677,4 @@ body.touch-dragging .board{scroll-snap-type:none;scroll-behavior:auto}body.touch
 .no-project{max-width:460px;margin:60px auto;padding:0 20px;display:grid;gap:12px;justify-items:start}
 .invite-card{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:var(--bw) solid var(--line);background:var(--col);border-radius:var(--radius);padding:10px 12px;width:100%}.invite-card b{flex:1;min-width:0;overflow-wrap:anywhere}
 @media (max-width:720px){.brand.as-btn .brand-name{display:inline!important;max-width:110px}}
+.check.mini{font-size:12px;color:var(--muted);white-space:nowrap}

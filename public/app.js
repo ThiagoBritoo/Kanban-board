@@ -672,28 +672,29 @@ async function createProject() {
 }
 async function openProjectModal() {
   const p = curProject(); if (!p) return;
-  const isOwner = p.role === 'owner';
+  const isOwner = p.role === 'owner', canInvite = isOwner || !!p.can_invite;
   const box = h('div', { class: 'modal-body proj-body' });
   const close = openModal([modalHead('Projeto', () => close()), box]);
   const draw = async () => {
     let d; try { d = await api('GET', `/api/projects/${p.id}/members`); } catch (e) { return box.replaceChildren(h('div', { class: 'err-msg' }, e.message)); }
     const name = h('input', { class: 'input', value: p.name, maxLength: 60, disabled: !isOwner, 'aria-label': 'Nome do projeto' });
     const email = h('input', { class: 'input', type: 'email', placeholder: 'e-mail da pessoa (conta já aprovada)', 'aria-label': 'E-mail para convidar' });
-    const act = (fn) => guard(async () => { await fn(); await loadBoard(); draw(); });
+    const act = (fn) => guard(async (...a) => { await fn(...a); await loadBoard(); draw(); });
     box.replaceChildren(
       h('div', { class: 'field' }, h('label', null, 'Nome'), h('div', { class: 'row' }, name, isOwner && h('button', { class: 'btn', style: { flex: '0 0 auto' }, onclick: act(async () => { await api('PATCH', `/api/projects/${p.id}`, { name: name.value }); toast('Nome atualizado'); }) }, 'Salvar'))),
       h('div', { class: 'field' }, h('label', null, `Membros (${d.members.length})`),
         h('div', { class: 'member-list' }, d.members.map((m) => h('div', { class: 'member-row' }, avatar(m, 28),
           h('div', { class: 'member-info' }, h('b', null, m.name + (m.id === S.me.id ? ' (você)' : '')), h('small', null, m.email)),
           h('span', { class: 'role-badge' + (m.role === 'owner' ? ' owner' : '') }, m.role === 'owner' ? 'dono' : 'membro'),
+          isOwner && m.role !== 'owner' && h('label', { class: 'check mini', title: 'Deixa essa pessoa convidar outras' }, h('input', { type: 'checkbox', checked: !!m.can_invite, onchange: act(async (e) => { await api('POST', `/api/projects/${p.id}/members/${m.id}/can_invite`, { can: e.target.checked }); }) }), 'pode convidar'),
           isOwner && m.id !== S.me.id && h('button', { class: 'btn ghost sm', onclick: act(async () => { await api('POST', `/api/projects/${p.id}/members/${m.id}/role`, { role: m.role === 'owner' ? 'member' : 'owner' }); }) }, m.role === 'owner' ? 'Tirar de dono' : 'Tornar dono'),
           (isOwner || m.id === S.me.id) && h('button', { class: 'btn ghost sm danger-text', onclick: guard(async () => {
             if (!(await confirmBox(m.id === S.me.id ? 'Sair deste projeto? Você deixa de ver as tasks dele.' : `Remover ${m.name} do projeto?`, m.id === S.me.id ? 'Sair' : 'Remover'))) return;
             await api('DELETE', `/api/projects/${p.id}/members/${m.id}`); if (m.id === S.me.id) { close(); S.project = null; } await loadBoard(); if (m.id !== S.me.id) draw(); }) }, m.id === S.me.id ? 'Sair' : 'Remover'))))),
       d.invites.length > 0 && h('div', { class: 'field' }, h('label', null, 'Convites pendentes'), d.invites.map((i) => h('div', { class: 'member-row' }, h('div', { class: 'member-info' }, h('b', null, i.name || i.email), h('small', null, i.email)),
-        isOwner && h('button', { class: 'btn ghost sm', onclick: act(async () => { await api('DELETE', `/api/invites/${i.id}`); }) }, 'Cancelar')))),
-      isOwner && h('div', { class: 'field' }, h('label', null, 'Convidar'), h('div', { class: 'row' }, email, h('button', { class: 'btn primary', style: { flex: '0 0 auto' }, onclick: act(async () => { if (!email.value.trim()) return; await api('POST', `/api/projects/${p.id}/invite`, { email: email.value }); toast('Convite enviado: a pessoa aceita pelo menu do projeto'); }) }, 'Convidar')),
-        h('span', { class: 'help' }, 'A pessoa precisa ter conta aprovada. Ela vê o convite ao clicar no nome do projeto (canto superior esquerdo).')),
+        canInvite && h('button', { class: 'btn ghost sm', onclick: act(async () => { await api('DELETE', `/api/invites/${i.id}`); }) }, 'Cancelar')))),
+      canInvite && h('div', { class: 'field' }, h('label', null, 'Convidar'), h('div', { class: 'row' }, email, h('button', { class: 'btn primary', style: { flex: '0 0 auto' }, onclick: act(async () => { if (!email.value.trim()) return; await api('POST', `/api/projects/${p.id}/invite`, { email: email.value }); toast('Convite enviado: a pessoa aceita pelo menu do projeto'); }) }, 'Convidar')),
+        h('span', { class: 'help' }, 'A pessoa precisa ter conta aprovada. O convite aparece no próprio site (bolinha vermelha no nome do projeto, canto superior esquerdo), e ela aceita ou recusa por lá.')),
       isOwner && h('div', { class: 'proj-danger' }, h('button', { class: 'btn danger', onclick: guard(async () => {
         if (!(await confirmBox(`Excluir o projeto "${p.name}" com todas as tasks, colunas e anotações? Isso não dá para desfazer.`, 'Excluir projeto'))) return;
         await api('DELETE', `/api/projects/${p.id}`); close(); S.project = null; await loadBoard(); toast('Projeto excluído'); }) }, icon('trash'), 'Excluir projeto')));
