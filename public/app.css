@@ -728,3 +728,4 @@ html{overscroll-behavior-y:none}
 @media (display-mode:standalone){body{-webkit-tap-highlight-color:transparent}.card,.btn,.chip{-webkit-touch-callout:none}}
 .card-more,.card-more-in,.cm-desc,.cm-check,.cm-check .check,.cm-check span{min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:break-word}.card-more-in{grid-template-columns:minmax(0,1fr)}
 .cm-check .check.mini{white-space:normal;color:var(--text)}
+.task-side .when-row{grid-template-columns:minmax(0,1fr)}.when .input{min-width:0;width:100%}
