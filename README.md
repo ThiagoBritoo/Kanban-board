@@ -61,3 +61,5 @@ Também serve Cloudflare Pages ou Netlify: conecte este repositório. **Sem coma
 - `supabase/migrations/` esquema, RLS, gatilhos de histórico e funções (rode na ordem, no SQL Editor, num projeto novo)
 - `AGENTS.md` + `docs/DESIGN.md` design system do projeto (o `AGENTS.md` manda ler o DESIGN.md antes de mexer na interface) · `scripts/browse-sites.cjs` abre sites num Chromium para a IA "ver" referências · `docs/REFERENCIAS_DESIGN.md` referências e o que foi aplicado de cada uma
 - `test/` teste de interface com uma API Supabase falsa (instruções no topo de `test/e2e.cjs`)
+  - `e2e.cjs` fluxo completo · `regress.cjs` regressões (sessão, filtro de temas, lixeira, duplicar, prazo rápido, atalhos) · `overflow.cjs <largura>` e `overflow-themes.cjs` (palavras estourando) · `scrollstate.cjs` e `modalstate.cjs` (estado preservado ao atualizar) · `polish.cjs` (números rolando, soltura, abas, desfoque) · `themes-check.cjs` (contraste) · `fx.cjs`/`shader.cjs`/`terrain.cjs` (fundos)
+  - Atalhos no app: `N` nova task · `/` buscar · `Ctrl+K` paleta · `?` lista de atalhos · setas entre cartões · Mais → Lixeira para restaurar excluídas
