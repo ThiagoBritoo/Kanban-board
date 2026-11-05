@@ -14,6 +14,7 @@ const srv = http.createServer((q, r) => { let u = new URL(q.url, 'http://x').pat
   for (const [id, nm] of Object.entries(tiles)) {
     await p.click(`.bg-tile[title^="${nm}"]`); await p.waitForSelector('.shader-box'); await p.waitForTimeout(700);
     ok(await p.evaluate((i) => document.documentElement.dataset.fxbg === i && !!document.getElementById('fxbg'), id), id + ': canvas ligado');
+    if (id === 'lightfall' || id === 'ink') ok(await p.evaluate(() => { const g = document.getElementById('fxgl'); return !!g && getComputedStyle(g).display !== 'none' && getComputedStyle(document.getElementById('fxbg')).display === 'none'; }), id + ': desenhando em WebGL');
     const a = (await p.screenshot()).toString('base64'); await p.waitForTimeout(1200); ok(a !== (await p.screenshot()).toString('base64'), id + ': se move');
     await p.screenshot({ path: OUT + `/fx-${id}-dark.png` });
     const bn = await p.evaluate(() => window.KBFx.bench(20)); ok(bn && bn.ms < 40, id + ': custo ' + (bn ? bn.ms.toFixed(1) : '?') + ' ms/quadro (software)');
