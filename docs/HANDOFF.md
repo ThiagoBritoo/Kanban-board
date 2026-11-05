@@ -42,6 +42,13 @@ Playwright e Chromium já vêm no ambiente de nuvem (`require('playwright')`). O
 - `plugin:rls-schema-explorer:supabase` falha na conexão (ignorar).
 - Para o Supabase real, **não dá para o ambiente chamar `*.supabase.co` por curl/navegador** em alguns momentos: validar via MCP.
 
+## 5b. OriginKit: como acessar (LEIA antes de abrir componente)
+- `originkit.com` dá **503** a partir daqui (não adianta Chromium/curl; não contornar). O **MCP funciona**: `https://mcp.originkit.dev/mcp`.
+- Chave: variável de ambiente **`ORIGINKIT_API_KEY`** (o Thiago colocou no ambiente; nunca pedir/colar no chat, nunca gravar em arquivo). Vale só em sessão **nova**.
+- Jeito 1: `.mcp.json` do repositório registra o servidor (aprovar quando o Claude Code perguntar). Jeito 2 (sempre funciona): `node scripts/originkit.cjs list|search <texto>|get <nome>`.
+- **Cota Free = 3 componentes/dia** (só `get_component`/`fetch` contam; `list_components` e `search` são grátis; 15/hora = pausa de 4 h). Gaste com cuidado.
+- **Os 5 que o Thiago curtiu** (05/11): **Vertical Parallax, Pulsating Border, Lightfall, Grid Hole, Ink Flow Field** — podem ir também em cartões/títulos, não só fundo. Já existe versão **minha** de cada em `public/fx.js` (feita sem ver o original): usar `get` (no máx. 3/dia) para comparar variantes/controles e ajustar. Códigos baixados são referência: recriar com código próprio, não colar licença/dependências de terceiros.
+
 ## 6. Arquitetura em 10 linhas
 - Site estático em `public/` (JS puro, sem build): `app.js` núcleo e ajustes · `backend.js` camada Supabase (rotas → `supabase-js`) · `views.js` lista/calendário/painel/resumo/atividade/exportar ·
   `palette.js` Ctrl+K · `touch.js` arrastar com o dedo · `island.js` ilha do cronômetro · `shader.js` fundo WebGL · `terrain.js` fundo Canvas 2D · `themes.css` temas · `app.css` componentes.
