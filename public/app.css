@@ -726,3 +726,5 @@ html{overscroll-behavior-y:none}
 .board{padding-bottom:max(28px,calc(env(safe-area-inset-bottom) + 16px))}
 .overlay.drawer .drawer-panel{padding-bottom:env(safe-area-inset-bottom)}
 @media (display-mode:standalone){body{-webkit-tap-highlight-color:transparent}.card,.btn,.chip{-webkit-touch-callout:none}}
+.card-more,.card-more-in,.cm-desc,.cm-check,.cm-check .check,.cm-check span{min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:break-word}.card-more-in{grid-template-columns:minmax(0,1fr)}
+.cm-check .check.mini{white-space:normal;color:var(--text)}
