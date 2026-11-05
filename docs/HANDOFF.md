@@ -47,7 +47,12 @@ Playwright e Chromium já vêm no ambiente de nuvem (`require('playwright')`). O
 - Chave: variável de ambiente **`ORIGINKIT_API_KEY`** (o Thiago colocou no ambiente; nunca pedir/colar no chat, nunca gravar em arquivo). Vale só em sessão **nova**.
 - Jeito 1: `.mcp.json` do repositório registra o servidor (aprovar quando o Claude Code perguntar). Jeito 2 (sempre funciona): `node scripts/originkit.cjs list|search <texto>|get <nome>`.
 - **Cota Free = 3 componentes/dia** (só `get_component`/`fetch` contam; `list_components` e `search` são grátis; 15/hora = pausa de 4 h). Gaste com cuidado.
+- Código já baixado (Lightfall, Grid Hole, Ink Flow Field) em `docs/originkit-cache/` — **não gastar cota de novo**; falta baixar Vertical Parallax e Pulsating Border.
 - **Os 5 que o Thiago curtiu** (05/11): **Vertical Parallax, Pulsating Border, Lightfall, Grid Hole, Ink Flow Field** — podem ir também em cartões/títulos, não só fundo. Já existe versão **minha** de cada em `public/fx.js` (feita sem ver o original): usar `get` (no máx. 3/dia) para comparar variantes/controles e ajustar. Códigos baixados são referência: recriar com código próprio, não colar licença/dependências de terceiros.
+
+## 5c. Cult UI pelo MCP do shadcn
+- O Cult UI não tem MCP próprio: usa o **servidor MCP do shadcn** (`.mcp.json` → `shadcn`, via `npx shadcn@latest mcp`) lendo o registro `@cult-ui` listado em `components.json` (raiz). Aprovar o servidor quando o Claude Code perguntar; só vale em sessão **nova**. Guia: https://www.cult-ui.com/docs/mcp-server
+- O site é JS puro (sem React/Tailwind): **não rodar `shadcn add`**. Usar o MCP só para ler código/exemplos e recriar o efeito com código próprio. Bons candidatos: Kanban Board, Timer, Dynamic Island, Border Beam, Halo (botão/card/badge), Grid Beam, Fluted Glass. Dica: peça citando "cult-ui" pelo nome. Se `npx` não puder rodar no ambiente, ler `https://www.cult-ui.com/r/<nome>.json` com `curl`.
 
 ## 6. Arquitetura em 10 linhas
 - Site estático em `public/` (JS puro, sem build): `app.js` núcleo e ajustes · `backend.js` camada Supabase (rotas → `supabase-js`) · `views.js` lista/calendário/painel/resumo/atividade/exportar ·
@@ -56,7 +61,7 @@ Playwright e Chromium já vêm no ambiente de nuvem (`require('playwright')`). O
 - Exclusão de task = lixeira (`deleted_at`), com "Desfazer".
 - Preferências por usuário em `profiles.prefs` (jsonb) + `localStorage`; `setPrefs()` aplica na hora e salva com debounce.
 - Segurança: `vercel.json` (CSP, X-Frame-Options…). Atenção: se adicionar domínio externo (fonte, script), liberar na CSP.
-- PWA: `manifest.webmanifest` + `sw.js` (rede primeiro). **Subir o número de `CACHE` em `sw.js` a cada release** (hoje `kanban-v12`).
+- PWA: `manifest.webmanifest` + `sw.js` (rede primeiro). **Subir o número de `CACHE` em `sw.js` a cada release** (hoje `kanban-v13`).
 
 ## 7. Regras de design (resumo; o completo está em `docs/DESIGN.md`)
 Tokens por tema (claro e escuro; `--pop` sempre opaco; `--bw/--font` só no bloco claro) · contraste mínimo 7:1 / 3,5:1 / 4,5:1 (botão) · movimento 150–200 ms, saída mais sutil que a entrada, nada pulsando ·
@@ -66,14 +71,15 @@ estrutura: barra lateral com contadores, modal da task em 2 colunas, cartão com
 - **Shader** (WebGL, `shader.js`) e **Terreno** (Canvas 2D, `terrain.js`, recriação do *Wire Terrain* do OriginKit com os mesmos controles). Ambos: meia resolução, ~30 fps, pausam com a aba oculta, ficam parados com "fundo animado" desligado / movimento reduzido.
 - Medido no sandbox (**sem GPU**, renderização por software, então é pessimista para o WebGL): terreno ≈ 8–12 ms/quadro (CPU, ruído em JS); shader ≈ 34 ms no desktop emulado e ≈ 9 ms no tamanho de celular.
   O terreno é limitado pela CPU; numa GPU real o shader custa quase nada. O terreno tem **qualidade adaptativa** (reduz linhas em aparelho lento). Botão **"Medir desempenho neste aparelho"** em Personalizar → Fundo.
-- **Fundos de efeito** (`public/fx.js`, Canvas 2D, teste `test/fx.cjs`): Lightfall, Grid Hole, Ink Flow Field e Parallax vertical (rola o quadro). Pedidos pelo Thiago em 05/11; **recriados do zero a partir do nome** porque o OriginKit estava fora do ar (503) e as páginas originais não foram abertas — reabrir quando voltar e comparar variantes/controles. Em cartões: borda pulsante (opt-in, só prioridade alta/urgente, sem animação com movimento reduzido) e luz caindo no hover (`pulse`, `cardLight`).
+- **Fundos de efeito** (`public/fx.js`, Canvas 2D, teste `test/fx.cjs`): Lightfall, Grid Hole, Ink Flow Field e Parallax vertical (rola o quadro). Pedidos pelo Thiago em 05/11; Lightfall, Grid Hole e Ink já foram refeitos vendo o original (ver acima); Parallax e Pulsating Border ainda são recriações a partir do nome. Em cartões: borda pulsante (opt-in, só prioridade alta/urgente, sem animação com movimento reduzido) e luz caindo no hover (`pulse`, `cardLight`).
+- **Fundos refeitos a partir dos originais** (código em `docs/originkit-cache/`, tudo com código próprio em `public/fx.js`; controles continuam só cores/velocidade/intensidade): **Lightfall** = shader WebGL (faixas na parede curva de um cilindro; cabeça/cauda, cintilar, brilho de fundo) · **Ink Flow Field** = fluido estável WebGL (splat, vorticidade, pressão Jacobi, advecção; dois agitadores autônomos + mouse; densidade no canal alfa; exige `OES_texture_half_float(+linear)` e `EXT_color_buffer_half_float`) · **Grid Hole** = Canvas 2D (o original é Canvas 2D): funil com anéis elípticos fluindo, 80 linhas radiais, túnel recortado, partículas em leque, vinheta e brilho. Lightfall e Ink compartilham um canvas WebGL (`#fxgl`); sem WebGL (ou sem textura de meia precisão) caem na versão Canvas 2D antiga (`#fxbg`). **Falta** abrir Vertical Parallax e Pulsating Border (cota do OriginKit) e compará-los com `fx.js`/`app.css`.
 - **Temas com fundo automático** (como Topografia, mas via `fx.js`): Chuva de luz (lightfall), Singularidade (grid hole), Nanquim (ink flow), Cordilheira (parallax); paleta claro/escuro no mapa `AUTO` de `fx.js` + tokens em `themes.css`. Total: 38 temas.
 - Ideia pendente: versão **WebGL** do terreno ("qualidade alta": malha mais densa, brilho), com o Canvas 2D como reserva.
 
 ## 9. Pendências e ideias
 - Confirmar com o Thiago (não sei se já fez): Supabase → Authentication → **URL Configuration** (Site URL = endereço da Vercel), decidir **Confirm email**, e **Leaked password protection** (pode exigir plano pago).
 - Ele quer **mais componentes** dos sites de referência. Fila do OriginKit (ver `docs/REFERENCIAS_DESIGN.md`; já feitos: Wire Terrain, Lightfall, Grid Hole, Ink Flow, Parallax, Pulsating Border): Accretion Disc, Acrylic Pour, Wave Ribbons, Wind Pyre, Wire Throat, Wireframe Globe, Twisting Vortex, Wobbling Lattice Sphere… Perguntar quais ele curte; abrir cada um e recriar.
-- Cult UI e Skiper UI: componentes ainda **não abertos** (só as homes).
+- Cult UI (MCP configurado, ver §5c) e Skiper UI: componentes ainda **não abertos** (só as homes).
 - Candidatos de produto: notificações push reais, tarefas recorrentes, vários quadros/projetos, integração de e-mail.
 - Refero: estilos ainda não transformados em tema (Warp, Prisma, Vercel, Perplexity, Brex, Freitag, B&O, Reflect…).
 - Primeira abertura **real** das versões novas no site de produção ainda não foi vista por mim (só por testes com API falsa e capturas).

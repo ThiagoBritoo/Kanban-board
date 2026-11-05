@@ -1,0 +1,11 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": false,
+  "tsx": false,
+  "tailwind": { "config": "", "css": "public/app.css", "baseColor": "neutral", "cssVariables": true },
+  "aliases": { "components": "@/components", "utils": "@/lib/utils" },
+  "registries": {
+    "@cult-ui": "https://www.cult-ui.com/r/{name}.json"
+  }
+}

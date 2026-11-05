@@ -539,7 +539,7 @@ html[data-fx="off"] .sk,html[data-motion="off"] .sk{animation:none}
 html[data-terrain="on"] #deco::before,html[data-terrain="on"] #deco::after,html[data-terrain="on"] #deco i{display:none}
 
 /* ---- fundos de efeito (fx.js) e efeitos nos cartões ---- */
-#fxbg{position:absolute;inset:0;width:100%;height:100%;display:block}
+#fxbg,#fxgl{position:absolute;inset:0;width:100%;height:100%;display:block}
 html[data-fxbg]:not([data-fxbg="off"]) #deco::before,html[data-fxbg]:not([data-fxbg="off"]) #deco::after,html[data-fxbg]:not([data-fxbg="off"]) #deco i{display:none}
 /* borda pulsante: anel que se afasta e some (outline não conflita com ::before da faixa nem ::after do cartão dobrado) */
 @keyframes ring{0%{outline-color:color-mix(in srgb,var(--p3) 75%,transparent);outline-offset:0}70%,100%{outline-color:color-mix(in srgb,var(--p3) 0%,transparent);outline-offset:6px}}
