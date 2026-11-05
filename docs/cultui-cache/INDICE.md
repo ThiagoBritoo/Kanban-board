@@ -1,0 +1,277 @@
+# Índice do registro @cult-ui (307 itens, lido em 05/11/2026)
+
+Fonte: https://www.cult-ui.com/r/registry.json — código de cada um em `https://www.cult-ui.com/r/<nome>.json`.
+
+- `text-animate` — Animated text component with customizable reveal effects and timing _(deps: motion)_
+- `cosmic-button` — Animated button/link with cosmic gradient border effect, renders as anchor or button
+- `texture-button` — Button component with texture overlay effects and customizable variants _(deps: @radix-ui/react-slot, class-variance-authority)_
+- `texture-card` — Card component with texture background and customizable styling options
+- `timer` — Countdown timer component with customizable duration and visual styles _(deps: class-variance-authority, lucide-react)_
+- `shift-card` — Card component with shift animation effects and hover interactions _(deps: motion)_
+- `minimal-card` — Clean and minimal card component with subtle styling and hover effects
+- `cutout-card` — Image card with cutout corners, hover motion, inset labels, pins, and reveal actions _(deps: motion, @radix-ui/react-use-controllable-state)_
+- `dynamic-island` — iOS-style dynamic island component with expandable content and smooth animations _(deps: motion)_
+- `direction-aware-tabs` — Tab component with direction-aware animations and smooth transitions _(deps: motion, react-use-measure)_
+- `bg-animate-button` — Button component with animated background effects and gradient transitions _(deps: @radix-ui/react-slot, class-variance-authority)_
+- `border-beam-button` — Shadcn Button wrapped in Border Beam: animated border glow with compact icon and text variants _(deps: border-beam)_
+- `family-button` — Button component with family-style design and interactive hover effects _(deps: lucide-react, motion)_
+- `side-panel` — Sliding side panel component with customizable positioning and animations _(deps: motion, react-use-measure)_
+- `bg-media` — Background media component with video/image support and overlay effects _(deps: class-variance-authority)_
+- `three-d-carousel` — 3D carousel component with perspective effects and smooth item transitions _(deps: motion)_
+- `tweet-grid` — Grid layout component for displaying tweet-like content cards _(deps: class-variance-authority)_
+- `gradient-heading` — Heading component with gradient text effects and customizable styling _(deps: @radix-ui/react-slot, class-variance-authority)_
+- `typewriter` — Typewriter effect component with customizable typing speed and cursor animation _(deps: motion)_
+- `rolling-number` — Number component with smooth counting animations and customizable formatting _(deps: motion)_
+- `sortable-list` — Drag-and-drop sortable list component with smooth animations and reordering _(deps: motion, react-use-measure, lucide-react)_
+- `dock` — macOS-style dock component with hover effects and smooth animations _(deps: motion)_
+- `lightboard` — Interactive lightboard component with customizable grid and lighting effects
+- `canvas-fractal-grid` — Interactive canvas-based fractal dot grid with mouse tracking and wave effects _(deps: motion)_
+- `bg-animated-fractal-dot-grid` — Background animated fractal dot grid with performance optimization and responsive design _(deps: motion)_
+- `bg-animated-gradient` — Animated gradient background component with customizable color transitions _(deps: motion)_
+- `bg-image-texture` — Background texture component with multiple texture variants and customizable opacity
+- `popover` — Animated popover component with form support and smooth transitions _(deps: motion, lucide-react)_
+- `floating-panel` — Floating panel component with backdrop blur and position-aware animations _(deps: motion, lucide-react)_
+- `color-picker` — Interactive color picker component with HSL support and preset colors _(deps: motion, lucide-react)_
+- `shader-lens-blur` — WebGL shader component with lens blur effects and mouse interaction _(deps: motion, three, jotai, next-themes)_
+- `edge-blur` — Stacked backdrop-blur layers with a gradient mask for soft top or bottom screen edges
+- `dither-image` — Compound Next.js image figure with CSS Bayer dither via dither-plugin, partial reveal overlays, and typed tuning props _(deps: dither-plugin)_
+- `popover-form` — Form popover component with success states and animated transitions _(deps: motion, lucide-react)_
+- `expandable` — Expandable component system with smooth animations and customizable presets _(deps: motion, react-use-measure)_
+- `logo-carousel` — Animated logo carousel with staggered animations and customizable columns _(deps: motion)_
+- `loading-carousel` — Loading carousel component with smooth transitions and customizable content _(deps: embla-carousel-autoplay, lucide-react, motion)_
+- `hover-video-player` — Video player component that plays on hover with smooth animations _(deps: motion, lucide-react)_
+- `neumorph-eyebrow` — Neumorphic eyebrow component with soft shadow effects and modern styling _(deps: class-variance-authority)_
+- `neumorph-button` — Neumorphic button component with soft shadows and tactile interaction effects _(deps: class-variance-authority, lucide-react, motion)_
+- `feature-carousel` — Feature carousel component with smooth transitions and customizable layouts _(deps: motion, clsx, react-wrap-balancer)_
+- `choice-poll` — Poll component with single or multiple selection, optional results, and keyboard navigation _(deps: @radix-ui/react-use-controllable-state, lucide-react, class-variance-authority)_
+- `feature-poll` — Feature poll component with single or multiple selection, optional results, and keyboard navigation _(deps: @radix-ui/react-use-controllable-state, lucide-react, class-variance-authority)_
+- `feature-voting` — List of features with up-vote support, optional sorting by vote count, and controlled or uncontrolled state _(deps: @radix-ui/react-use-controllable-state)_
+- `vote-tally` — List of items with up-vote support, optional sorting by vote count, and controlled or uncontrolled state _(deps: @radix-ui/react-use-controllable-state)_
+- `poll-widget` — Poll widget with inline, popover, and dialog modes, optional results, and animations _(deps: @radix-ui/react-use-controllable-state, class-variance-authority, lucide-react, motion)_
+- `prompt-library` — Browse, insert, and manage prompt templates with categories and custom prompts _(deps: @hugeicons/core-free-icons, @hugeicons/react)_
+- `ai-instructions` — Manage and toggle AI instructions with a popover, search, and create-dialog _(deps: @hugeicons/core-free-icons, @hugeicons/react)_
+- `intro-disclosure` — Intro disclosure component with expandable content and smooth animations _(deps: motion, react-use-measure, lucide-react)_
+- `text-gif` — Text component with GIF-like animation effects and customizable styling _(deps: class-variance-authority)_
+- `stripe-bg-guides` — Stripe-style background guides component with animated patterns and effects _(deps: motion)_
+- `svg-shapes` — Wide-aspect SVG shape and panel components for backgrounds and hero decorations
+- `svg-shapes-animated` — Scroll-triggered stroke-draw animations for wide SVG shapes and panels using Motion _(deps: motion)_
+- `svg-bands` — Wide SVG section bands, battlement and zigzag trims, steep hero edges, and ornamental frames
+- `grid-beam` — Canvas grid beam animation with palette presets, SVG dividers, and composable headless pieces via useGridBeam
+- `youtube-video-player` — YouTube video player component with custom controls and smooth animations _(deps: motion, lucide-react)_
+- `toolbar-expandable` — Expandable toolbar component with step-based navigation, smooth animations, and enhanced scrolling _(deps: motion, @radix-ui/react-scroll-area)_
+- `texture-overlay` — Texture overlay component with various CSS gradient patterns for adding visual texture to backgrounds
+- `squiggle-arrow` — A playful, hand-drawn squiggly arrow component with customizable variants, directions, and sizes
+- `code-block` — A beautiful code block component with tabs, copy functionality, and smooth animations _(deps: motion, lucide-react)_
+- `mock-browser-window` — A customizable browser window mockup component with support for Chrome, Safari, and generic styles, customizable sidebars, and themes
+- `metal-button` — Shadcn Button wrapped in MetalFx: animated liquid metal ring with text and icon variants _(deps: metal-fx, class-variance-authority)_
+- `morph-surface` — A morphing surface component with smooth animations, customizable dimensions, and configurable content _(deps: motion)_
+- `distorted-glass` — A glass morphism effect component using SVG filters with fractal noise to create visual transitions between sections
+- `family-drawer` — A multi-view drawer component with smooth animations, view navigation, and customizable content views _(deps: motion, react-use-measure, vaul, @radix-ui/react-slot)_
+- `expandable-screen` — A full-screen expandable component with morphing animations using shared layout IDs for smooth transitions _(deps: motion, lucide-react)_
+- `pixel-heading-character` — Per-character pixel-font heading with four animation modes using Geist pixel fonts _(deps: geist)_
+- `pixel-heading-word` — Whole-word pixel-font heading that swaps or cycles fonts on hover using Geist pixel fonts _(deps: geist)_
+- `pixel-paragraph-words-inverse` — Paragraph in pixel font where specific words escape into interactive sans/mono with hover swap or cycle _(deps: geist)_
+- `pixel-paragraph-words` — Paragraph where specific words render in an interactive pixel font that swaps or cycles on hover _(deps: geist)_
+- `onboarding` — Composable multi-step onboarding primitives: Onboarding root with step navigation, FeatureCarousel, ChoiceGroup radio selector, TipsList, and StepIndicator with dots and pills variants _(deps: @radix-ui/react-use-controllable-state, class-variance-authority)_
+- `gradient-button-group` — Premium layered button group with animated active state, gradient ring accents, and theme toggle underlay _(deps: motion, next-themes)_
+- `terminal-animation` — Composable terminal animation primitives with typed command playback, tabbed scenarios, and customizable output rendering _(deps: @radix-ui/react-slot, @radix-ui/react-use-controllable-state)_
+- `hero-dithering` — Split-layout hero section with responsive dithering shader visuals, CTA, and tech stack badges _(deps: @paper-design/shaders-react)_
+- `hero-color-panel` — Split-layout hero section with responsive ColorPanels shader visuals, CTA, and tech stack badges _(deps: @paper-design/shaders-react)_
+- `hero-static-radial-gradient` — Split-layout hero section with responsive StaticRadialGradient shader visuals, CTA, and tech stack badges _(deps: @paper-design/shaders-react)_
+- `hero-heatmap` — Split-layout hero section with responsive Heatmap shader visuals, CTA, and tech stack badges _(deps: @paper-design/shaders-react)_
+- `hero-liquid-metal` — Split-layout hero section with responsive LiquidMetal shader visuals, CTA, and tech stack badges _(deps: @paper-design/shaders-react)_
+- `base-select` — Base UI select primitives used by Halo Select _(deps: @base-ui/react, @hugeicons/react, @hugeicons/core-free-icons)_
+- `base-tooltip` — Base UI tooltip primitives used by Apple Pro Display XDR _(deps: @base-ui/react, @radix-ui/react-slot)_
+- `gateway-endpoint-illustration` — Illustration for gateway endpoint concepts
+- `gateway-route-illustration` — Illustration for gateway routing
+- `gateway-svg-illustration` — SVG illustration for gateway overhead
+- `illustration-card-grid` — Grid of cards with gateway illustrations
+- `illustration-cursor` — Cursor illustration and demo for collaboration UI
+- `illustration-comment-bubble` — Comment bubble illustration for code or chat UI
+- `illustration-fluid-rendering` — Fluid rendering illustration
+- `illustration-globe-vercel` — Globe deployment illustration
+- `illustration-graph` — Graph illustration component
+- `tabs-illustration-vercel` — Tabs with Vercel-style illustrations
+- `circuit-board` — Animated SVG circuit illustration with glowing traces and a central chip, for hero or product sections _(deps: lucide-react, motion)_
+- `fluid-ai-workloads` — Fluid visualization for AI workload states
+- `security-checkpoint` — Security checkpoint illustration or component
+- `merging-bubbles` — Merging bubbles visualization
+- `ai-blob-warp` — Circular avatar with Paper Design Warp shader; motion-safe pulse, pauses off-screen and when reduced motion is preferred _(deps: @paper-design/shaders-react, motion)_
+- `folded-card` — Card with folded corner clip-path accent
+- `shadow-card` — Composable marketing card with L-shaped extrusion, optional pixel gradient mesh, and Radix Slot on the root _(deps: @radix-ui/react-slot)_
+- `organic-card` — Composable marketing card with optional link root, image slot, eyebrow/title/body, accent band, and footer CTA _(deps: lucide-react)_
+- `organic-card-small` — Compact card with SVG silhouette, category and date, motion morph on hover, and optional link _(deps: lucide-react, motion)_
+- `organic-button` — Anchor-based CTA with fixed SVG end caps, shared surface colors via CSS variables, and size and animation variants _(deps: @radix-ui/react-slot, class-variance-authority, lucide-react)_
+- `fluted-glass` — Paper Design fluted-glass image shader with sensible defaults — ribbed, streaked distortions over a source image _(deps: @paper-design/shaders-react)_
+- `speech-bubble` — Speech bubble component
+- `apple-iphone-17-pro` — iPhone-style device frame with Dynamic Island, status bar, and configurable frame colors _(deps: lucide-react, motion)_
+- `apple-keyboard` — Compact Apple-style keyboard with labeled keys and media row _(deps: @tabler/icons-react)_
+- `apple-watch-ultra` — Watch Ultra–style case, complications, crown, and action button _(deps: lucide-react, motion)_
+- `mac-screen` — Classic Mac frame with an image or GIF composited into the CRT
+- `apple-pro-display-xdr` — Studio Display–style aluminum frame, screen modes, and interactive macOS dock _(deps: @tabler/icons-react, motion)_
+- `marketing-hero-analytics` — Analytics hero section for marketing pages
+- `marketing-feature-code` — Marketing section for code or network policy features _(deps: lucide-react)_
+- `feature-sticky-section` — Sticky section with controllable panels and scroll behavior _(deps: @radix-ui/react-slot, @radix-ui/react-use-controllable-state)_
+- `analytics-chart` — Vercel-style gradient line chart with floating tooltip cards
+- `kanban-board` — Kanban board with drag-and-drop columns and cards _(deps: motion)_
+- `agent-suggest-card-stack` — Stack of suggestion cards for AI agent responses
+- `collab-avatar` — Collaboration avatar with initials and color _(deps: motion)_
+- `collab-toolbar` — Toolbar component for collaborative editing UI
+- `halo-dropzone` — File dropzone with animated rim, frosted fill, moving border trail, and file-type glyphs _(deps: lucide-react, motion)_
+- `halo-search` — Search input with animated gradient border, staggered placeholder, blur deletion on clear, loading line, and Warp shader avatar _(deps: @paper-design/shaders-react, motion)_
+- `globe` — COBE-powered 3D globe with showcase presets, markers, arcs, DOM overlays, and theme-aware styling _(deps: cobe, motion, next-themes)_
+- `file-icons` — Icon set for file types and languages _(deps: lucide-react)_
+- `halo-button` — Primary action button with animated gradient rim, frosted fill, staggered label, and loading spinner _(deps: @base-ui/react, motion)_
+- `copy-button` — Button that copies content to clipboard with feedback _(deps: lucide-react, motion)_
+- `halo-card` — Composable card with animated gradient rim, frosted fill, layered shadow, and Base UI button actions _(deps: @base-ui/react, motion)_
+- `border-beam-card` — border-beam around compound Card API with balanced title and description _(deps: border-beam)_
+- `halo-tabs` — Base UI tabs with gradient indicator: underline or pill variant aligned with Halo Card rim colors _(deps: @base-ui/react)_
+- `halo-segmented` — Segmented control with frosted track, gradient rim, and spring sliding thumb _(deps: @base-ui/react, motion)_
+- `halo-toggle-group` — Segmented single-select control with frosted track, gradient rim, and spring-driven sliding thumb (aligned with Halo Button) _(deps: @base-ui/react, motion)_
+- `halo-notification` — Polished notification surface for local AnimatePresence use with rim variants and glyph stagger _(deps: @base-ui/react, lucide-react, motion)_
+- `halo-toast` — Sonner-backed polished toasts with rim variants; mount PolishedToaster once in the root layout _(deps: lucide-react, motion, sonner)_
+- `halo-switch` — Toggle switch with spring thumb, frosted track, and extended touch hit area _(deps: @base-ui/react, motion)_
+- `halo-input` — Single-line and multiline inputs with frosted fill and gradient rim for generic forms _(deps: @base-ui/react, motion)_
+- `halo-field` — Form field layout (label, description, error) for HaloInput and HaloTextarea
+- `halo-progress` — Progress bar with spring-driven determinate fill and indeterminate gradient strip _(deps: @base-ui/react, motion)_
+- `border-beam-input` — border-beam on Base UI input and input-group primitives with line or full border glow _(deps: @base-ui/react, border-beam)_
+- `halo-badge` — Badge with optional layout animation, live status dot, and gradient rim aligned with Halo Button / Card _(deps: class-variance-authority, motion)_
+- `halo-select` — Composable animated select with gradient rim, frosted fill, and staggered label _(deps: @base-ui/react, lucide-react, motion)_
+- `prompt-composer` — Multiline prompt field with shader avatar, staggered placeholder, loading line, and send/attach chrome _(deps: @base-ui/react, @paper-design/shaders-react, lucide-react, motion)_
+- `wizard-expandable` — Expandable multi-step wizard with optional forward validation, scrollable step rail, and Motion height transitions _(deps: @base-ui/react, @radix-ui/react-use-controllable-state, motion)_
+- `text-animate-demo` — 
+- `cosmic-button-demo` — 
+- `texture-button-demo` — 
+- `texture-card-demo` — 
+- `timer-demo` — 
+- `shift-card-demo` — 
+- `minimal-card-demo` — 
+- `cutout-card-demo` — 
+- `dynamic-island-demo` — 
+- `direction-aware-tabs-demo` — 
+- `bg-animate-button-demo` — 
+- `border-beam-button-demo` — 
+- `family-button-demo` — 
+- `side-panel-demo` — 
+- `bg-media-demo` — 
+- `bg-image-texture-demo` — 
+- `three-d-carousel-demo` — 
+- `tweet-grid-demo` — 
+- `gradient-heading-demo` — 
+- `typewriter-demo` — 
+- `rolling-number-demo` — 
+- `sortable-list-demo` — 
+- `dock-demo` — 
+- `lightboard-demo` — 
+- `canvas-fractal-grid-demo` — 
+- `bg-animated-fractal-dot-grid-demo` — 
+- `bg-animated-gradient-demo` — 
+- `popover-demo` — 
+- `floating-panel-demo` — 
+- `color-picker-demo` — 
+- `shader-lens-blur-demo` — 
+- `edge-blur-demo` — 
+- `dither-image-demo` — 
+- `dither-image-demo-upload` — 
+- `popover-form-demo` — 
+- `expandable-demo` — 
+- `logo-carousel-demo` — 
+- `loading-carousel-demo` — 
+- `hover-video-player-demo` — 
+- `neumorph-eyebrow-demo` — 
+- `neumorph-button-demo` — 
+- `feature-carousel-demo` — 
+- `choice-poll-demo` — 
+- `feature-poll-demo` — 
+- `feature-voting-demo` — 
+- `vote-tally-demo` — 
+- `poll-widget-demo` — 
+- `prompt-library-demo` — 
+- `ai-instructions-demo` — 
+- `intro-disclosure-demo` — 
+- `text-gif-demo` — 
+- `stripe-bg-guides-demo` — 
+- `svg-shapes-demo` — 
+- `svg-shapes-animated-demo` — 
+- `svg-bands-demo` — 
+- `grid-beam-demo` — 
+- `youtube-video-player-demo` — 
+- `toolbar-expandable-demo` — 
+- `texture-overlay-demo` — 
+- `squiggle-arrow-demo` — 
+- `code-block-demo` — 
+- `metal-button-demo` — 
+- `mock-browser-window-demo` — 
+- `morph-surface-demo` — 
+- `distorted-glass-demo` — 
+- `family-drawer-demo` — 
+- `expandable-screen-demo` — 
+- `pixel-heading-character-demo` — 
+- `pixel-heading-word-demo` — 
+- `pixel-paragraph-words-inverse-demo` — 
+- `pixel-paragraph-words-demo` — 
+- `onboarding-demo` — 
+- `gradient-button-group-demo` — 
+- `terminal-animation-demo` — 
+- `hero-dithering-demo` — 
+- `hero-color-panels-demo` — 
+- `hero-static-radial-gradient-demo` — 
+- `hero-heatmap-demo` — 
+- `hero-liquid-metal-demo` — 
+- `gateway-endpoint-illustration-demo` — 
+- `gateway-route-illustration-demo` — 
+- `gateway-svg-illustration-demo` — 
+- `illustration-card-grid-demo` — 
+- `illustration-cursor-demo` — 
+- `illustration-comment-bubble-demo` — 
+- `illustration-fluid-rendering-demo` — 
+- `illustration-globe-vercel-demo` — 
+- `illustration-graph-demo` — 
+- `tabs-illustration-vercel-demo` — 
+- `circuit-board-demo` — 
+- `fluid-ai-workloads-demo` — 
+- `security-checkpoint-demo` — 
+- `merging-bubbles-demo` — 
+- `ai-blob-warp-demo` — 
+- `folded-card-demo` —  _(deps: lucide-react)_
+- `shadow-card-demo` — 
+- `organic-card-demo` — 
+- `organic-card-small-demo` — 
+- `organic-button-demo` —  _(deps: lucide-react)_
+- `fluted-glass-demo` —  _(deps: @paper-design/shaders-react)_
+- `speech-bubble-demo` — 
+- `apple-iphone-17-pro-demo` — 
+- `apple-keyboard-demo` — 
+- `apple-watch-ultra-demo` — 
+- `mac-screen-demo` — 
+- `apple-pro-display-xdr-demo` — 
+- `marketing-hero-analytics-demo` — 
+- `marketing-feature-code-demo` — 
+- `feature-sticky-section-demo` — 
+- `analytics-chart-demo` — 
+- `kanban-board-demo` —  _(deps: motion)_
+- `agent-suggest-card-stack-demo` — 
+- `collab-avatar-demo` — 
+- `collab-toolbar-demo` — 
+- `halo-dropzone-demo` — 
+- `halo-search-demo` — 
+- `globe-demo` —  _(deps: cobe, motion, next-themes)_
+- `file-icons-demo` — 
+- `halo-button-demo` —  _(deps: lucide-react)_
+- `copy-button-demo` — 
+- `halo-card-demo` —  _(deps: lucide-react)_
+- `border-beam-card-demo` — 
+- `halo-tabs-demo` — 
+- `halo-segmented-demo` — 
+- `halo-toggle-group-demo` — 
+- `halo-notification-demo` —  _(deps: motion)_
+- `halo-toast-demo` — 
+- `halo-switch-demo` — 
+- `halo-input-demo` — 
+- `halo-field-demo` —  _(deps: lucide-react)_
+- `halo-progress-demo` — 
+- `border-beam-input-demo` —  _(deps: lucide-react)_
+- `halo-badge-demo` — 
+- `halo-select-demo` — 
+- `prompt-composer-demo` — 
+- `wizard-expandable-demo` —  _(deps: lucide-react)_
