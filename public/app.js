@@ -1064,7 +1064,17 @@ function openTask(id) {
           onkeydown: (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.target.blur(); } }, // Enter confirma; Shift+Enter quebra linha
           onchange: (e) => { const v = e.target.value.trim(); if (!v) items.splice(idx, 1); else it.text = v; drawCl(); saveCl(); } }),
         h('button', { class: 'btn ghost icon sm', title: 'Remover item', 'aria-label': 'Remover item', onclick: () => { items.splice(idx, 1); drawCl(); saveCl(); } }, icon('x')))),
-      items.length < 300 && h('input', { class: 'input cl-add', placeholder: '+ Adicionar item (Enter) · ou cole uma lista', maxLength: 2000,
+      items.length < 300 && h('textarea', { class: 'input cl-add', rows: 1, placeholder: '+ Adicionar item (Enter) · ou cole uma lista', maxLength: 20000, 'aria-label': 'Novo item do checklist',
+        // plano B se o navegador não entregar o evento "paste": o campo aceita quebras de linha, então a lista colada chega inteira
+        oninput: (e) => {
+          const el = e.target;
+          if (/^insertFrom/.test(e.inputType || '') && /\n/.test(el.value)) {
+            const list = parseChecklistText(el.value);
+            if (list.length >= 2) { const room = 300 - items.length, add = list.slice(0, room); items.push(...add); drawCl(); saveCl(); toast(`${add.length} itens adicionados${list.length > room ? ' (limite de 300)' : ''}`); const n = clBox.querySelector('.cl-add'); n && n.focus(); return; }
+            el.value = el.value.replace(/\s*\n+\s*/g, ' ').trim();
+          }
+          fitCl(el);
+        },
         onpaste: (e) => {
           const list = parseChecklistText((e.clipboardData || window.clipboardData).getData('text'));
           if (list.length < 2) return; // um item só: cola normal
@@ -1074,7 +1084,8 @@ function openTask(id) {
           const n = clBox.querySelector('.cl-add'); n && n.focus();
         },
         onkeydown: (e) => {
-        if (e.key === 'Enter' && e.target.value.trim()) { e.preventDefault(); items.push({ text: e.target.value.trim(), done: false }); drawCl(); saveCl(); const n = clBox.querySelector('.cl-add'); n && n.focus(); }
+        if (e.key === 'Enter' && !e.shiftKey && !e.target.value.trim()) { e.preventDefault(); return; }
+        if (e.key === 'Enter' && !e.shiftKey && e.target.value.trim()) { e.preventDefault(); items.push({ text: e.target.value.trim().slice(0, 2000), done: false }); drawCl(); saveCl(); const n = clBox.querySelector('.cl-add'); n && n.focus(); }
       } }));
     clBox.querySelectorAll('.btn svg').forEach((v) => Object.assign(v.style, { width: '14px', height: '14px' }));
     clBox.querySelectorAll('.cl-text').forEach(fitCl);
@@ -1451,7 +1462,7 @@ function tokenBox() {
 // transforma texto colado (marcadores *, -, •, 1., [ ] ou uma linha por item) em itens de checklist
 function parseChecklistText(text) {
   const out = [];
-  for (const l of String(text || '').split(/\r?\n/)) {
+  for (const l of String(text || '').split(/\r\n|\n|\r|\u2028|\u2029/)) {
     const bullet = /^\s*(?:[-*•·–—▪◦‣]+|\d+[.)])\s+/.test(l) || /^\s*\[[ xX]?\]/.test(l);
     // linha recuada e sem marcador continua o item anterior (vira quebra de linha dentro do item)
     if (!bullet && out.length && /^(?:\s{2,}|\t)\S/.test(l)) { out[out.length - 1].text = (out[out.length - 1].text + '\n' + l.trim()).slice(0, 2000); continue; }

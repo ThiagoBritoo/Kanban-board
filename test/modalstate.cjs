@@ -67,6 +67,14 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   ok(Math.max(...hs) > 60 && Math.min(...hs) < 40, 'o campo do item cresce conforme o texto (alturas ' + Math.min(...hs) + '–' + Math.max(...hs) + 'px)');
   await p.locator('textarea.cl-text').nth(0).fill('primeira linha\nsegunda linha'); await p.locator('textarea.cl-text').nth(0).blur(); await p.waitForTimeout(500);
   ok((await p.evaluate(() => KBApp.S.tasks.find((t) => t.title === 'Task para edição').checklist[0].text)) === 'primeira linha\nsegunda linha', 'editar item com quebra de linha mantém a quebra');
+  // plano B: o navegador não manda "paste", só o texto com quebras no campo (o caso reportado: lista "- a\n- b" virava uma linha só)
+  const antes = await p.evaluate(() => KBApp.S.tasks.find((t) => t.title === 'Task para edição').checklist.length);
+  await p.evaluate(() => { const i = document.querySelector('.cl-add'); i.value = '- abastecimento\r- activityBatchItem\n- adicionarAnexos\r\n- adicionarAtivos\n- adicionarEquipe'; i.dispatchEvent(new InputEvent('input', { inputType: 'insertFromPaste', bubbles: true })); });
+  await p.waitForTimeout(600);
+  const dep = await p.evaluate(() => KBApp.S.tasks.find((t) => t.title === 'Task para edição').checklist.map((i) => i.text));
+  ok(dep.length === antes + 5 && dep.slice(-5).join('|') === 'abastecimento|activityBatchItem|adicionarAnexos|adicionarAtivos|adicionarEquipe', 'lista "- a / - b" colada vira um item por linha mesmo sem o evento paste (+' + (dep.length - antes) + ')');
+  await p.fill('.cl-add', 'digitado'); await p.keyboard.press('Shift+Enter'); await p.keyboard.type('mesma entrada'); await p.keyboard.press('Enter'); await p.waitForTimeout(400);
+  ok((await p.evaluate(() => KBApp.S.tasks.find((t) => t.title === 'Task para edição').checklist.slice(-1)[0].text)) === 'digitado\nmesma entrada', 'Shift+Enter digitado continua sendo quebra de linha dentro do mesmo item');
   // limite de 150 itens
   const cento = Array.from({ length: 280 }, (_, i) => '- item ' + i).join('\n');
   await paste(cento); await p.waitForTimeout(700);
