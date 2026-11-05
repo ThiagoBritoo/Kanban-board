@@ -120,6 +120,9 @@ const THEMES = [
   ['estudio', 'Estúdio', 'fino, industrial', 'Minimalistas', false],
   ['brasa', 'Brasa', 'pergaminho, tinta e âmbar', 'Minimalistas', false],
   ['suico', 'Suíço', 'réguas pretas, vermelho', 'Minimalistas', false],
+  ['geist', 'Geist', 'preto e branco, azul preciso', 'Minimalistas', false],
+  ['prisma', 'Prisma', 'azul-marinho e índigo', 'Minimalistas', false],
+  ['warp', 'Warp', 'grafite e violeta', 'Minimalistas', false],
   ['paper', 'Papel', 'calmo, com grão', 'Minimalistas', false],
   ['gelo', 'Gelo', 'azul glacial, arejado', 'Minimalistas', false],
   ['sage', 'Sálvia', 'suave e verde', 'Minimalistas', false],
@@ -286,7 +289,7 @@ function popover(anchor, items) {
 }
 function closePopover() { if (openPop) { const el = openPop; el.classList.add('out'); setTimeout(() => el.remove(), 90); } openPop = null; }
 document.addEventListener('mousedown', (e) => { if (openPop && !openPop.contains(e.target)) closePopover(); });
-addEventListener('scroll', closePopover, true);
+addEventListener('scroll', (e) => { if (openPop && e.target instanceof Node && openPop.contains(e.target)) return; closePopover(); }, true);
 
 /* ================= dados ================= */
 let loadTimer;
@@ -299,6 +302,8 @@ function notifyAssigned(t) {
 }
 async function loadBoard() {
   const d = await api('GET', '/api/board');
+  // nada mudou em relação ao que já está na tela (eco do tempo real): não redesenha o quadro inteiro
+  if (S.loadedOnce && d.users.some((u) => u.id === S.me.id) && JSON.stringify([S.columns, S.tasks, S.users]) === JSON.stringify([d.columns, d.tasks, d.users])) return;
   const prevAssignee = S.loadedOnce ? new Map(S.tasks.map((t) => [t.id, t.assignee_id])) : null;
   S.columns = d.columns; S.tasks = d.tasks; S.users = d.users;
   if (prevAssignee && Date.now() - S.lastWrite > 4000) {
@@ -724,6 +729,7 @@ function cardMenu(t) {
     { label: 'Abrir', icon: 'edit', onClick: () => openTask(t.id) },
     mine ? { label: 'Soltar (ficar sem dono)', icon: 'x', onClick: guard(async () => { upsertTask(await api('PATCH', `/api/tasks/${t.id}`, { assignee_id: null })); renderBoard(); }) }
       : { label: 'Pegar pra mim', icon: 'take', onClick: guard(async () => { upsertTask(await api('PATCH', `/api/tasks/${t.id}`, { assignee_id: S.me.id })); renderBoard(); toast('Task é sua'); }) },
+    ...[['Prazo: hoje', ymd()], ['Prazo: amanhã', addDays(ymd(), 1)], ['Remover prazo', null]].filter(([, d]) => d !== t.due_date && !(d === null && !t.due_date)).map(([label, d]) => ({ label, icon: 'calendar', onClick: guard(async () => { upsertTask(await api('PATCH', `/api/tasks/${t.id}`, { due_date: d })); renderBoard(); }) })),
     { label: 'Duplicar', icon: 'copy', onClick: guard(async () => {
       const n = await api('POST', '/api/tasks', { title: (t.title.slice(0, 288) + ' (cópia)'), column_id: t.column_id, description: t.description, diary: t.diary, priority: t.priority, due_date: t.due_date, assignee_id: t.assignee_id, labels: t.labels, checklist: (t.checklist || []).map((i) => ({ text: i.text, done: false })) });
       upsertTask(n); renderBoard(); toast('Task duplicada');

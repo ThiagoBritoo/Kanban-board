@@ -616,3 +616,6 @@ input[type=range]{margin-left:0;margin-right:0;width:100%}
 .view-seg,.topbar .seg{flex-wrap:nowrap;flex:none}.topbar .search{min-width:120px}
 @media (max-width:900px){.btn .lbl{display:none}.topbar .search{flex:1 1 140px}}
 @media (max-width:900px){.search kbd{display:none}}
+.list-sort{display:none;align-items:center;gap:8px;padding:0 0 8px}.list-sort select{flex:1;min-width:0;padding:6px 8px}
+@media (max-width:720px){.list-sort{display:flex}}
+.popover{max-height:calc(100vh - 16px);max-height:calc(100dvh - 16px);overflow-y:auto;overscroll-behavior:contain}

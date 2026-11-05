@@ -55,6 +55,16 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   const nCards = await p.locator('.card').count();
   await p.locator('.card').first().hover(); await p.locator('.card').first().locator('.card-menu').click(); await p.click('.popover >> text=Duplicar'); await p.waitForTimeout(500);
   ok((await p.locator('.card').count()) === nCards + 1 && (await p.locator('.card-title', { hasText: '(cópia)' }).count()) === 1, 'Duplicar cria a cópia');
+  // prazo rápido no menu do cartão
+  await p.locator('.card').first().hover(); await p.locator('.card').first().locator('.card-menu').click(); await p.click('.popover >> text=Prazo: hoje'); await p.waitForTimeout(500);
+  ok((await p.locator('.card').first().locator('.due').count()) >= 1, 'Prazo: hoje coloca o prazo no cartão');
+  // menu do cartão cabe em tela baixa e rola sem fechar
+  await p.setViewportSize({ width: 390, height: 420 }); await p.waitForTimeout(200);
+  await p.locator('.card').first().hover(); await p.locator('.card').first().locator('.card-menu').click({ force: true }); await p.waitForSelector('.popover');
+  const pb = await p.evaluate(() => { const e = document.querySelector('.popover'); const r = e.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.bottom), innerHeight, e.scrollHeight > e.clientHeight]; });
+  ok(pb[0] >= 0 && pb[1] <= pb[2], 'menu do cartão cabe na tela baixa (' + pb.join(',') + ')');
+  await p.evaluate(() => { document.querySelector('.popover').scrollTop = 80; }); await p.waitForTimeout(150);
+  ok((await p.locator('.popover').count()) === 1, 'rolar o menu não o fecha'); await p.keyboard.press('Escape'); await p.setViewportSize({ width: 1360, height: 860 }); await p.waitForTimeout(200);
   // lixeira: excluir, ver na lixeira e restaurar
   const n0 = await p.locator('.card').count();
   await p.locator('.card').first().hover(); await p.locator('.card').first().locator('.card-menu').click(); await p.click('.popover >> text=Excluir'); await p.waitForTimeout(500);
