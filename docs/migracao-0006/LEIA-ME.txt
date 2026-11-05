@@ -1,0 +1,4 @@
+Migração 0006 (projetos) em 6 partes pequenas, para colar no Supabase → SQL Editor.
+Rode NA ORDEM (parte1 → parte6), uma de cada vez, sem pular. Em cada uma: apague o que estiver no editor, cole a parte inteira, clique Run.
+O Supabase vai avisar sobre comandos que apagam/alteram (drop policy/function): confirme. Esperado: "Success. No rows returned".
+Se uma parte der erro, pare e me mande a mensagem + o número da parte.
