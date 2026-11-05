@@ -50,6 +50,10 @@ Playwright e Chromium já vêm no ambiente de nuvem (`require('playwright')`). O
 - Código já baixado (Lightfall, Grid Hole, Ink Flow Field) em `docs/originkit-cache/` — **não gastar cota de novo**; falta baixar Vertical Parallax e Pulsating Border.
 - **Os 5 que o Thiago curtiu** (05/11): **Vertical Parallax, Pulsating Border, Lightfall, Grid Hole, Ink Flow Field** — podem ir também em cartões/títulos, não só fundo. Já existe versão **minha** de cada em `public/fx.js` (feita sem ver o original): usar `get` (no máx. 3/dia) para comparar variantes/controles e ajustar. Códigos baixados são referência: recriar com código próprio, não colar licença/dependências de terceiros.
 
+## 5c. Cult UI pelo MCP do shadcn
+- O Cult UI não tem MCP próprio: usa o **servidor MCP do shadcn** (`.mcp.json` → `shadcn`, via `npx shadcn@latest mcp`) lendo o registro `@cult-ui` listado em `components.json` (raiz). Aprovar o servidor quando o Claude Code perguntar; só vale em sessão **nova**. Guia: https://www.cult-ui.com/docs/mcp-server
+- O site é JS puro (sem React/Tailwind): **não rodar `shadcn add`**. Usar o MCP só para ler código/exemplos e recriar o efeito com código próprio. Bons candidatos: Kanban Board, Timer, Dynamic Island, Border Beam, Halo (botão/card/badge), Grid Beam, Fluted Glass. Dica: peça citando "cult-ui" pelo nome. Se `npx` não puder rodar no ambiente, ler `https://www.cult-ui.com/r/<nome>.json` com `curl`.
+
 ## 6. Arquitetura em 10 linhas
 - Site estático em `public/` (JS puro, sem build): `app.js` núcleo e ajustes · `backend.js` camada Supabase (rotas → `supabase-js`) · `views.js` lista/calendário/painel/resumo/atividade/exportar ·
   `palette.js` Ctrl+K · `touch.js` arrastar com o dedo · `island.js` ilha do cronômetro · `shader.js` fundo WebGL · `terrain.js` fundo Canvas 2D · `themes.css` temas · `app.css` componentes.
@@ -75,7 +79,7 @@ estrutura: barra lateral com contadores, modal da task em 2 colunas, cartão com
 ## 9. Pendências e ideias
 - Confirmar com o Thiago (não sei se já fez): Supabase → Authentication → **URL Configuration** (Site URL = endereço da Vercel), decidir **Confirm email**, e **Leaked password protection** (pode exigir plano pago).
 - Ele quer **mais componentes** dos sites de referência. Fila do OriginKit (ver `docs/REFERENCIAS_DESIGN.md`; já feitos: Wire Terrain, Lightfall, Grid Hole, Ink Flow, Parallax, Pulsating Border): Accretion Disc, Acrylic Pour, Wave Ribbons, Wind Pyre, Wire Throat, Wireframe Globe, Twisting Vortex, Wobbling Lattice Sphere… Perguntar quais ele curte; abrir cada um e recriar.
-- Cult UI e Skiper UI: componentes ainda **não abertos** (só as homes).
+- Cult UI (MCP configurado, ver §5c) e Skiper UI: componentes ainda **não abertos** (só as homes).
 - Candidatos de produto: notificações push reais, tarefas recorrentes, vários quadros/projetos, integração de e-mail.
 - Refero: estilos ainda não transformados em tema (Warp, Prisma, Vercel, Perplexity, Brex, Freitag, B&O, Reflect…).
 - Primeira abertura **real** das versões novas no site de produção ainda não foi vista por mim (só por testes com API falsa e capturas).

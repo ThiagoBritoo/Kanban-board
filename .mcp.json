@@ -3,7 +3,16 @@
     "originkit": {
       "type": "http",
       "url": "https://mcp.originkit.dev/mcp",
-      "headers": { "Authorization": "Bearer ${ORIGINKIT_API_KEY}" }
+      "headers": {
+        "Authorization": "Bearer ${ORIGINKIT_API_KEY}"
+      }
+    },
+    "shadcn": {
+      "command": "npx",
+      "args": [
+        "shadcn@latest",
+        "mcp"
+      ]
     }
   }
 }
