@@ -1595,7 +1595,20 @@ window.KBApp = {
   S.prefs = { ...DEFAULT_PREFS, ...loadLocalPrefs() };
   applyPrefs();
   if (!KB.configured) return renderNotConfigured();
-  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    // avisa quando sai versão nova (abas/app instalado abertos há horas rodavam código antigo, com limites antigos)
+    let hadController = !!navigator.serviceWorker.controller, warned = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController) { hadController = true; return; }
+      if (warned) return; warned = true;
+      toast('Nova versão do Runtime disponível', false, { label: 'Atualizar', onClick: () => location.reload() });
+    });
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      const check = () => reg.update().catch(() => {});
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
+      setInterval(check, 10 * 60 * 1000);
+    }).catch(() => {});
+  }
   KB.onRecovery(askNewPassword);
   try { await start(); }
   catch (e) { $('#app').append(h('div', { class: 'auth' }, h('div', { class: 'auth-card' }, h('h1', null, 'Sem conexão'), h('p', null, e.message)))); }
