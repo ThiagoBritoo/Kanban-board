@@ -732,3 +732,4 @@ html{overscroll-behavior-y:none}
 .cl-item{align-items:flex-start}.cl-item input[type=checkbox]{margin-top:6px}
 .cl-text{resize:none;overflow:hidden;line-height:1.4;font:inherit;white-space:pre-wrap;overflow-wrap:anywhere}
 .cm-check .check span{white-space:pre-wrap}
+.cl-add{resize:none;overflow:hidden;line-height:1.4;min-height:38px;font:inherit}
