@@ -56,5 +56,16 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   ok(t2.length === 7 && t2[3].text === 'primeiro' && t2[5].done === true && t2[5].text === 'terceiro feito', 'numeração, [x] e [ ] são entendidos (' + t2.length + ' itens)');
   await paste('uma linha só');
   ok((await p.evaluate(() => KBApp.S.tasks.find((t) => t.title === 'Task para edição').checklist.length)) === 7, 'colar uma linha só não cria item sozinho (cola normal)');
+  // itens longos e com quebra de linha
+  const longo = 'texto longo '.repeat(60).trim();
+  await paste('* ' + longo + '\n  continuação na linha de baixo\n* segundo item');
+  await p.waitForTimeout(500);
+  const t3 = await p.evaluate(() => KBApp.S.tasks.find((t) => t.title === 'Task para edição').checklist);
+  const it = t3[t3.length - 2];
+  ok(it.text.length > 700 && it.text.includes('\n') && it.text.endsWith('continuação na linha de baixo'), 'item com mais de 200 caracteres e quebra de linha é guardado inteiro (' + it.text.length + ' caracteres)');
+  const hs = await p.evaluate(() => [...document.querySelectorAll('textarea.cl-text')].map((e) => e.offsetHeight));
+  ok(Math.max(...hs) > 60 && Math.min(...hs) < 40, 'o campo do item cresce conforme o texto (alturas ' + Math.min(...hs) + '–' + Math.max(...hs) + 'px)');
+  await p.locator('textarea.cl-text').nth(0).fill('primeira linha\nsegunda linha'); await p.locator('textarea.cl-text').nth(0).blur(); await p.waitForTimeout(500);
+  ok((await p.evaluate(() => KBApp.S.tasks.find((t) => t.title === 'Task para edição').checklist[0].text)) === 'primeira linha\nsegunda linha', 'editar item com quebra de linha mantém a quebra');
   await b.close(); srv.close(); process.exit(fails ? 1 : 0);
 })();

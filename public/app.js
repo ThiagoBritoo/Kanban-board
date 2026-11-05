@@ -1052,15 +1052,19 @@ function openTask(id) {
   const items = (t.checklist || []).map((i) => ({ ...i }));
   const clBox = h('div', { class: 'checklist' });
   const saveCl = () => save({ checklist: items });
+  const fitCl = (el) => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; };
   const drawCl = () => {
     const done = items.filter((i) => i.done).length;
     clBox.replaceChildren(
       items.length > 0 && h('div', { class: 'cl-head' }, h('div', { class: 'cl-bar' }, h('i', { style: { width: (items.length ? (done / items.length) * 100 : 0) + '%' } })), h('span', { class: 'help' }, `${done}/${items.length}`)),
       ...items.map((it, idx) => h('div', { class: 'cl-item' + (it.done ? ' done' : '') },
         h('input', { type: 'checkbox', checked: it.done, 'aria-label': 'Concluir item', onchange: (e) => { it.done = e.target.checked; drawCl(); saveCl(); } }),
-        h('input', { class: 'cl-text', value: it.text, maxLength: 200, onchange: (e) => { const v = e.target.value.trim(); if (!v) items.splice(idx, 1); else it.text = v; drawCl(); saveCl(); } }),
+        h('textarea', { class: 'cl-text', rows: 1, value: it.text, maxLength: 2000, 'aria-label': 'Texto do item',
+          oninput: (e) => fitCl(e.target),
+          onkeydown: (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.target.blur(); } }, // Enter confirma; Shift+Enter quebra linha
+          onchange: (e) => { const v = e.target.value.trim(); if (!v) items.splice(idx, 1); else it.text = v; drawCl(); saveCl(); } }),
         h('button', { class: 'btn ghost icon sm', title: 'Remover item', 'aria-label': 'Remover item', onclick: () => { items.splice(idx, 1); drawCl(); saveCl(); } }, icon('x')))),
-      items.length < 50 && h('input', { class: 'input cl-add', placeholder: '+ Adicionar item (Enter) · ou cole uma lista', maxLength: 200,
+      items.length < 50 && h('input', { class: 'input cl-add', placeholder: '+ Adicionar item (Enter) · ou cole uma lista', maxLength: 2000,
         onpaste: (e) => {
           const list = parseChecklistText((e.clipboardData || window.clipboardData).getData('text'));
           if (list.length < 2) return; // um item só: cola normal
@@ -1073,6 +1077,7 @@ function openTask(id) {
         if (e.key === 'Enter' && e.target.value.trim()) { e.preventDefault(); items.push({ text: e.target.value.trim(), done: false }); drawCl(); saveCl(); const n = clBox.querySelector('.cl-add'); n && n.focus(); }
       } }));
     clBox.querySelectorAll('.btn svg').forEach((v) => Object.assign(v.style, { width: '14px', height: '14px' }));
+    clBox.querySelectorAll('.cl-text').forEach(fitCl);
   };
   drawCl();
 
@@ -1445,12 +1450,17 @@ function tokenBox() {
 }
 // transforma texto colado (marcadores *, -, •, 1., [ ] ou uma linha por item) em itens de checklist
 function parseChecklistText(text) {
-  return String(text || '').split(/\r?\n/).map((l) => {
+  const out = [];
+  for (const l of String(text || '').split(/\r?\n/)) {
+    const bullet = /^\s*(?:[-*•·–—▪◦‣]+|\d+[.)])\s+/.test(l) || /^\s*\[[ xX]?\]/.test(l);
+    // linha recuada e sem marcador continua o item anterior (vira quebra de linha dentro do item)
+    if (!bullet && out.length && /^(?:\s{2,}|\t)\S/.test(l)) { out[out.length - 1].text = (out[out.length - 1].text + '\n' + l.trim()).slice(0, 2000); continue; }
     let done = false;
     let t = l.replace(/^\s*(?:[-*•·–—▪◦‣]+|\d+[.)])\s+/, '');
     t = t.replace(/^\[([ xX]?)\]\s*/, (_, c) => { done = /x/i.test(c); return ''; }).trim();
-    return { text: t.slice(0, 200), done };
-  }).filter((i) => i.text);
+    if (t) out.push({ text: t.slice(0, 2000), done });
+  }
+  return out;
 }
 function viewAccount() {
   const name = h('input', { class: 'input', value: S.me.name, maxLength: 80 });

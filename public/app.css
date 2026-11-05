@@ -729,3 +729,6 @@ html{overscroll-behavior-y:none}
 .card-more,.card-more-in,.cm-desc,.cm-check,.cm-check .check,.cm-check span{min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:break-word}.card-more-in{grid-template-columns:minmax(0,1fr)}
 .cm-check .check.mini{white-space:normal;color:var(--text)}
 .task-side .when-row{grid-template-columns:minmax(0,1fr)}.when .input{min-width:0;width:100%}
+.cl-item{align-items:flex-start}.cl-item input[type=checkbox]{margin-top:6px}
+.cl-text{resize:none;overflow:hidden;line-height:1.4;font:inherit;white-space:pre-wrap;overflow-wrap:anywhere}
+.cm-check .check span{white-space:pre-wrap}
