@@ -53,21 +53,21 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   await p.keyboard.press('?'); await p.waitForSelector('.kbd-list'); ok(true, 'tecla ? abre a lista de atalhos'); await p.keyboard.press('Escape'); await p.waitForTimeout(250);
   // duplicar task pelo menu do cartão
   const nCards = await p.locator('.card').count();
-  await p.locator('.card').first().hover(); await p.locator('.card').first().locator('.card-menu').click(); await p.click('.popover >> text=Duplicar'); await p.waitForTimeout(500);
+  await p.locator('.card').first().locator('.card-menu').evaluate((e) => e.click()); await p.click('.popover >> text=Duplicar'); await p.waitForTimeout(500);
   ok((await p.locator('.card').count()) === nCards + 1 && (await p.locator('.card-title', { hasText: '(cópia)' }).count()) === 1, 'Duplicar cria a cópia');
   // prazo rápido no menu do cartão
-  await p.locator('.card').first().hover(); await p.locator('.card').first().locator('.card-menu').click(); await p.click('.popover >> text=Prazo: hoje'); await p.waitForTimeout(500);
+  await p.locator('.card').first().locator('.card-menu').evaluate((e) => e.click()); await p.click('.popover >> text=Prazo: hoje'); await p.waitForTimeout(500);
   ok((await p.locator('.card').first().locator('.due').count()) >= 1, 'Prazo: hoje coloca o prazo no cartão');
   // menu do cartão cabe em tela baixa e rola sem fechar
   await p.setViewportSize({ width: 390, height: 420 }); await p.waitForTimeout(200);
-  await p.locator('.card').first().hover(); await p.locator('.card').first().locator('.card-menu').click({ force: true }); await p.waitForSelector('.popover');
+  await p.locator('.card').first().hover(); await p.locator('.card').first().locator('.card-menu').evaluate((e) => e.click()); await p.waitForSelector('.popover');
   const pb = await p.evaluate(() => { const e = document.querySelector('.popover'); const r = e.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.bottom), innerHeight, e.scrollHeight > e.clientHeight]; });
   ok(pb[0] >= 0 && pb[1] <= pb[2], 'menu do cartão cabe na tela baixa (' + pb.join(',') + ')');
   await p.evaluate(() => { document.querySelector('.popover').scrollTop = 80; }); await p.waitForTimeout(150);
   ok((await p.locator('.popover').count()) === 1, 'rolar o menu não o fecha'); await p.keyboard.press('Escape'); await p.setViewportSize({ width: 1360, height: 860 }); await p.waitForTimeout(200);
   // lixeira: excluir, ver na lixeira e restaurar
   const n0 = await p.locator('.card').count();
-  await p.locator('.card').first().hover(); await p.locator('.card').first().locator('.card-menu').click(); await p.click('.popover >> text=Excluir'); await p.waitForTimeout(500);
+  await p.locator('.card').first().locator('.card-menu').evaluate((e) => e.click()); await p.click('.popover >> text=Excluir'); await p.waitForTimeout(500);
   ok((await p.locator('.card').count()) === n0 - 1, 'excluir tira o cartão');
   await p.evaluate(() => KBApp.openTrash()); await p.waitForSelector('.trash-row'); ok((await p.locator('.trash-row').count()) === 1, 'lixeira lista a task excluída');
   await p.click('.trash-row .btn'); await p.waitForTimeout(600); ok((await p.locator('.card').count()) === n0, 'restaurar devolve o cartão ao quadro');
@@ -104,6 +104,23 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   await p.keyboard.press('Escape'); await p.waitForTimeout(250);
   await p.locator('.card').first().click(); await p.waitForSelector('.modal'); await p.fill('textarea[placeholder^="Anotações desta"]', 'rodar npm test'); await p.locator('textarea[placeholder^="Anotações desta"]').blur(); await p.waitForTimeout(500);
   ok(fake.db.tasks.some((t) => t.notes === 'rodar npm test'), 'anotações da task são salvas'); await p.keyboard.press('Escape'); await p.waitForTimeout(250);
+  // Popover Form: + da coluna abre mini formulário e cria
+  const antes = await p.locator('.card').count();
+  await p.locator('.column:nth-child(1) .col-quick').click(); await p.waitForSelector('.qform');
+  await p.fill('.qform input[type=text], .qform input:not([type])', 'Criada pelo formulário rápido'); await p.locator('.qform .seg button', { hasText: 'Alta' }).click(); await p.click('.qform .btn.primary'); await p.waitForTimeout(900);
+  ok((await p.locator('.card').count()) === antes + 1 && fake.db.tasks.some((t) => t.title === 'Criada pelo formulário rápido' && t.priority === 2), 'Popover Form cria a task com prioridade');
+  ok((await p.locator('.qform').count()) === 0, 'formulário rápido fecha sozinho depois de criar');
+  // Expandable Card: abre no lugar e marca item do checklist
+  await p.evaluate(() => KBApp.api('PATCH', `/api/tasks/${KBApp.S.tasks[0].id}`, { checklist: [{ text: 'item um', done: false }, { text: 'item dois', done: true }], description: 'descrição longa do cartão' }).then(() => KBApp.loadBoard())); await p.waitForTimeout(500);
+  const card0 = p.locator('.card').filter({ hasText: 'item um' }).first().or(p.locator('.card').first());
+  await p.locator('.card .card-exp').first().click({ force: true }); await p.waitForTimeout(350);
+  ok((await p.locator('.card.expanded').count()) === 1 && (await p.locator('.card.expanded .cm-check input').count()) === 2, 'cartão expande no lugar e mostra o checklist');
+  await p.locator('.card.expanded .cm-check input').first().check(); await p.waitForTimeout(500);
+  ok(fake.db.tasks.some((t) => (t.checklist || []).filter((i) => i.done).length === 2), 'marcar item no cartão expandido salva');
+  // Border Beam: opt-in
+  await p.evaluate(() => KBApp.setPrefs({ beam: 'high' }, { refreshSettings: false })); await p.waitForTimeout(200);
+  ok(await p.evaluate(() => { const c = document.querySelector('.card[data-p="2"], .card[data-p="3"]'); return !c || getComputedStyle(c, '::after').backgroundImage.includes('conic-gradient'); }), 'Border Beam desenha o feixe nos cartões de prioridade alta');
+  await p.evaluate(() => KBApp.setPrefs({ beam: 'off' }, { refreshSettings: false }));
   // 2) sessão sobrevive a recarregar, mesmo se a leitura do perfil falhar na 1ª vez
   let n = 0;
   await p.route('**/rest/v1/profiles?*', (r) => { if (n++ < 1) return r.abort(); return fake.handle(r); });

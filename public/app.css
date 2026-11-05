@@ -678,3 +678,39 @@ body.touch-dragging .board{scroll-snap-type:none;scroll-behavior:auto}body.touch
 .invite-card{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:var(--bw) solid var(--line);background:var(--col);border-radius:var(--radius);padding:10px 12px;width:100%}.invite-card b{flex:1;min-width:0;overflow-wrap:anywhere}
 @media (max-width:720px){.brand.as-btn .brand-name{display:inline!important;max-width:110px}}
 .check.mini{font-size:12px;color:var(--muted);white-space:nowrap}
+
+/* ===== Popover Form (formulário rápido da coluna) ===== */
+.col-quick{opacity:.6}.column:hover .col-quick,.col-quick:focus-visible{opacity:1}
+@media (hover:none){.col-quick{opacity:1}}
+.qform{position:fixed;z-index:85;width:min(320px,calc(100vw - 16px));background:var(--pop);border:var(--bw) solid var(--line);border-radius:calc(var(--radius) + 2px);box-shadow:0 18px 48px rgba(0,0,0,.28);animation:qform-in .18s var(--ease)}
+.qform.out{animation:qform-out .1s var(--ease) forwards;pointer-events:none}
+@keyframes qform-in{from{opacity:0;transform:scale(.9)}}@keyframes qform-out{to{opacity:0;transform:scale(.97)}}
+.qform-head{padding:11px 14px 0;font-size:12.5px;color:var(--muted)}.qform-head b{color:var(--text);font-weight:600}
+.qform-body{display:grid;gap:10px;padding:10px 14px 14px}
+.qform .seg{display:flex}.qform .seg button{flex:1;padding:5px 4px;font-size:12.5px}
+.qform-foot{display:flex;justify-content:flex-end;gap:8px}
+.qform-ok{display:flex;align-items:center;justify-content:center;gap:8px;padding:18px 0;font-weight:600}
+/* ===== Expandable Card ===== */
+.card-exp{position:absolute;top:6px;right:34px;opacity:0}
+.card:hover .card-exp,.card:focus-within .card-exp,.card.expanded .card-exp{opacity:.85}
+@media (hover:none){.card-exp{opacity:.8}}
+.card-exp svg{transition:transform .18s var(--ease)}.card.expanded .card-exp svg{transform:rotate(180deg)}
+.card-title{padding-right:56px}
+.card-more{display:grid;grid-template-rows:0fr;transition:grid-template-rows .2s var(--ease)}
+.card.expanded .card-more{grid-template-rows:1fr}
+.card-more-in{overflow:hidden;min-height:0;display:grid;gap:8px}
+.card.expanded .card-more-in{padding-top:6px}
+.card.expanded .card-desc{display:none}
+.cm-desc{font-size:12.5px;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere}
+.cm-check{display:grid;gap:4px}.cm-check .check{font-size:12.5px;align-items:flex-start}.cm-check .check.done span{text-decoration:line-through;color:var(--muted)}
+.cm-check input{margin-top:2px}
+/* ===== Border Beam (opt-in, só alta/urgente; parado com movimento reduzido) ===== */
+@property --beam-a{syntax:"<angle>";initial-value:0deg;inherits:false}
+html[data-beam="urgent"] .card[data-p="3"]::after,html[data-beam="high"] .card[data-p="2"]::after,html[data-beam="high"] .card[data-p="3"]::after{
+  content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1.5px;pointer-events:none;width:auto;height:auto;top:auto;right:auto;
+  background:conic-gradient(from var(--beam-a),transparent 0 62%,var(--beam-c,var(--p2)) 88%,transparent 100%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+html[data-beam] .card[data-p="3"]{--beam-c:var(--p3)}
+html[data-beam="high"][data-fx="on"][data-motion="on"] .card[data-p="2"]::after,html[data-beam="high"][data-fx="on"][data-motion="on"] .card[data-p="3"]::after,html[data-beam="urgent"][data-fx="on"][data-motion="on"] .card[data-p="3"]::after{animation:beam-spin calc(5s / var(--fx-speed,1)) linear infinite}
+@keyframes beam-spin{to{--beam-a:360deg}}
+@media (prefers-reduced-motion:reduce){html[data-beam] .card::after{animation:none!important}}
