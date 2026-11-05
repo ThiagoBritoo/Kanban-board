@@ -85,5 +85,17 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   await p.locator('.card').first().click(); await p.waitForSelector('.modal'); await p.waitForTimeout(500);
   const alt = await p.evaluate(() => [...document.querySelectorAll('textarea.cl-text')].map((e) => e.offsetHeight));
   ok(alt.length > 100 && Math.min(...alt) >= 24, 'ao reabrir, os ' + alt.length + ' itens do checklist têm altura legível (mín. ' + Math.min(...alt) + 'px)');
+  // caixa rolável e ocultar concluídos
+  const caixa = await p.evaluate(() => { const l = document.querySelector('.cl-list'); return [l.clientHeight, l.scrollHeight, getComputedStyle(l).overflowY]; });
+  ok(caixa[2] === 'auto' && caixa[0] <= 430 && caixa[1] > caixa[0], 'checklist grande rola dentro de uma caixa (altura ' + caixa[0] + 'px de ' + caixa[1] + 'px)');
+  const total = await p.locator('.cl-item').count();
+  await p.locator('.cl-item input[type=checkbox]').nth(0).check(); await p.locator('.cl-item input[type=checkbox]').nth(1).check(); await p.waitForTimeout(400);
+  const feitos = await p.evaluate(() => KBApp.S.tasks.find((t) => t.title === 'Task para edição').checklist.filter((i) => i.done).length);
+  await p.click('.cl-toggle'); await p.waitForTimeout(300);
+  ok((await p.locator('.cl-item').count()) === total - feitos && (await p.locator('.cl-toggle').textContent()).includes('Mostrar concluídos (' + feitos + ')'), 'Ocultar concluídos esconde os feitos e mostra a contagem (' + feitos + ')');
+  await p.locator('.cl-item input[type=checkbox]').nth(0).evaluate((e) => e.click()); await p.waitForTimeout(400);
+  ok((await p.locator('.cl-item').count()) === total - feitos - 1, 'marcar um item com os concluídos ocultos faz ele sumir da lista');
+  await p.click('.cl-toggle'); await p.waitForTimeout(300);
+  ok((await p.locator('.cl-item').count()) === total && (await p.locator('.cl-toggle').textContent()) === 'Ocultar concluídos', 'Mostrar concluídos traz todos de volta');
   await b.close(); srv.close(); process.exit(fails ? 1 : 0);
 })();
