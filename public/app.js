@@ -160,7 +160,8 @@ const DEFAULT_PREFS = { fxBg: '#05060f', fxC1: '#7c9cff', fxC2: '#ff5fd2', fxSp:
   shType: 'plane', shC1: '#52ff89', shC2: '#dbba95', shC3: '#d0bce1', shSpeed: 40, shStrength: 50, shDensity: 40, shGrain: 4, shDim: 0,
   trType: 'linhas', trBg: '#f1ecdf', trLine: '#4a5a4c', trAccent: '#c8522e', trSun: 170, trRelief: 100, trDensity: 110, trSpeed: 40, trCam: 100, trHover: 40, trInterval: 5, trSoft: 0,
   sidebar: true, fx: true, fxSpeed: 100, fxIntensity: 100, cardStyle: 'theme', border: 'theme', shadow: 'theme', size: 'normal' };
-const S = { me: null, users: [], columns: [], tasks: [], prefs: { ...DEFAULT_PREFS }, filter: { q: '', who: 'all', due: null, label: null }, drafts: {}, drag: null, seen: null, showAllDone: false, online: new Set(), lastWrite: 0, loadedOnce: false };
+const APP_NAME = 'Runtime';
+const S = { showHidden: (() => { try { return !!localStorage.getItem('kb-show-hidden'); } catch { return false; } })(), me: null, users: [], columns: [], tasks: [], prefs: { ...DEFAULT_PREFS }, filter: { q: '', who: 'all', due: null, label: null }, drafts: {}, drag: null, seen: null, showAllDone: false, online: new Set(), lastWrite: 0, loadedOnce: false };
 
 const SHADER_PRESETS = [
   ['Menta', 'plane', '#52ff89', '#dbba95', '#d0bce1'], ['Pôr do sol', 'plane', '#ff7a59', '#ffd27a', '#b967ff'], ['Oceano', 'waves', '#0ea5e9', '#22d3ee', '#6366f1'],
@@ -231,7 +232,9 @@ const colById = (id) => S.columns.find((c) => c.id === id);
 
 function avatar(user, size = 26) {
   if (!user) return h('span', { class: 'avatar empty', style: { '--s': size + 'px' }, title: 'Sem responsável' }, '?');
-  return h('span', { class: 'avatar', style: { '--s': size + 'px', background: user.color }, title: user.name }, initials(user.name));
+  const url = user.avatar_url && window.KB && KB.avatarUrl(user.avatar_url);
+  return h('span', { class: 'avatar' + (url ? ' has-img' : ''), style: { '--s': size + 'px', background: user.color }, title: user.name },
+    url ? h('img', { src: url, alt: '', loading: 'lazy', decoding: 'async', onerror: (e) => e.target.remove() }) : null, initials(user.name));
 }
 
 /* ================= modais, popovers, diálogos ================= */
@@ -315,7 +318,13 @@ async function loadBoard() {
   S.me = { ...S.me, ...me };
   renderBoard();
 }
+let rulesTimer = null;
+async function runRules() {
+  if (!S.columns.some((c) => c.auto_days && c.auto_to)) return;
+  try { const r = await api('POST', '/api/rules/apply'); if (r && r.moved > 0) { await loadBoard(); toast(`${r.moved} task${r.moved > 1 ? 's' : ''} movida${r.moved > 1 ? 's' : ''} pela regra automática`); } } catch { /* tenta de novo depois */ }
+}
 function connectStream() {
+  runRules(); clearInterval(rulesTimer); rulesTimer = setInterval(() => { if (!document.hidden) runRules(); }, 10 * 60 * 1000);
   KB.subscribe(scheduleLoad, { presence: { id: S.me.id, name: S.me.name }, onPresence: (ids) => { S.online = new Set(ids); renderToolbar(); } });
 }
 const upsertTask = (t) => { const i = S.tasks.findIndex((x) => x.id === t.id); i >= 0 ? (S.tasks[i] = t) : S.tasks.push(t); };
@@ -404,9 +413,9 @@ function authBackdrop() { // gradiente shader atrás do login; some quando o app
 function authShell(...kids) {
   const app = $('#app');
   app.replaceChildren(h('div', { class: 'auth split' },
-    h('div', { class: 'auth-hero' }, h('div', { class: 'auth-kicker' }, 'Kanban da equipe'), h('h2', null, 'Organize o trabalho.', h('br'), 'Registre o dia.'),
+    h('div', { class: 'auth-hero' }, h('div', { class: 'auth-kicker' }, APP_NAME + ' · equipe'), h('h2', null, 'Organize o trabalho.', h('br'), 'Registre o dia.'),
       h('p', null, 'Tasks, quem pegou o quê e um diário pronto no fim do expediente.')),
-    h('div', { class: 'auth-card' }, h('div', { class: 'brand' }, h('span', { class: 'logo' }, icon('grid')), 'Kanban'), ...kids)));
+    h('div', { class: 'auth-card' }, h('div', { class: 'brand' }, h('span', { class: 'logo' }, icon('grid')), APP_NAME), ...kids)));
   authBackdrop();
 }
 async function start() {
@@ -484,6 +493,7 @@ function moreMenu() {
     'hr',
     { label: 'Resumo da equipe', icon: 'chart', onClick: () => A.openSummary && A.openSummary() },
     { label: 'Atividade recente', icon: 'pulse', onClick: () => A.openActivity && A.openActivity() },
+    { label: 'Anotações', icon: 'edit', onClick: () => openNotes() },
     { label: 'Lixeira (restaurar excluídas)', icon: 'trash', onClick: () => openTrash() },
     'hr',
     { label: 'Exportar tasks (CSV)', icon: 'download', onClick: () => A.exportCsv && A.exportCsv() },
@@ -504,7 +514,7 @@ function renderShell() {
     oninput: () => { S.filter.q = search.value; renderBoard(); }, onkeydown: (e) => { if (e.key === 'Escape') { search.value = ''; S.filter.q = ''; search.blur(); renderBoard(); } } });
   const top = h('header', { class: 'topbar' },
     h('button', { class: 'btn ghost icon hide-m', id: 'sbToggle', title: 'Mostrar ou ocultar a barra lateral', 'aria-label': 'Alternar barra lateral', onclick: () => setPrefs({ sidebar: S.prefs.sidebar === false }, { refreshSettings: false }) }, icon('menu')),
-    h('div', { class: 'brand' }, h('span', { class: 'logo' }, icon('grid')), h('span', null, 'Kanban')),
+    h('div', { class: 'brand' }, h('span', { class: 'logo' }, icon('grid')), h('span', null, APP_NAME)),
     h('label', { class: 'search' }, icon('search'), search, h('kbd', null, '/')),
     h('div', { class: 'seg view-seg', id: 'viewSeg', role: 'tablist' }, [['board', 'grid', 'Quadro'], ['list', 'table', 'Lista'], ['calendar', 'calendar', 'Calendário'], ['painel', 'bento', 'Painel']].map(([k, ic, l]) =>
       h('button', { type: 'button', title: l, 'aria-label': l, dataset: { view: k }, onclick: () => setPrefs({ view: k }, { refreshSettings: false }) }, icon(ic)))),
@@ -523,11 +533,14 @@ function renderShell() {
   renderTopbarMode();
 }
 
-const totalSecs = (t) => (t.time_spent || 0) + (t.timer_started_at ? Math.max(0, Math.floor((Date.now() - t.timer_started_at) / 1000)) : 0);
+// Tempo = da data de início até a de fim (ou até agora, se ainda está em andamento). Tasks antigas sem datas usam o cronômetro legado.
+const isRunning = (t) => !!(t.started_at && !t.finished_at && (colById(t.column_id) || {}).kind === 'doing');
+const totalSecs = (t) => t.started_at ? Math.max(0, Math.floor(((t.finished_at || Date.now()) - t.started_at) / 1000)) : (t.time_spent || 0);
+const fmtWhen = (ms) => ms ? new Date(ms).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
 function fmtDur(sec) {
   sec = Math.max(0, Math.floor(sec));
-  const hh = Math.floor(sec / 3600), mm = Math.floor((sec % 3600) / 60), ss = sec % 60;
-  return hh ? `${hh}h${pad(mm)}` : mm ? `${mm}min` : `${ss}s`;
+  const dd = Math.floor(sec / 86400), hh = Math.floor((sec % 86400) / 3600), mm = Math.floor((sec % 3600) / 60), ss = sec % 60;
+  return dd ? (hh ? `${dd}d ${hh}h` : `${dd}d`) : hh ? `${hh}h${pad(mm)}` : mm ? `${mm}min` : `${ss}s`;
 }
 setInterval(() => {
   document.querySelectorAll('.timer-live[data-since]').forEach((el) => {
@@ -572,7 +585,7 @@ function renderToolbar() {
 
 function renderSidebar() {
   const sb = $('#sidebar'); if (!sb) return;
-  const f = S.filter, open = S.tasks.filter((t) => (colById(t.column_id) || {}).kind !== 'done');
+  const f = S.filter, open = S.tasks.filter((t) => { const c = colById(t.column_id) || {}; return c.kind !== 'done' && !c.collapsed; });
   const n = (fn) => open.filter(fn).length;
   const none = !f.q && f.who === 'all' && !f.due && !f.label && f.prio == null;
   const item = (label, count, active, onclick, lead, cls = '') => h('button', { type: 'button', class: 'sb-item' + (active ? ' on' : '') + (cls ? ' ' + cls : ''), 'aria-pressed': String(!!active), onclick },
@@ -627,7 +640,10 @@ function renderBoard() {
   const fa = document.activeElement;
   const focusCol = fa && fa.classList && fa.classList.contains('add-input') ? { id: fa.dataset.col, pos: fa.selectionStart } : null;
 
-  board.replaceChildren(...S.columns.map(renderColumn),
+  const hiddenCols = S.columns.filter((c) => c.collapsed);
+  board.replaceChildren(...S.columns.filter((c) => !c.collapsed || S.showHidden).map(renderColumn),
+    ...(hiddenCols.length ? [h('button', { class: 'new-col show-hidden', onclick: () => { S.showHidden = !S.showHidden; try { localStorage.setItem('kb-show-hidden', S.showHidden ? '1' : ''); } catch { /* ok */ } renderBoard(); } },
+      S.showHidden ? 'Ocultar ' : 'Mostrar ', hiddenCols.map((c) => c.name).join(' · '), ` (${S.tasks.filter((t) => hiddenCols.some((c) => c.id === t.column_id)).length})`)] : []),
     h('button', { class: 'new-col', onclick: guard(async () => {
       const name = await askText('Nova coluna', '', { placeholder: 'Ex.: Em teste', ok: 'Criar' });
       if (name) { await api('POST', '/api/columns', { name }); await loadBoard(); }
@@ -709,6 +725,16 @@ function columnMenu(col, anchor) {
     }) },
     ...(col.wip_limit ? [{ label: 'Remover limite', icon: 'x', onClick: guard(async () => { await api('PATCH', `/api/columns/${col.id}`, { wip_limit: null }); await loadBoard(); }) }] : []),
     { label: 'Cor da coluna…', icon: 'palette', onClick: () => popover(anchor, COL_COLORS.map(([name, c]) => ({ label: name, dot: c, checked: (col.color || null) === c, onClick: guard(async () => { await api('PATCH', `/api/columns/${col.id}`, { color: c }); await loadBoard(); }) }))) },
+    { label: col.auto_days ? `Regra: após ${col.auto_days} ${col.auto_days > 1 ? 'dias' : 'dia'} → ${(colById(col.auto_to) || {}).name || '?'}…` : 'Mover sozinhas depois de N dias…', icon: 'calendar', onClick: guard(async () => {
+      const v = await askText(`Depois de quantos dias nesta coluna a task vai para outra? (1 a 365)`, col.auto_days ? String(col.auto_days) : '', { ok: 'Escolher destino', placeholder: 'Ex.: 7' });
+      if (v == null) return; const n = parseInt(v, 10);
+      if (!(n >= 1 && n <= 365)) return toast('Informe um número de 1 a 365', true);
+      popover(anchor, S.columns.filter((c) => c.id !== col.id).map((c) => ({ label: 'Mover para ' + c.name, checked: col.auto_to === c.id, onClick: guard(async () => {
+        await api('PATCH', `/api/columns/${col.id}`, { auto_days: n, auto_to: c.id }); await loadBoard(); await runRules(); toast(`Depois de ${n} ${n > 1 ? 'dias' : 'dia'} as tasks de ${col.name} vão para ${c.name}`);
+      }) })));
+    }) },
+    ...(col.auto_days ? [{ label: 'Remover regra automática', icon: 'x', onClick: guard(async () => { await api('PATCH', `/api/columns/${col.id}`, { auto_days: null, auto_to: null }); await loadBoard(); }) }] : []),
+    { label: col.collapsed ? 'Mostrar sempre (não recolher)' : 'Recolher (escondida até pedir)', icon: 'list', checked: undefined, onClick: guard(async () => { await api('PATCH', `/api/columns/${col.id}`, { collapsed: !col.collapsed }); await loadBoard(); toast(col.collapsed ? 'Coluna visível' : 'Coluna recolhida: use "Mostrar" no fim do quadro'); }) },
     'hr', ...kinds.map(([k, label]) => ({ label: 'Conta como: ' + label, checked: col.kind === k, onClick: guard(async () => { await api('PATCH', `/api/columns/${col.id}`, { kind: k }); await loadBoard(); }) })),
     'hr',
     ...(idx > 0 ? [{ label: 'Mover para a esquerda', icon: 'left', onClick: guard(async () => { await api('PATCH', `/api/columns/${col.id}`, { dir: -1 }); await loadBoard(); }) }] : []),
@@ -737,6 +763,36 @@ function cardMenu(t) {
     'hr', ...S.columns.map((c) => ({ label: 'Mover para ' + c.name, checked: c.id === t.column_id, onClick: guard(() => c.id === t.column_id ? null : moveTask(t.id, c.id, null)) })),
     'hr', { label: 'Excluir', icon: 'trash', danger: true, onClick: guard(() => deleteTask(t)) },
   ];
+}
+// anotações gerais (que não são task): lista à esquerda, editor à direita, salva sozinho
+async function openNotes() {
+  let notes = [], cur = null, q = '', timer = null;
+  const list = h('div', { class: 'notes-list' }), editor = h('div', { class: 'notes-editor' });
+  const search = h('input', { class: 'input', type: 'search', placeholder: 'Buscar anotação…', 'aria-label': 'Buscar anotação', oninput: () => { q = norm(search.value); drawList(); } });
+  const label = (n) => (n.title || (n.body || '').split('\n')[0] || 'Sem título').slice(0, 60);
+  let pending = {}; // junta o que foi digitado em título e texto antes de gravar
+  const save = (n, patch) => { Object.assign(n, patch); Object.assign(pending, patch); clearTimeout(timer); timer = setTimeout(guard(async () => { const p = pending; pending = {}; await api('PATCH', `/api/notes/${n.id}`, p); }), 500); };
+  const drawList = () => {
+    const rows = notes.filter((n) => !q || norm(n.title + ' ' + n.body).includes(q));
+    list.replaceChildren(...(rows.length ? rows.map((n) => h('button', { type: 'button', class: 'note-item' + (cur && cur.id === n.id ? ' on' : ''), onclick: () => { cur = n; drawList(); drawEditor(); } },
+      h('b', null, label(n)), h('small', null, fmtTime(n.updated_at)))) : [h('div', { class: 'help', style: { padding: '8px' } }, notes.length ? 'Nada encontrado.' : 'Nenhuma anotação ainda.')]));
+  };
+  const drawEditor = () => {
+    if (!cur) return editor.replaceChildren(h('div', { class: 'empty-note' }, 'Escolha uma anotação ou crie uma nova.'));
+    const n = cur;
+    const title = h('input', { class: 'input', placeholder: 'Título', maxLength: 120, value: n.title, 'aria-label': 'Título da anotação', oninput: () => { save(n, { title: title.value }); drawList(); } });
+    const body = h('textarea', { class: 'textarea notes-body', placeholder: 'Escreva aqui…', maxLength: 20000, value: n.body, 'aria-label': 'Texto da anotação', oninput: () => save(n, { body: body.value }) });
+    editor.replaceChildren(title, body, h('div', { class: 'row-end' }, h('button', { class: 'btn danger sm', onclick: guard(async () => {
+      if (!(await confirmBox('Excluir esta anotação?', 'Excluir'))) return;
+      await api('DELETE', `/api/notes/${n.id}`); notes = notes.filter((x) => x.id !== n.id); cur = notes[0] || null; drawList(); drawEditor();
+    }) }, icon('trash'), 'Excluir')));
+    editor.querySelectorAll('svg').forEach((v) => Object.assign(v.style, { width: '14px', height: '14px' }));
+  };
+  const add = guard(async () => { const n = await api('POST', '/api/notes', { title: '', body: '' }); notes.unshift(n); cur = n; drawList(); drawEditor(); const t = editor.querySelector('input'); t && t.focus(); });
+  const close = openModal([modalHead('Anotações', () => close()), h('div', { class: 'notes-wrap' },
+    h('div', { class: 'notes-side' }, h('div', { class: 'row-gap' }, search, h('button', { class: 'btn sm primary', onclick: add }, '+ Nova')), list), editor)], { xwide: true });
+  try { notes = await api('GET', '/api/notes'); cur = notes[0] || null; } catch (e) { toast(e.message, true); }
+  drawList(); drawEditor();
 }
 async function openTrash() {
   const list = h('div', { class: 'trash-list' }, h('div', { class: 'help' }, 'Carregando…'));
@@ -767,8 +823,9 @@ function renderCard(t, col) {
       h('div', { class: 'cm-right' },
         cl.length > 0 && h('span', { class: 'due' + (clDone === cl.length ? ' ok' : '') }, icon('list'), `${clDone}/${cl.length}`),
         t.attachments > 0 && h('span', { class: 'due', title: 'Anexos' }, icon('clip'), t.attachments),
-        (t.timer_started_at || t.time_spent > 0) && h('span', { class: 'due' + (t.timer_started_at ? ' timer-live running' : ''), title: t.timer_started_at ? 'Cronômetro rodando' : 'Tempo registrado',
-          dataset: t.timer_started_at ? { since: t.timer_started_at, base: t.time_spent } : {} }, icon('timer'), fmtDur(totalSecs(t))),
+        ((t.started_at && col.kind !== 'todo') || (!t.started_at && t.time_spent > 0)) && h('span', { class: 'due' + (isRunning(t) ? ' timer-live running' : ''),
+          title: t.started_at ? `Iniciada em ${fmtWhen(t.started_at)}${t.finished_at ? ' · finalizada em ' + fmtWhen(t.finished_at) : ' · em andamento'}` : 'Tempo registrado',
+          dataset: isRunning(t) ? { since: t.started_at, base: 0 } : {} }, icon('timer'), fmtDur(totalSecs(t))),
         t.due_date && h('span', { class: 'due' + (ds === 'late' ? ' late' : ds === 'today' ? ' today' : '') }, icon('calendar'), fmtDay(t.due_date)),
         owner ? avatar(owner, 24) : h('button', { class: 'btn sm take', title: 'Pegar esta task', onclick: guard(async (e) => { e.stopPropagation(); upsertTask(await api('PATCH', `/api/tasks/${t.id}`, { assignee_id: S.me.id })); renderBoard(); toast('Task é sua'); }) }, icon('take'), 'Pegar'))));
   card.addEventListener('dragstart', (e) => { S.drag = t.id; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(t.id)); requestAnimationFrame(() => card.classList.add('dragging')); });
@@ -805,6 +862,7 @@ function eventText(e) {
     case 'edited': return 'editou a task';
     case 'worked': return 'registrou trabalho';
     case 'comment': return 'comentou';
+    case 'auto': return `movida automaticamente de ${d.from || '?'} para ${d.to || '?'} (depois de ${d.days} ${d.days > 1 ? 'dias' : 'dia'})`;
     case 'timer': return d.action === 'start' ? 'iniciou o cronômetro' : `parou o cronômetro (${fmtDur(d.seconds || 0)})`;
     case 'attachment': return `anexou ${d.name || 'um arquivo'}`;
     default: return e.type;
@@ -856,14 +914,22 @@ function openTask(id) {
   };
   drawCl();
 
-  // cronômetro
+  // tempo: início e fim em datas (editáveis); a duração é calculada
   const timeBox = h('div', { class: 'timebox' });
+  const toLocal = (ms) => { if (!ms) return ''; const d = new Date(ms); return `${ymd(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
   const drawTime = () => {
-    const cur = S.tasks.find((x) => x.id === id) || t, running = !!cur.timer_started_at;
+    const cur = S.tasks.find((x) => x.id === id) || t, running = isRunning(cur);
+    const field = (label, key) => h('label', { class: 'when' }, h('span', { class: 'help' }, label),
+      h('input', { class: 'input', type: 'datetime-local', value: toLocal(cur[key]), onchange: guard(async (e) => {
+        const ms = e.target.value ? new Date(e.target.value).getTime() : null;
+        upsertTask(await api('PATCH', `/api/tasks/${id}`, { [key]: ms ? new Date(ms).toISOString() : null })); renderBoard(); drawTime(); loadEvents();
+      }) }));
     timeBox.replaceChildren(
-      h('span', { class: 'time-total' + (running ? ' timer-live running' : ''), dataset: running ? { since: cur.timer_started_at, base: cur.time_spent } : {} }, icon('timer'), fmtDur(totalSecs(cur))),
-      h('button', { class: 'btn sm' + (running ? ' primary' : ''), onclick: guard(async () => { await api('POST', `/api/tasks/${id}/timer`); await loadBoard(); drawTime(); loadEvents(); }) }, icon(running ? 'pause' : 'play'), running ? 'Parar' : 'Iniciar'),
-      running && cur.timer_user !== S.me.id && h('span', { class: 'help' }, `rodando com ${userById(cur.timer_user)?.name || 'alguém'}`));
+      h('div', { class: 'when-row' }, field('Iniciada em', 'started_at'), field('Finalizada em', 'finished_at')),
+      h('div', { class: 'time-total' + (running ? ' timer-live running' : ''), dataset: running ? { since: cur.started_at, base: 0 } : {} }, icon('timer'),
+        cur.started_at ? fmtDur(totalSecs(cur)) : 'ainda não iniciada'),
+      cur.started_at && h('span', { class: 'help' }, cur.finished_at ? 'duração total' : running ? 'em andamento (conta até agora)' : 'parada fora de "em andamento"'),
+      cur.time_spent > 0 && h('span', { class: 'help' }, `+ ${fmtDur(cur.time_spent)} do cronômetro antigo`));
     timeBox.querySelectorAll('svg').forEach((v) => Object.assign(v.style, { width: '14px', height: '14px' }));
   };
   drawTime();
@@ -874,12 +940,14 @@ function openTask(id) {
   const fmtSize = (n) => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
   const openAtt = async (a) => { const w = window.open('about:blank', '_blank'); try { const url = await KB.attachmentUrl(a.path); if (w) w.location.href = url; } catch (e) { w && w.close(); toast(e.message, true); } };
   const drawAtts = (list) => {
+    attBox.classList.toggle('grid', list.length > 0);
     attBox.replaceChildren(...list.map((a) => {
-      const thumb = h('span', { class: 'att-thumb' }, icon('clip'));
-      if ((a.mime || '').startsWith('image/')) KB.attachmentUrl(a.path).then((u) => { const im = h('img', { src: u, alt: '', loading: 'lazy' }); thumb.replaceChildren(im); }).catch(() => {});
-      return h('div', { class: 'att' }, thumb,
-        h('button', { class: 'att-name', title: 'Abrir', onclick: () => openAtt(a) }, a.name, h('small', null, `${fmtSize(a.size)} · ${userById(a.user_id)?.name || ''}`)),
-        h('button', { class: 'btn ghost icon sm', title: 'Remover anexo', 'aria-label': 'Remover anexo', onclick: guard(async () => { await KB.removeAttachment(a); loadAtts(); loadBoard(); }) }, icon('x')));
+      const isImg = (a.mime || '').startsWith('image/');
+      const thumb = h('button', { type: 'button', class: 'att-thumb' + (isImg ? ' img' : ''), title: 'Abrir ' + a.name, 'aria-label': 'Abrir ' + a.name, onclick: () => openAtt(a) }, icon('clip'));
+      if (isImg) KB.attachmentUrl(a.path).then((u) => { const im = h('img', { src: u, alt: a.name, loading: 'lazy' }); thumb.replaceChildren(im); }).catch(() => {});
+      return h('div', { class: 'att' + (isImg ? ' is-img' : '') }, thumb,
+        h('div', { class: 'att-info' }, h('button', { class: 'att-name', title: a.name, onclick: () => openAtt(a) }, a.name), h('small', null, fmtSize(a.size))),
+        h('button', { class: 'att-del btn ghost icon sm', title: 'Remover anexo', 'aria-label': 'Remover anexo', onclick: guard(async () => { await KB.removeAttachment(a); loadAtts(); loadBoard(); }) }, icon('x')));
     }), h('div', { class: 'att-add' }, h('button', { class: 'btn sm', onclick: () => fileInput.click() }, icon('clip'), 'Anexar arquivo'), h('span', { class: 'help' }, 'ou cole um print (Ctrl+V) / arraste arquivos aqui · até 10 MB'), fileInput));
     attBox.querySelectorAll('.btn svg').forEach((v) => Object.assign(v.style, { width: '14px', height: '14px' }));
   };
@@ -894,15 +962,19 @@ function openTask(id) {
   const comment = h('textarea', { class: 'textarea', style: { minHeight: '56px' }, placeholder: 'Escrever um comentário… (Ctrl+Enter envia)', maxLength: 2000,
     onkeydown: (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendComment(); } } });
   const sendComment = guard(async () => { const text = comment.value.trim(); if (!text) return; comment.value = ''; try { await api('POST', `/api/tasks/${id}/comments`, { text }); } catch (x) { comment.value = text; throw x; } loadEvents(); });
+  const commentsEl = h('div', { class: 'cm-list' });
   const timeline = h('div', { class: 'timeline' });
+  const histCount = h('span', { class: 'help' });
   async function loadEvents() {
     try {
       const ev = await api('GET', `/api/tasks/${id}/events`);
-      timeline.replaceChildren(...ev.map((e) => e.type === 'comment'
-        ? h('div', { class: 'cm' }, h('div', null, h('b', null, e.user_name || 'Alguém'), ' comentou', h('time', null, fmtTime(e.at))), h('div', { class: 'cm-text' }, (e.data && e.data.text) || ''))
-        : h('div', null, h('b', null, e.user_name || 'Alguém'), ' ' + eventText(e), h('time', null, fmtTime(e.at)))));
+      const cms = ev.filter((e) => e.type === 'comment'), rest = ev.filter((e) => e.type !== 'comment');
+      commentsEl.replaceChildren(...(cms.length ? cms.map((e) => h('div', { class: 'cm' }, h('div', null, h('b', null, e.user_name || 'Alguém'), h('time', null, fmtTime(e.at))), h('div', { class: 'cm-text' }, (e.data && e.data.text) || ''))) : [h('div', { class: 'help' }, 'Nenhum comentário ainda.')]));
+      timeline.replaceChildren(...rest.map((e) => h('div', null, h('b', null, e.user_name || 'Alguém'), ' ' + eventText(e), h('time', null, fmtTime(e.at)))));
+      histCount.textContent = rest.length ? `(${rest.length})` : '';
     } catch { /* ignora */ }
   }
+  const notes = h('textarea', { class: 'textarea', placeholder: 'Anotações desta task (links, comandos, decisões…)', value: t.notes || '', rows: 4, maxLength: 20000, onchange: () => save({ notes: notes.value }) });
   const worked = h('button', { class: 'btn sm', title: 'Marca esta task como trabalhada hoje (entra no diário)', onclick: guard(async () => { await api('POST', `/api/tasks/${id}/worked`); toast('Registrado no diário de hoje'); loadEvents(); }) }, icon('check'), 'Trabalhei hoje');
 
   const propField = (label, el) => h('div', { class: 'field' }, h('label', null, label), el);
@@ -910,8 +982,9 @@ function openTask(id) {
     h('div', { class: 'modal-head task-head' }, h('div', { class: 'grow' }, title), h('button', { class: 'btn ghost icon sm', 'aria-label': 'Fechar', onclick: () => { document.activeElement && document.activeElement.blur(); close(); } }, icon('x'))),
     h('div', { class: 'task-grid' },
       h('div', { class: 'task-main' },
-        propField('Descrição', desc), propField('Checklist', clBox), propField('Anexos', attBox),
-        h('div', { class: 'field' }, h('label', null, 'Comentários e histórico'), comment, h('div', null, h('button', { class: 'btn sm', onclick: sendComment }, 'Comentar')), timeline)),
+        propField('Descrição', desc), propField('Checklist', clBox), propField('Anotações', notes), propField('Anexos', attBox),
+        h('div', { class: 'field' }, h('label', null, 'Comentários'), comment, h('div', null, h('button', { class: 'btn sm', onclick: sendComment }, 'Comentar')), commentsEl),
+        h('details', { class: 'hist' }, h('summary', null, 'Histórico de atividade ', histCount), timeline)),
       h('aside', { class: 'task-side', 'aria-label': 'Propriedades da task' },
         propField('Status', colSel), propField('Responsável', own), propField('Prazo', due), propField('Prioridade', h('div', { class: 'seg' }, prioBtns)),
         propField('Etiquetas', labelBox), propField('Tempo', timeBox), propField('Texto para o diário', diary))),
@@ -1172,11 +1245,32 @@ function viewLook() {
     h('div', { class: 'set-foot' }, h('span', { class: 'help save-note' }, icon('check'), 'Salvo automaticamente na sua conta'), h('button', { class: 'btn sm', onclick: resetPrefs }, 'Restaurar padrões')));
 }
 
+// recorta no centro em quadrado e reduz (foto de perfil leve)
+async function squareJpeg(file, size) {
+  const bmp = await createImageBitmap(file); const m = Math.min(bmp.width, bmp.height);
+  const c = document.createElement('canvas'); c.width = c.height = size; const x = c.getContext('2d');
+  x.drawImage(bmp, (bmp.width - m) / 2, (bmp.height - m) / 2, m, m, 0, 0, size, size);
+  return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('Não foi possível ler a imagem'))), 'image/jpeg', 0.86));
+}
 function viewAccount() {
   const name = h('input', { class: 'input', value: S.me.name, maxLength: 80 });
   const cur = h('input', { class: 'input', type: 'password', autocomplete: 'current-password' });
   const nw = h('input', { class: 'input', type: 'password', autocomplete: 'new-password', placeholder: 'Mínimo 6 caracteres' });
+  const photo = h('div', { class: 'photo-row' });
+  const drawPhoto = () => photo.replaceChildren(avatar(S.me, 56),
+    h('div', { class: 'photo-btns' },
+      h('button', { class: 'btn sm', type: 'button', onclick: () => pick.click() }, S.me.avatar_url ? 'Trocar foto' : 'Enviar foto'),
+      S.me.avatar_url && h('button', { class: 'btn ghost sm', type: 'button', onclick: guard(async () => { await api('PATCH', '/api/me', { avatar_url: null }); S.me.avatar_url = null; await loadBoard(); drawPhoto(); toast('Foto removida'); }) }, 'Remover'),
+      h('span', { class: 'help' }, 'JPG, PNG ou WebP; é recortada em quadrado.')));
+  const pick = h('input', { type: 'file', accept: 'image/jpeg,image/png,image/webp', class: 'hidden', onchange: guard(async () => {
+    const f = pick.files[0]; pick.value = ''; if (!f) return;
+    const blob = await squareJpeg(f, 256);
+    const path = await KB.uploadAvatar(blob, S.me.id);
+    await api('PATCH', '/api/me', { avatar_url: path }); S.me.avatar_url = path; await loadBoard(); drawPhoto(); toast('Foto atualizada');
+  }) });
+  drawPhoto();
   return h('div', { class: 'modal-body' },
+    h('div', { class: 'field' }, h('label', null, 'Foto de perfil'), photo, pick),
     h('div', { class: 'field' }, h('label', null, 'Nome'), h('div', { class: 'row' }, name, h('button', { class: 'btn', style: { flex: '0 0 auto' }, onclick: guard(async () => { if (!name.value.trim()) return; await api('PATCH', '/api/me', { name: name.value }); S.me.name = name.value.trim(); await loadBoard(); toast('Nome atualizado'); }) }, 'Salvar'))),
     h('div', { class: 'field' }, h('label', null, 'E-mail'), h('div', { class: 'help' }, S.me.email)),
     h('div', { class: 'row' }, h('div', { class: 'field' }, h('label', null, 'Senha atual'), cur), h('div', { class: 'field' }, h('label', null, 'Nova senha'), nw)),
@@ -1255,8 +1349,8 @@ async function boot(user) {
 }
 window.KBApp = {
   S, h, $, icon, api, toast, guard, openModal, modalHead, popover, askText, confirmBox, setPrefs, resolvedMode, THEMES,
-  eventText, openTask, openQuickAdd, openDiary, openShortcuts, openTrash, openSettings, renderBoard, loadBoard, moveTask, deleteTask, upsertTask, userById, colById, avatar,
-  matches, filtersActive, clearFilters, dueState, fmtDay, fmtTime, fmtDur, totalSecs, ymd, pad, addDays, norm, hueOf, cap, PRIO_NAME, views: {},
+  eventText, openTask, openQuickAdd, openDiary, openShortcuts, openTrash, openNotes, openSettings, renderBoard, loadBoard, moveTask, deleteTask, upsertTask, userById, colById, avatar,
+  matches, filtersActive, clearFilters, dueState, fmtDay, fmtTime, fmtDur, fmtWhen, totalSecs, isRunning, ymd, pad, addDays, norm, hueOf, cap, PRIO_NAME, views: {},
 };
 (async function init() {
   // espera os scripts de recursos (vistas, paleta, toque) registrarem-se antes de iniciar

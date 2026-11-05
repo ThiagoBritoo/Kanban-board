@@ -138,18 +138,22 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   const csv = fs.readFileSync(await dl.path(), 'utf8');
   ok(csv.includes('Título;Descrição;Status') && csv.includes('Cadastro de postos'), 'exportar CSV baixa as tasks');
 
-  // cronômetro
-  await p.locator('.column:nth-child(2) .card').first().click(); await p.waitForSelector('.timebox');
-  await p.click('.timebox button:has-text("Iniciar")'); await p.waitForTimeout(700);
-  ok(!!fake.db.tasks.find((t) => t.title.startsWith('Ajustes')).timer_started_at, 'cronômetro inicia');
-  ok((await p.locator('.timebox button:has-text("Parar")').count()) === 1, 'botão vira "Parar"');
+  // tempo por datas: "Ajustes" está em Em andamento (movida por arrasto/criação) -> tem início, sem fim
+  const ajustes = () => fake.db.tasks.find((t) => t.title.startsWith('Ajustes'));
+  await p.locator('.column:nth-child(2) .card').first().click(); await p.waitForSelector('.timebox'); await p.waitForTimeout(300);
+  ok(!!ajustes().started_at && !ajustes().finished_at, 'task em andamento tem "iniciada em" e não tem "finalizada em"');
+  ok((await p.locator('.timebox input[type=datetime-local]').count()) === 2, 'modal mostra iniciada em / finalizada em');
   await p.keyboard.press('Escape'); await p.waitForTimeout(200);
-  ok((await p.locator('.card .timer-live.running').count()) === 1, 'card mostra cronômetro rodando');
-  await p.locator('.column:nth-child(2) .card').first().click(); await p.waitForSelector('.timebox');
-  await p.click('.timebox button:has-text("Parar")'); await p.waitForTimeout(500);
-  ok(fake.db.tasks.find((t) => t.title.startsWith('Ajustes')).timer_started_at == null, 'cronômetro para');
+  ok((await p.locator('.card .timer-live.running').count()) >= 1, 'card mostra o tempo em andamento');
+  // concluir preenche o fim; voltar limpa o fim e mantém o início
+  const started = ajustes().started_at;
+  await p.evaluate((id) => KBApp.moveTask(id, 4, null), ajustes().id); await p.waitForTimeout(500);
+  ok(!!ajustes().finished_at && ajustes().started_at === started, 'mover para Concluído grava "finalizada em"');
+  await p.evaluate((id) => KBApp.moveTask(id, 2, null), ajustes().id); await p.waitForTimeout(500);
+  ok(ajustes().finished_at == null && ajustes().started_at === started, 'voltar de Concluído limpa o fim e mantém o início');
 
   // anexos (upload + miniatura + contagem no card)
+  await p.locator('.card').filter({ hasText: 'Ajustes' }).first().click(); await p.waitForSelector('.modal'); await p.waitForTimeout(300);
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
   await p.setInputFiles('.modal input[type=file]', { name: 'print.png', mimeType: 'image/png', buffer: png }); await p.waitForTimeout(900);
   ok((await p.locator('.att-name:has-text("print.png")').count()) === 1, 'anexo enviado aparece na lista');
@@ -173,16 +177,11 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   await p.screenshot({ path: OUT + 'v3-fundo.png' });
   await p.click('.bg-tile[title="Do tema"]'); await p.keyboard.press('Escape');
 
-  // painel bento + ilha do cronômetro + cartão dobrado + fundo shader
+  // painel bento + cartão dobrado + fundo shader
   await p.click('#viewSeg button[data-view="painel"]'); await p.waitForSelector('.bento'); await p.waitForTimeout(500);
   ok((await p.locator('.bento .bt').count()) === 7, 'painel bento com 7 blocos');
   ok((await p.locator('.bt.hero .bt-stat').count()) === 4, 'painel mostra os 4 indicadores');
   await p.click('#viewSeg button[data-view="board"]'); await p.waitForSelector('.column');
-  await p.locator('.column:nth-child(2) .card').first().click(); await p.waitForSelector('.timebox'); await p.click('.timebox button:has-text("Iniciar")'); await p.waitForTimeout(600);
-  await p.keyboard.press('Escape'); await p.waitForTimeout(350);
-  ok((await p.locator('.island').count()) === 1, 'ilha do cronômetro aparece ao iniciar');
-  await p.click('.island-stop'); await p.waitForTimeout(600);
-  ok((await p.locator('.island').count()) === 0, 'ilha some ao parar o cronômetro');
   await p.evaluate(() => window.KBApp.setPrefs({ cardStyle: 'fold' }, { refreshSettings: false }));
   ok(await p.evaluate(() => document.documentElement.dataset.card === 'fold'), 'estilo de cartão dobrado aplicado');
   await p.evaluate(() => window.KBApp.setPrefs({ cardStyle: 'theme' }, { refreshSettings: false }));

@@ -1,7 +1,7 @@
 // Vistas extras e relatórios: Lista, Calendário, Resumo, Atividade e exportação.
 (() => {
   const A = window.KBApp; if (!A) return;
-  const { S, h, icon, api, toast, guard, openModal, modalHead, userById, colById, avatar, fmtDay, fmtTime, fmtDur, totalSecs, ymd, pad, addDays, hueOf, cap, PRIO_NAME } = A;
+  const { S, h, icon, api, toast, guard, openModal, modalHead, userById, colById, avatar, fmtDay, fmtTime, fmtDur, totalSecs, isRunning, ymd, pad, addDays, hueOf, cap, PRIO_NAME } = A;
   const svgIcons = (root, px = 14) => root.querySelectorAll('svg').forEach((v) => Object.assign(v.style, { width: px + 'px', height: px + 'px' }));
   const colColor = (c) => c.color || (c.kind === 'done' ? 'var(--ok)' : c.kind === 'doing' ? 'var(--p2)' : 'var(--muted)');
 
@@ -29,7 +29,7 @@
           h('td', { class: 'c-prio' }, t.priority >= 2 ? h('span', { class: 'prio-badge p' + t.priority }, PRIO_NAME[t.priority]) : h('span', { class: 'help' }, PRIO_NAME[t.priority])),
           h('td', { class: 'c-due' }, t.due_date ? h('span', { class: 'due' + (ds === 'late' ? ' late' : ds === 'today' ? ' today' : '') }, fmtDay(t.due_date)) : h('span', { class: 'help' }, '—')),
           h('td', { class: 'c-labels' }, t.labels.map((l) => h('span', { class: 'tag', style: { '--h': hueOf(l) } }, l))),
-          h('td', { class: 'c-time' }, totalSecs(t) > 0 ? h('span', { class: 'due' + (t.timer_started_at ? ' timer-live running' : ''), dataset: t.timer_started_at ? { since: t.timer_started_at, base: t.time_spent } : {} }, icon('timer'), fmtDur(totalSecs(t))) : ''));
+          h('td', { class: 'c-time' }, totalSecs(t) > 0 && (t.started_at ? c.kind !== 'todo' : true) ? h('span', { class: 'due' + (isRunning(t) ? ' timer-live running' : ''), dataset: isRunning(t) ? { since: t.started_at, base: 0 } : {} }, icon('timer'), fmtDur(totalSecs(t))) : ''));
       })));
     const sortBar = h('div', { class: 'list-sort' }, h('label', { class: 'help' }, 'Ordenar por'),
       h('select', { class: 'input', 'aria-label': 'Ordenar lista por', onchange: (e) => { S.listSort = { key: e.target.value, dir: 1 }; A.renderBoard(); } },
@@ -178,7 +178,7 @@
     const late = open.filter((t) => A.dueState(t) === 'late').sort(byDue), today = open.filter((t) => A.dueState(t) === 'today');
     const doing = S.tasks.filter((t) => kind(t) === 'doing');
     const upcoming = open.filter((t) => t.due_date && t.due_date > ymd()).sort(byDue).slice(0, 5);
-    const running = S.tasks.find((t) => t.timer_started_at && t.timer_user === S.me.id);
+    const oldest = doing.filter(isRunning).sort((a, b) => a.started_at - b.started_at).slice(0, 4);
     const row = (t) => { const ds = A.dueState(t); return h('button', { class: 'bt-row', onclick: () => A.openTask(t.id) }, avatar(userById(t.assignee_id), 20), h('span', { class: 'bt-title' }, t.title), t.due_date && h('span', { class: 'due' + (ds === 'late' ? ' late' : ds === 'today' ? ' today' : '') }, fmtDay(t.due_date))); };
     const list = (arr, empty) => h('div', { class: 'bt-list' }, arr.length ? arr.map(row) : h('div', { class: 'help' }, empty));
     const tile = (cls, title, ...kids) => h('section', { class: 'bt ' + cls }, h('div', { class: 'bt-h' }, title), ...kids);
@@ -197,9 +197,7 @@
       tile('w2 h2 hero', `${greet}, ${S.me.name.split(' ')[0]}`, h('div', { class: 'help' }, A.cap(now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }))),
         h('div', { class: 'bt-stats' }, stat(late.length, 'atrasadas', late.length ? 'late' : ''), stat(today.length, 'vencem hoje', today.length ? 'today' : ''), stat(doing.length, 'em andamento'), stat(open.filter((t) => t.assignee_id === S.me.id).length, 'minhas abertas')),
         h('div', { class: 'bt-sub' }, 'Precisa de atenção'), list([...late, ...today].slice(0, 6), 'Nada atrasado nem vencendo hoje.')),
-      tile('', 'Cronômetro', running
-        ? h('div', { class: 'bt-timer' }, h('b', { class: 'timer-live running', dataset: { since: running.timer_started_at, base: running.time_spent } }, A.fmtDur(A.totalSecs(running))), h('button', { class: 'bt-row', onclick: () => A.openTask(running.id) }, h('span', { class: 'bt-title' }, running.title)))
-        : h('div', { class: 'help' }, 'Nenhum cronômetro rodando. Abra uma task e toque em Iniciar.')),
+      tile('', 'Há mais tempo em andamento', h('div', { class: 'bt-list' }, oldest.length ? oldest.map((t) => h('button', { class: 'bt-row', onclick: () => A.openTask(t.id) }, avatar(userById(t.assignee_id), 20), h('span', { class: 'bt-title' }, t.title), h('span', { class: 'due timer-live running', dataset: { since: t.started_at, base: 0 } }, icon('timer'), A.fmtDur(A.totalSecs(t))))) : h('div', { class: 'help' }, 'Nada em andamento.'))),
       tile('', 'Em andamento', list(doing.slice(0, 5), 'Nada em andamento.')),
       tile('w2', 'Concluídas · 7 dias', chart),
       tile('', 'Próximos prazos', list(upcoming, 'Sem prazos à frente.')),

@@ -8,8 +8,8 @@ module.exports = function makeFake() {
       { id: uid, name: 'Thiago', email: 't@x.com', role: 'admin', approved: true, color: '#6366f1', prefs: {}, created_at: '2026-01-01T00:00:00Z' },
       { id: uid2, name: 'Maria', email: 'm@x.com', role: 'member', approved: true, color: '#ec4899', prefs: {}, created_at: '2026-01-02T00:00:00Z' },
     ],
-    board_columns: [['A fazer', 'todo'], ['Em andamento', 'doing'], ['Revisão', 'doing'], ['Concluído', 'done']].map(([name, kind], i) => ({ id: i + 1, name, position: i, kind, color: null, wip_limit: null })),
-    tasks: [], events: [], attachments: [], files: {}, nextTask: 1, nextEv: 1, nextAtt: 1, calls: [],
+    board_columns: [['A fazer', 'todo'], ['Em andamento', 'doing'], ['Revisão', 'doing'], ['Concluído', 'done']].map(([name, kind], i) => ({ id: i + 1, name, position: i, kind, color: null, wip_limit: null, auto_days: null, auto_to: null, collapsed: false })),
+    tasks: [], events: [], attachments: [], notes: [], api_tokens: [], nextNote: 1, files: {}, nextTask: 1, nextEv: 1, nextAtt: 1, calls: [],
   };
   const now = () => new Date().toISOString();
   const ev = (task_id, user_id, type, data = {}) => db.events.push({ id: db.nextEv++, task_id, user_id, type, data, at: now() });
@@ -33,7 +33,7 @@ module.exports = function makeFake() {
   const insertTask = (b, user) => {
     const id = db.nextTask++;
     const k = col(b.column_id);
-    const t = { description: '', diary: '', assignee_id: null, priority: 1, due_date: null, labels: [], checklist: [], deleted_at: null, time_spent: 0, timer_started_at: null, timer_user: null, completed_at: k.kind === 'done' ? now() : null, ...b, id, creator_id: user,
+    const t = { description: '', diary: '', assignee_id: null, priority: 1, due_date: null, labels: [], checklist: [], deleted_at: null, time_spent: 0, timer_started_at: null, timer_user: null, completed_at: k.kind === 'done' ? now() : null, started_at: k.kind !== 'todo' ? now() : null, finished_at: k.kind === 'done' ? now() : null, column_since: now(), notes: '', ...b, id, creator_id: user,
       position: Math.max(-1, ...db.tasks.filter((x) => x.column_id === b.column_id).map((x) => x.position)) + 1, created_at: now(), updated_at: now() };
     db.tasks.push(t); ev(id, user, 'created', { column: k.name }); if (t.assignee_id) ev(id, user, 'assigned', { to: t.assignee_id }); return t;
   };
@@ -51,12 +51,22 @@ module.exports = function makeFake() {
       const t = db.tasks.find((x) => x.id === a.p_task); const to = col(a.p_column);
       if (t.column_id !== a.p_column) {
         ev(t.id, user, 'moved', { from: col(t.column_id).name, to: to.name, kind: to.kind });
-        t.completed_at = to.kind === 'done' ? now() : null;
+        t.column_since = now();
+        if (to.kind === 'done') { t.completed_at = t.completed_at || now(); t.finished_at = t.finished_at || now(); t.started_at = t.started_at || now(); }
+        else { t.completed_at = null; t.finished_at = null; if (to.kind === 'doing') t.started_at = t.started_at || now(); }
         if (to.kind === 'doing' && !t.assignee_id) { t.assignee_id = user; ev(t.id, user, 'assigned', { to: user }); }
         t.column_id = a.p_column;
       }
       const arr = db.tasks.filter((x) => x.column_id === a.p_column && x.id !== t.id && !x.deleted_at).sort((p, q) => p.position - q.position || p.id - q.id);
       let i = a.p_before ? arr.findIndex((x) => x.id === a.p_before) : -1; if (i < 0) i = arr.length; arr.splice(i, 0, t); arr.forEach((x, k) => (x.position = k)); return null;
+    }
+    if (fn === 'apply_column_rules') {
+      let n = 0;
+      db.board_columns.filter((c) => c.auto_days && c.auto_to).forEach((c) => {
+        db.tasks.filter((t) => t.column_id === c.id && !t.deleted_at && Date.now() - Date.parse(t.column_since) > c.auto_days * 864e5).forEach((t) => {
+          t.column_id = c.auto_to; t.column_since = now(); t.position = 1e6 + n; n++; ev(t.id, null, 'auto', { from: c.name, to: col(c.auto_to).name, days: c.auto_days });
+        });
+      }); return n;
     }
     if (fn === 'add_comment') { if (!a.p_text.trim()) throw { code: 'P0001', message: 'Comentário inválido (1 a 2000 caracteres)' }; ev(a.p_task, user, 'comment', { text: a.p_text.trim() }); return null; }
     if (fn === 'toggle_timer') {
@@ -102,6 +112,8 @@ module.exports = function makeFake() {
         if (m === 'POST') return send(200, { signedURL: p.replace('/storage/v1', '') + '?token=t' });
         return route.fulfill({ status: 200, headers: { ...cors, 'content-type': 'image/png' }, body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64') });
       }
+      if (p.startsWith('/storage/v1/object/public/avatars/')) return route.fulfill({ status: 200, headers: { ...cors, 'content-type': 'image/png' }, body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64') });
+      if (p.startsWith('/storage/v1/object/avatars/')) { if (m === 'POST' || m === 'PUT') { db.files['avatars/' + decodeURIComponent(p.replace('/storage/v1/object/avatars/', ''))] = 1; return send(200, { Key: 'avatars/x', Id: 'x' }); } }
       if (p.startsWith('/storage/v1/object/attachments')) {
         if (m === 'POST') { db.files[decodeURIComponent(p.replace('/storage/v1/object/attachments/', ''))] = (req.postDataBuffer() || Buffer.from('')).length; return send(200, { Key: 'attachments/x', Id: 'x' }); }
         if (m === 'DELETE') { const b = JSON.parse(req.postData() || '{}'); (b.prefixes || []).forEach((x) => delete db.files[x]); return send(200, []); }
@@ -119,11 +131,12 @@ module.exports = function makeFake() {
       if (m === 'POST' && name === 'tasks') return send(201, insertTask(body, sub));
       if (m === 'POST' && name === 'attachments') { const a = { id: db.nextAtt++, created_at: now(), mime: null, ...body }; db.attachments.push(a); ev(a.task_id, sub, 'attachment', { name: a.name }); return send(201, a); }
       if (m === 'POST' && name === 'board_columns') { const c = { id: db.board_columns.length + 10, position: db.board_columns.length, color: null, kind: 'todo', ...body }; db.board_columns.push(c); return send(201, c); }
+      if (m === 'POST' && (name === 'notes' || name === 'api_tokens')) { const r = { id: db.nextNote++, created_at: now(), updated_at: now(), created_by: sub, user_id: sub, title: '', body: '', ...body }; table.push(r); return send(201, r); }
       if (m === 'PATCH') {
         const rows = filt(table, q); rows.forEach((r) => (name === 'tasks' ? patchTask(r, body, sub) : Object.assign(r, body)));
         return out(rows);
       }
-      if (m === 'DELETE') { if (name === 'attachments') { const ids = filt(db.attachments, q).map((r) => r.id); db.attachments = db.attachments.filter((r) => !ids.includes(r.id)); } return send(204); }
+      if (m === 'DELETE') { if (name === 'notes' || name === 'api_tokens') { const ids = filt(table, q).map((r) => r.id); db[name] = table.filter((r) => !ids.includes(r.id)); return send(204); } if (name === 'attachments') { const ids = filt(db.attachments, q).map((r) => r.id); db.attachments = db.attachments.filter((r) => !ids.includes(r.id)); } return send(204); }
       return send(405, { message: 'nao suportado' });
     } catch (e) { return send(500, { message: String(e && e.message || e) }); }
   }

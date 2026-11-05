@@ -15,7 +15,7 @@
       ['Ir para o Quadro', 'grid', view('board')], ['Ir para a Lista', 'table', view('list')], ['Ir para o Calendário', 'calendar', view('calendar')],
       ['Ir para o Painel (bento)', 'bento', view('painel')],
       ['Filtrar: minhas tasks', 'take', filt({ who: 'me' })], ['Filtrar: sem dono', 'take', filt({ who: 'none' })],
-      ['Filtrar: urgentes', 'flag', filt({ prio: 3 })], ['Filtrar: prioridade alta', 'flag', filt({ prio: 2 })], ['Atalhos do teclado', 'menu', run(() => A.openShortcuts())], ['Lixeira (restaurar excluídas)', 'trash', run(() => A.openTrash())],
+      ['Filtrar: urgentes', 'flag', filt({ prio: 3 })], ['Filtrar: prioridade alta', 'flag', filt({ prio: 2 })], ['Atalhos do teclado', 'menu', run(() => A.openShortcuts())], ['Lixeira (restaurar excluídas)', 'trash', run(() => A.openTrash())], ['Anotações', 'edit', run(() => A.openNotes())],
       ['Filtrar: atrasadas', 'calendar', filt({ due: 'late' })], ['Filtrar: vencem hoje', 'calendar', filt({ due: 'today' })], ['Limpar filtros', 'x', filt({})],
       ['Alternar barra lateral', 'menu', run(() => A.setPrefs({ sidebar: A.S.prefs.sidebar === false }, { refreshSettings: false }))],
       ['Alternar claro / escuro', 'moon', run(() => A.setPrefs({ mode: A.resolvedMode() === 'dark' ? 'light' : 'dark' }))],

@@ -1,6 +1,6 @@
 {
-  "name": "Kanban da empresa",
-  "short_name": "Kanban",
+  "name": "Runtime — tasks da equipe",
+  "short_name": "Runtime",
   "description": "Tasks da equipe, diário de trabalho e temas personalizáveis",
   "start_url": "./",
   "scope": "./",
