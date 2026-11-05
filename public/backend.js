@@ -22,7 +22,7 @@
   const toTask = (r) => ({ ...r, created_at: ts(r.created_at), updated_at: ts(r.updated_at), completed_at: ts(r.completed_at), timer_started_at: ts(r.timer_started_at), started_at: ts(r.started_at), finished_at: ts(r.finished_at), column_since: ts(r.column_since), notes: r.notes || '', time_spent: r.time_spent || 0, attachments: 0, checklist: Array.isArray(r.checklist) ? r.checklist : [] });
   const cleanChecklist = (arr) => {
     if (!Array.isArray(arr)) throw new Error('Checklist inválido');
-    return arr.slice(0, 50).map((i) => ({ text: String((i && i.text) || '').trim().slice(0, 200), done: !!(i && i.done) })).filter((i) => i.text);
+    return arr.slice(0, 50).map((i) => ({ text: String((i && i.text) || '').trim().slice(0, 2000), done: !!(i && i.done) })).filter((i) => i.text);
   };
   const cleanLabels = (arr) => {
     if (!Array.isArray(arr)) throw new Error('Etiquetas inválidas');
