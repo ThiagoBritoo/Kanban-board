@@ -961,11 +961,16 @@ function openDiary() {
 }
 
 /* ================= personalização, conta e equipe ================= */
+// Troca de aba com direção (ideia do Direction Aware Tabs): o conteúdo novo entra pelo lado de onde a aba veio. Só transform/opacity, 180 ms.
+function slideIn(els) {
+  const dir = S.tabDir || 1; S.tabDir = 0;
+  els.forEach((e) => { e.style.setProperty('--dx', dir * 22 + 'px'); e.classList.remove('slide-in'); void e.offsetWidth; e.classList.add('slide-in'); });
+}
 function openSettings(tab = 'look') {
   const content = h('div'), tabsEl = h('div', { class: 'tabs' });
   const tabs = [['look', 'Aparência'], ['account', 'Conta'], ...(S.me.role === 'admin' ? [['team', 'Equipe']] : [])];
   const draw = () => {
-    tabsEl.replaceChildren(...tabs.map(([k, l]) => h('button', { class: tab === k ? 'on' : '', onclick: () => { tab = k; draw(); } }, l)));
+    tabsEl.replaceChildren(...tabs.map(([k, l]) => h('button', { class: tab === k ? 'on' : '', onclick: () => { if (tab === k) return; S.tabDir = tabs.findIndex((x) => x[0] === k) > tabs.findIndex((x) => x[0] === tab) ? 1 : -1; tab = k; draw(); slideIn([content]); } }, l)));
     content.replaceChildren(({ look: viewLook, account: viewAccount, team: viewTeam })[tab]());
   };
   S.refreshSettings = () => { if (tab === 'look') { const pn = () => $('.drawer-panel'); const y = pn() ? pn().scrollTop : 0; draw(); if (pn() && y) pn().scrollTop = y; } };
@@ -1122,7 +1127,7 @@ function viewLook() {
   const tabs = [['tema', 'Tema'], ['cores', 'Cores'], ['fundo', 'Fundo'], ['cartoes', 'Cartões'], ['comportamento', 'Geral']];
   const cur = G[S.lookTab] ? S.lookTab : 'tema';
   return h('div', { class: 'modal-body' },
-    h('div', { class: 'seg look-tabs', role: 'tablist' }, tabs.map(([k, l]) => h('button', { type: 'button', role: 'tab', 'aria-selected': String(k === cur), class: k === cur ? 'on' : '', onclick: () => { S.lookTab = k; S.refreshSettings && S.refreshSettings(); } }, l))),
+    h('div', { class: 'seg look-tabs', role: 'tablist' }, tabs.map(([k, l]) => h('button', { type: 'button', role: 'tab', 'aria-selected': String(k === cur), class: k === cur ? 'on' : '', onclick: () => { if (k === cur) return; S.tabDir = tabs.findIndex((x) => x[0] === k) > tabs.findIndex((x) => x[0] === cur) ? 1 : -1; S.lookTab = k; S.refreshSettings && S.refreshSettings(); slideIn([...document.querySelectorAll('.drawer-panel .modal-body > :not(.look-tabs):not(.set-foot)')]); } }, l))),
     ...G[cur],
     h('div', { class: 'set-foot' }, h('span', { class: 'help save-note' }, icon('check'), 'Salvo automaticamente na sua conta'), h('button', { class: 'btn sm', onclick: resetPrefs }, 'Restaurar padrões')));
 }

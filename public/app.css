@@ -553,3 +553,22 @@ html[data-cardlight="on"][data-fx="on"][data-motion="on"] .card:hover{background
   linear-gradient(180deg,transparent,color-mix(in srgb,var(--accent) 60%,transparent),transparent),linear-gradient(180deg,transparent,color-mix(in srgb,var(--accent) 45%,transparent),transparent);
   background-size:1px 52px,1px 70px,1px 44px,1px 90px;background-repeat:repeat-y;background-position:14% 0,38% 0,62% 0,86% 0;animation:cardfall 1.6s linear infinite}
 @media (prefers-reduced-motion:reduce){.card{animation:none!important}}
+
+/* ===== acabamento: indicador de soltura, troca de aba com direção, desfoque progressivo ===== */
+/* Indicador de soltura (Kanban Board do Cult UI, sem o stagger/blur dele): barra que cresce do centro, na cor do tema */
+.drop-line{height:3px;margin:-1px 8px;box-shadow:0 0 10px color-mix(in srgb,var(--accent) 55%,transparent);animation:drop-in .14s var(--ease);transform-origin:center}
+@keyframes drop-in{from{opacity:0;transform:scaleX(.35)}}
+.card.dragging{opacity:.5;transform:none;box-shadow:none;border:1.5px dashed var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--card))}
+.card.dragging>*{opacity:.35}
+.touch-ghost{transform-origin:50% 50%;box-shadow:0 22px 44px rgba(0,0,0,.34),0 0 0 1px var(--accent)}
+.column.over .col-body{background:color-mix(in srgb,var(--accent) 5%,transparent)}
+/* Troca de aba: o conteúdo novo entra do lado de onde a aba veio (só transform/opacity) */
+.slide-in{animation:slide-in .18s var(--ease)}
+@keyframes slide-in{from{opacity:0;transform:translateX(var(--dx,22px))}}
+.look-tabs button,.tabs button{transition:background .15s var(--ease),color .15s,border-color .15s var(--ease)}
+/* Desfoque progressivo (Progressive Blur do Skiper): borda da coluna só aparece quando há conteúdo rolando por baixo */
+.col-body[data-sct="1"]::before,.col-body[data-scb="1"]::after{content:"";display:block;flex:none;position:sticky;height:16px;pointer-events:none;z-index:2;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);animation:fade-edge .15s var(--ease)}
+.col-body[data-sct="1"]::before{top:0;margin:-4px 0 calc(-16px - var(--gap)) 0;-webkit-mask-image:linear-gradient(#000 35%,transparent);mask-image:linear-gradient(#000 35%,transparent)}
+.col-body[data-scb="1"]::after{bottom:0;margin:calc(-16px - var(--gap)) 0 calc(-1 * var(--gap)) 0;-webkit-mask-image:linear-gradient(transparent,#000 65%);mask-image:linear-gradient(transparent,#000 65%)}
+@keyframes fade-edge{from{opacity:0}}
+html[data-fx="off"] .col-body::before,html[data-fx="off"] .col-body::after{-webkit-backdrop-filter:none;backdrop-filter:none}
