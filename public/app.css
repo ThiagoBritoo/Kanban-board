@@ -620,3 +620,10 @@ input[type=range]{margin-left:0;margin-right:0;width:100%}
 @media (max-width:720px){.list-sort{display:flex}}
 .popover{max-height:calc(100vh - 16px);max-height:calc(100dvh - 16px);overflow-y:auto;overscroll-behavior:contain}
 body.touch-dragging .board{scroll-snap-type:none;scroll-behavior:auto}body.touch-dragging .card:not(.touch-ghost){touch-action:none}
+
+/* ===== tempo por datas, caixas de texto sem alça de redimensionar ===== */
+.when-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+.when{display:grid;gap:3px;min-width:0}.when .input{padding:6px 8px;font-size:12.5px}
+.timebox{flex-direction:column;align-items:flex-start;gap:6px}
+.textarea,textarea{resize:none}
+@media (max-width:760px){.when-row{grid-template-columns:1fr}}

@@ -523,11 +523,14 @@ function renderShell() {
   renderTopbarMode();
 }
 
-const totalSecs = (t) => (t.time_spent || 0) + (t.timer_started_at ? Math.max(0, Math.floor((Date.now() - t.timer_started_at) / 1000)) : 0);
+// Tempo = da data de início até a de fim (ou até agora, se ainda está em andamento). Tasks antigas sem datas usam o cronômetro legado.
+const isRunning = (t) => !!(t.started_at && !t.finished_at && (colById(t.column_id) || {}).kind === 'doing');
+const totalSecs = (t) => t.started_at ? Math.max(0, Math.floor(((t.finished_at || Date.now()) - t.started_at) / 1000)) : (t.time_spent || 0);
+const fmtWhen = (ms) => ms ? new Date(ms).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
 function fmtDur(sec) {
   sec = Math.max(0, Math.floor(sec));
-  const hh = Math.floor(sec / 3600), mm = Math.floor((sec % 3600) / 60), ss = sec % 60;
-  return hh ? `${hh}h${pad(mm)}` : mm ? `${mm}min` : `${ss}s`;
+  const dd = Math.floor(sec / 86400), hh = Math.floor((sec % 86400) / 3600), mm = Math.floor((sec % 3600) / 60), ss = sec % 60;
+  return dd ? (hh ? `${dd}d ${hh}h` : `${dd}d`) : hh ? `${hh}h${pad(mm)}` : mm ? `${mm}min` : `${ss}s`;
 }
 setInterval(() => {
   document.querySelectorAll('.timer-live[data-since]').forEach((el) => {
@@ -767,8 +770,9 @@ function renderCard(t, col) {
       h('div', { class: 'cm-right' },
         cl.length > 0 && h('span', { class: 'due' + (clDone === cl.length ? ' ok' : '') }, icon('list'), `${clDone}/${cl.length}`),
         t.attachments > 0 && h('span', { class: 'due', title: 'Anexos' }, icon('clip'), t.attachments),
-        (t.timer_started_at || t.time_spent > 0) && h('span', { class: 'due' + (t.timer_started_at ? ' timer-live running' : ''), title: t.timer_started_at ? 'Cronômetro rodando' : 'Tempo registrado',
-          dataset: t.timer_started_at ? { since: t.timer_started_at, base: t.time_spent } : {} }, icon('timer'), fmtDur(totalSecs(t))),
+        ((t.started_at && col.kind !== 'todo') || (!t.started_at && t.time_spent > 0)) && h('span', { class: 'due' + (isRunning(t) ? ' timer-live running' : ''),
+          title: t.started_at ? `Iniciada em ${fmtWhen(t.started_at)}${t.finished_at ? ' · finalizada em ' + fmtWhen(t.finished_at) : ' · em andamento'}` : 'Tempo registrado',
+          dataset: isRunning(t) ? { since: t.started_at, base: 0 } : {} }, icon('timer'), fmtDur(totalSecs(t))),
         t.due_date && h('span', { class: 'due' + (ds === 'late' ? ' late' : ds === 'today' ? ' today' : '') }, icon('calendar'), fmtDay(t.due_date)),
         owner ? avatar(owner, 24) : h('button', { class: 'btn sm take', title: 'Pegar esta task', onclick: guard(async (e) => { e.stopPropagation(); upsertTask(await api('PATCH', `/api/tasks/${t.id}`, { assignee_id: S.me.id })); renderBoard(); toast('Task é sua'); }) }, icon('take'), 'Pegar'))));
   card.addEventListener('dragstart', (e) => { S.drag = t.id; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(t.id)); requestAnimationFrame(() => card.classList.add('dragging')); });
@@ -805,6 +809,7 @@ function eventText(e) {
     case 'edited': return 'editou a task';
     case 'worked': return 'registrou trabalho';
     case 'comment': return 'comentou';
+    case 'auto': return `movida automaticamente de ${d.from || '?'} para ${d.to || '?'} (depois de ${d.days} ${d.days > 1 ? 'dias' : 'dia'})`;
     case 'timer': return d.action === 'start' ? 'iniciou o cronômetro' : `parou o cronômetro (${fmtDur(d.seconds || 0)})`;
     case 'attachment': return `anexou ${d.name || 'um arquivo'}`;
     default: return e.type;
@@ -856,14 +861,22 @@ function openTask(id) {
   };
   drawCl();
 
-  // cronômetro
+  // tempo: início e fim em datas (editáveis); a duração é calculada
   const timeBox = h('div', { class: 'timebox' });
+  const toLocal = (ms) => { if (!ms) return ''; const d = new Date(ms); return `${ymd(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
   const drawTime = () => {
-    const cur = S.tasks.find((x) => x.id === id) || t, running = !!cur.timer_started_at;
+    const cur = S.tasks.find((x) => x.id === id) || t, running = isRunning(cur);
+    const field = (label, key) => h('label', { class: 'when' }, h('span', { class: 'help' }, label),
+      h('input', { class: 'input', type: 'datetime-local', value: toLocal(cur[key]), onchange: guard(async (e) => {
+        const ms = e.target.value ? new Date(e.target.value).getTime() : null;
+        upsertTask(await api('PATCH', `/api/tasks/${id}`, { [key]: ms ? new Date(ms).toISOString() : null })); renderBoard(); drawTime(); loadEvents();
+      }) }));
     timeBox.replaceChildren(
-      h('span', { class: 'time-total' + (running ? ' timer-live running' : ''), dataset: running ? { since: cur.timer_started_at, base: cur.time_spent } : {} }, icon('timer'), fmtDur(totalSecs(cur))),
-      h('button', { class: 'btn sm' + (running ? ' primary' : ''), onclick: guard(async () => { await api('POST', `/api/tasks/${id}/timer`); await loadBoard(); drawTime(); loadEvents(); }) }, icon(running ? 'pause' : 'play'), running ? 'Parar' : 'Iniciar'),
-      running && cur.timer_user !== S.me.id && h('span', { class: 'help' }, `rodando com ${userById(cur.timer_user)?.name || 'alguém'}`));
+      h('div', { class: 'when-row' }, field('Iniciada em', 'started_at'), field('Finalizada em', 'finished_at')),
+      h('div', { class: 'time-total' + (running ? ' timer-live running' : ''), dataset: running ? { since: cur.started_at, base: 0 } : {} }, icon('timer'),
+        cur.started_at ? fmtDur(totalSecs(cur)) : 'ainda não iniciada'),
+      cur.started_at && h('span', { class: 'help' }, cur.finished_at ? 'duração total' : running ? 'em andamento (conta até agora)' : 'parada fora de "em andamento"'),
+      cur.time_spent > 0 && h('span', { class: 'help' }, `+ ${fmtDur(cur.time_spent)} do cronômetro antigo`));
     timeBox.querySelectorAll('svg').forEach((v) => Object.assign(v.style, { width: '14px', height: '14px' }));
   };
   drawTime();
@@ -1256,7 +1269,7 @@ async function boot(user) {
 window.KBApp = {
   S, h, $, icon, api, toast, guard, openModal, modalHead, popover, askText, confirmBox, setPrefs, resolvedMode, THEMES,
   eventText, openTask, openQuickAdd, openDiary, openShortcuts, openTrash, openSettings, renderBoard, loadBoard, moveTask, deleteTask, upsertTask, userById, colById, avatar,
-  matches, filtersActive, clearFilters, dueState, fmtDay, fmtTime, fmtDur, totalSecs, ymd, pad, addDays, norm, hueOf, cap, PRIO_NAME, views: {},
+  matches, filtersActive, clearFilters, dueState, fmtDay, fmtTime, fmtDur, fmtWhen, totalSecs, isRunning, ymd, pad, addDays, norm, hueOf, cap, PRIO_NAME, views: {},
 };
 (async function init() {
   // espera os scripts de recursos (vistas, paleta, toque) registrarem-se antes de iniciar

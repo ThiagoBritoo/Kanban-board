@@ -19,7 +19,7 @@
   };
   const unwrap = ({ data, error }) => { if (error) throw new Error(friendly(error)); return data; };
   const ts = (v) => (v ? Date.parse(v) : null);
-  const toTask = (r) => ({ ...r, created_at: ts(r.created_at), updated_at: ts(r.updated_at), completed_at: ts(r.completed_at), timer_started_at: ts(r.timer_started_at), time_spent: r.time_spent || 0, attachments: 0, checklist: Array.isArray(r.checklist) ? r.checklist : [] });
+  const toTask = (r) => ({ ...r, created_at: ts(r.created_at), updated_at: ts(r.updated_at), completed_at: ts(r.completed_at), timer_started_at: ts(r.timer_started_at), started_at: ts(r.started_at), finished_at: ts(r.finished_at), column_since: ts(r.column_since), notes: r.notes || '', time_spent: r.time_spent || 0, attachments: 0, checklist: Array.isArray(r.checklist) ? r.checklist : [] });
   const cleanChecklist = (arr) => {
     if (!Array.isArray(arr)) throw new Error('Checklist inválido');
     return arr.slice(0, 50).map((i) => ({ text: String((i && i.text) || '').trim().slice(0, 200), done: !!(i && i.done) })).filter((i) => i.text);
@@ -37,14 +37,14 @@
     if (error) throw new Error(friendly(error));
     return data;
   }
-  const userOut = (p) => ({ id: p.id, name: p.name, email: p.email, role: p.role, color: p.color, approved: p.approved, prefs: p.prefs || {} });
+  const userOut = (p) => ({ id: p.id, name: p.name, email: p.email, role: p.role, color: p.color, approved: p.approved, avatar_url: p.avatar_url || null, prefs: p.prefs || {} });
 
   const routes = [
     ['GET', /^\/api\/board$/, async () => {
       const [c, t, u, a] = await Promise.all([
-        sb.from('board_columns').select('id,name,position,kind,color,wip_limit').order('position').order('id'),
+        sb.from('board_columns').select('id,name,position,kind,color,wip_limit,auto_days,auto_to,collapsed').order('position').order('id'),
         sb.from('tasks').select('*').is('deleted_at', null).order('position').order('id').limit(5000),
-        sb.from('profiles').select('id,name,email,role,color,approved').eq('approved', true).order('created_at'),
+        sb.from('profiles').select('id,name,email,role,color,approved,avatar_url').eq('approved', true).order('created_at'),
         sb.from('attachments').select('task_id').limit(5000),
       ]);
       const counts = {}; unwrap(a).forEach((r) => { counts[r.task_id] = (counts[r.task_id] || 0) + 1; });
@@ -61,13 +61,31 @@
     }],
     ['PATCH', /^\/api\/tasks\/(\d+)$/, async ({ m, body }) => {
       const patch = {};
-      for (const k of ['title', 'description', 'diary', 'assignee_id', 'priority', 'due_date']) if (k in body) patch[k] = body[k];
+      for (const k of ['title', 'description', 'diary', 'assignee_id', 'priority', 'due_date', 'notes', 'started_at', 'finished_at']) if (k in body) patch[k] = body[k];
       if ('title' in patch) { patch.title = String(patch.title).trim(); if (!patch.title) throw new Error('Título é obrigatório'); }
       if ('labels' in body) patch.labels = cleanLabels(body.labels);
       if ('checklist' in body) patch.checklist = cleanChecklist(body.checklist);
       return toTask(unwrap(await sb.from('tasks').update(patch).eq('id', Number(m[1])).select().single()));
     }],
     ['POST', /^\/api\/tasks\/(\d+)\/move$/, async ({ m, body }) => unwrap(await sb.rpc('move_task', { p_task: Number(m[1]), p_column: Number(body.column_id), p_before: body.before_id ?? null }))],
+    ['POST', /^\/api\/rules\/apply$/, async () => ({ moved: unwrap(await sb.rpc('apply_column_rules')) })],
+    ['GET', /^\/api\/notes$/, async () => unwrap(await sb.from('notes').select('*').order('updated_at', { ascending: false }).limit(500))],
+    ['POST', /^\/api\/notes$/, async ({ body }) => unwrap(await sb.from('notes').insert({ title: String(body.title || '').slice(0, 120), body: String(body.body || '').slice(0, 20000) }).select().single())],
+    ['PATCH', /^\/api\/notes\/(\d+)$/, async ({ m, body }) => {
+      const patch = { updated_at: new Date().toISOString() };
+      if ('title' in body) patch.title = String(body.title).slice(0, 120);
+      if ('body' in body) patch.body = String(body.body).slice(0, 20000);
+      return unwrap(await sb.from('notes').update(patch).eq('id', Number(m[1])).select().single());
+    }],
+    ['DELETE', /^\/api\/notes\/(\d+)$/, async ({ m }) => unwrap(await sb.from('notes').delete().eq('id', Number(m[1])))],
+    ['GET', /^\/api\/tokens$/, async () => unwrap(await sb.from('api_tokens').select('id,name,created_at,last_used_at').order('id'))],
+    ['POST', /^\/api\/tokens$/, async ({ body }) => {
+      const raw = 'kb_' + [...crypto.getRandomValues(new Uint8Array(24))].map((b) => b.toString(16).padStart(2, '0')).join('');
+      const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw)))].map((b) => b.toString(16).padStart(2, '0')).join('');
+      unwrap(await sb.from('api_tokens').insert({ name: String(body.name || 'token').slice(0, 60), token_hash: hash }));
+      return { token: raw };
+    }],
+    ['DELETE', /^\/api\/tokens\/(\d+)$/, async ({ m }) => unwrap(await sb.from('api_tokens').delete().eq('id', Number(m[1])))],
     ['POST', /^\/api\/tasks\/(\d+)\/worked$/, async ({ m }) => unwrap(await sb.rpc('log_worked', { p_task: Number(m[1]) }))],
     // exclusão vai para a lixeira (dá para desfazer); nada é apagado de verdade
     ['DELETE', /^\/api\/tasks\/(\d+)$/, async ({ m }) => unwrap(await sb.from('tasks').update({ deleted_at: new Date().toISOString() }).eq('id', Number(m[1])))],
@@ -88,6 +106,9 @@
       if ('kind' in body) patch.kind = body.kind;
       if ('color' in body) patch.color = body.color || null;
       if ('wip_limit' in body) patch.wip_limit = body.wip_limit || null;
+      if ('auto_days' in body) patch.auto_days = body.auto_days || null;
+      if ('auto_to' in body) patch.auto_to = body.auto_to || null;
+      if ('collapsed' in body) patch.collapsed = !!body.collapsed;
       if (Object.keys(patch).length) unwrap(await sb.from('board_columns').update(patch).eq('id', id));
       if (body.dir === -1 || body.dir === 1) unwrap(await sb.rpc('move_column', { p_id: id, p_dir: body.dir }));
       return { ok: true };
@@ -114,6 +135,7 @@
       const uid = session.user.id, patch = {};
       if ('name' in body) { patch.name = String(body.name).trim(); if (!patch.name) throw new Error('Nome é obrigatório'); }
       if ('prefs' in body) patch.prefs = body.prefs || {};
+      if ('avatar_url' in body) patch.avatar_url = body.avatar_url || null;
       if (Object.keys(patch).length) unwrap(await sb.from('profiles').update(patch).eq('id', uid));
       if ('new_password' in body) {
         if (String(body.new_password).length < 6) throw new Error('A nova senha precisa ter pelo menos 6 caracteres');
@@ -178,6 +200,13 @@
       unwrap(await sb.storage.from('attachments').upload(path, file, { contentType: file.type || 'application/octet-stream' }));
       return unwrap(await sb.from('attachments').insert({ task_id: taskId, name: (file.name || 'arquivo').slice(0, 200), path, size: file.size, mime: file.type || null, user_id: userId }).select().single());
     },
+    async uploadAvatar(file, userId) {
+      need();
+      const path = `${userId}/${Date.now()}.jpg`;
+      unwrap(await sb.storage.from('avatars').upload(path, file, { contentType: file.type || 'image/jpeg', upsert: true }));
+      return path;
+    },
+    avatarUrl(path) { return path && sb ? sb.storage.from('avatars').getPublicUrl(path).data.publicUrl : null; },
     async attachmentUrl(path) { need(); return unwrap(await sb.storage.from('attachments').createSignedUrl(path, 3600)).signedUrl; },
     async removeAttachment(a) { need(); unwrap(await sb.from('attachments').delete().eq('id', a.id)); try { await sb.storage.from('attachments').remove([a.path]); } catch { /* arquivo órfão não atrapalha */ } },
     async signOut() { need(); await sb.auth.signOut(); },
@@ -185,7 +214,7 @@
     subscribe(cb, opts = {}) {
       need();
       const ch = sb.channel('kanban', opts.presence ? { config: { presence: { key: opts.presence.id } } } : undefined);
-      ['tasks', 'board_columns', 'profiles', 'attachments'].forEach((table) => ch.on('postgres_changes', { event: '*', schema: 'public', table }, cb));
+      ['tasks', 'board_columns', 'profiles', 'attachments', 'notes'].forEach((table) => ch.on('postgres_changes', { event: '*', schema: 'public', table }, cb));
       if (opts.onPresence) ch.on('presence', { event: 'sync' }, () => { try { opts.onPresence(Object.keys(ch.presenceState())); } catch { /* ok */ } });
       ch.subscribe(async (status) => {
         if (status === 'SUBSCRIBED' && opts.presence) { try { await ch.track({ id: opts.presence.id, name: opts.presence.name, at: Date.now() }); } catch { /* presença é opcional */ } }
