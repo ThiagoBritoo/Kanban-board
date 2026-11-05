@@ -44,7 +44,7 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
     const sel = (e) => { let s = e.tagName.toLowerCase() + (e.className && typeof e.className === 'string' ? '.' + e.className.trim().split(/\s+/).slice(0, 2).join('.') : ''); const pe = e.parentElement; return (pe ? (pe.className && typeof pe.className === 'string' ? pe.tagName.toLowerCase() + '.' + pe.className.trim().split(/\s+/)[0] : pe.tagName.toLowerCase()) + ' > ' : '') + s; };
     const vis = (e) => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none'; };
     for (const e of document.querySelectorAll('body *')) {
-      if (!vis(e) || e.closest('svg') || e.closest('#deco') || e.closest('canvas')) continue;
+      if (!vis(e) || getComputedStyle(e).textOverflow === 'ellipsis' || e.closest('svg') || e.closest('#deco') || e.closest('canvas')) continue;
       const cs = getComputedStyle(e), r = e.getBoundingClientRect();
       const ox = cs.overflowX;
       // texto que passa da própria caixa
@@ -54,6 +54,7 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
         if (q.width && q.right > vw + 1 && !e.closest('.board, .tbl-wrap, .list-wrap')) out.push(['fora da tela', sel(e), Math.round(q.right) + '>' + vw, n.nodeValue.trim().slice(0, 40)]);
         else if (q.width && r.width && q.right > r.right + 2 && cs.overflowX === 'visible') out.push(['passa da caixa', sel(e), Math.round(q.right - r.right) + 'px', n.nodeValue.trim().slice(0, 40)]); }
     }
+    for (const c of document.querySelectorAll('.card, .modal-body, .modal .field')) { const cr = c.getBoundingClientRect(); for (const e of c.querySelectorAll('*')) { const r = e.getBoundingClientRect(); if (r.width && r.right > cr.right + 1 && !e.closest('svg') && getComputedStyle(e).position !== 'absolute' && getComputedStyle(e).textOverflow !== 'ellipsis') out.push(['filho passa do pai', sel(e), Math.round(r.right - cr.right) + 'px', (e.textContent || '').trim().slice(0, 30)]); } }
     if (document.documentElement.scrollWidth > vw + 1) out.push(['pagina', 'html', document.documentElement.scrollWidth + '>' + vw, '']);
     const seen = new Set(); return out.filter((o) => { const k = o[0] + o[1]; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 25).map((o) => label + ' | ' + o.join(' | '));
   }, label);
@@ -72,6 +73,8 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   await p.fill('input[placeholder^="Digite e Enter"]', 'etiquetamuitolongasemespacosparaestourar' + LONG.slice(0, 30)).catch(() => {}); await p.press('input[placeholder^="Digite e Enter"]', 'Enter').catch(() => {}); await p.waitForTimeout(200);
   await p.fill('textarea[placeholder^="Escrever"]', LONG); await p.press('textarea[placeholder^="Escrever"]', 'Control+Enter'); await p.waitForTimeout(400);
   await run('modal-task'); await shot('modal-' + W); await p.keyboard.press('Escape'); await p.waitForTimeout(250);
+  for (const [nm, fn] of [['resumo', 'openSummary'], ['atividade', 'openActivity'], ['diario', 'openDiary'], ['atalhos', 'openShortcuts']]) { await p.evaluate((fn) => KBApp[fn](), fn); await p.waitForTimeout(500); await run(nm); await shot(nm + '-' + W); await p.keyboard.press('Escape'); await p.waitForTimeout(250); }
+  await p.evaluate((t) => KBApp.toast('Task ' + t + ' excluída', false, { label: 'Desfazer', onClick: () => {} }), LONG); await p.waitForTimeout(300); await run('toast'); await shot('toast-' + W);
   // palette e diario
   await p.keyboard.press('Control+k'); await p.waitForTimeout(250); await run('paleta'); await p.keyboard.press('Escape'); await p.waitForTimeout(200);
   // personalizar: todas as abas
