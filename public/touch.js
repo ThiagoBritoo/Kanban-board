@@ -7,7 +7,7 @@
 
   const cleanup = () => {
     clearTimeout(st && st.timer); cancelAnimationFrame(raf);
-    if (st) { st.card.classList.remove('dragging'); st.ghost && st.ghost.remove(); }
+    if (st) { st.card.classList.remove('dragging'); st.card.draggable = true; st.ghost && st.ghost.remove(); }
     line.remove(); document.querySelectorAll('.column.over').forEach((c) => c.classList.remove('over'));
     document.body.classList.remove('touch-dragging');
     if (st && st.active) { S.drag = null; if (S.pendingLoad) { S.pendingLoad = false; A.loadBoard(); } }
@@ -28,7 +28,7 @@
   const loop = () => {
     if (!st || !st.active) return;
     const board = document.querySelector('.board'), { x, y } = st.last;
-    if (board) { if (x < 44) board.scrollLeft -= 14; else if (x > innerWidth - 44) board.scrollLeft += 14; }
+    if (board) { if (x < 64) board.scrollLeft -= 18; else if (x > innerWidth - 64) board.scrollLeft += 18; }
     const col = target(x, y), body = col && col.querySelector('.col-body');
     if (body) { const r = body.getBoundingClientRect(); if (y < r.top + 36) body.scrollTop -= 10; else if (y > r.bottom - 36) body.scrollTop += 10; }
     place(x, y); raf = requestAnimationFrame(loop);
@@ -48,6 +48,7 @@
     if (st || e.touches.length !== 1 || A.S.prefs.view !== 'board') return;
     const card = e.target.closest && e.target.closest('.card[data-id]'); if (!card || e.target.closest('button, input, textarea, select, a')) return;
     const t = e.touches[0];
+    card.draggable = false; // sem isto o Chrome do celular inicia o arrastar nativo (HTML5) no toque longo e cancela o nosso (touchcancel)
     st = { id: Number(card.dataset.id), card, x0: t.clientX, y0: t.clientY, last: { x: t.clientX, y: t.clientY }, active: false };
     st.timer = setTimeout(activate, 380);
   }, { passive: true });
@@ -76,5 +77,6 @@
   };
   document.addEventListener('touchend', () => finish(true));
   document.addEventListener('touchcancel', () => finish(false));
+  document.addEventListener('dragstart', (e) => { if (st) e.preventDefault(); }, true);
   document.addEventListener('contextmenu', (e) => { if (st && st.active) e.preventDefault(); });
 })();
