@@ -610,3 +610,4 @@ input[type=range]{max-width:100%}
 .card-desc,.card-title,.card-meta,.cl-text,.comment-text,.ev-text{overflow-wrap:anywhere;word-break:break-word}
 input[type=range]{margin-left:0;margin-right:0;width:100%}
 .auth-card .err-msg:empty,.auth-card .help:empty{display:none}
+.range-row>.help{flex:none;white-space:nowrap}.range-row>input[type=range]{flex:1;min-width:60px}
