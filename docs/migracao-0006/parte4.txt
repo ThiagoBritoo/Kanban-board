@@ -1,0 +1,108 @@
+create function public.create_project(p_name text) returns bigint
+language plpgsql security definer set search_path = '' as $$
+declare uid uuid := (select auth.uid()); pid bigint; nm text := trim(p_name);
+begin
+  if not public.is_member() then raise exception 'Sem permissão'; end if;
+  if nm is null or char_length(nm) not between 1 and 60 then raise exception 'Nome do projeto: 1 a 60 caracteres'; end if;
+  if (select count(*) from public.project_members where user_id = uid and role = 'owner') >= 20 then raise exception 'Limite de projetos atingido'; end if;
+  insert into public.projects(name, owner_id) values (nm, uid) returning id into pid;
+  insert into public.project_members(project_id, user_id, role, can_invite) values (pid, uid, 'owner', true);
+  insert into public.board_columns(project_id, name, kind) values
+    (pid, 'A fazer', 'todo'), (pid, 'Em andamento', 'doing'), (pid, 'Revisão', 'doing'), (pid, 'Concluído', 'done');
+  return pid;
+end $$;
+
+create function public.rename_project(p_project bigint, p_name text) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.is_project_owner(p_project) then raise exception 'Só o dono do projeto pode fazer isso'; end if;
+  if trim(p_name) = '' or char_length(trim(p_name)) > 60 then raise exception 'Nome do projeto: 1 a 60 caracteres'; end if;
+  update public.projects set name = trim(p_name) where id = p_project;
+end $$;
+
+create function public.delete_project(p_project bigint) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.is_project_owner(p_project) then raise exception 'Só o dono do projeto pode excluir'; end if;
+  delete from public.tasks where project_id = p_project;
+  delete from public.projects where id = p_project;
+end $$;
+
+create function public.invite_to_project(p_project bigint, p_email text) returns void
+language plpgsql security definer set search_path = '' as $$
+declare u uuid;
+begin
+  if not public.can_invite_to(p_project) then raise exception 'Você não tem permissão para convidar neste projeto'; end if;
+  select id into u from public.profiles where lower(email) = lower(trim(p_email)) and approved;
+  if u is null then raise exception 'Não achei uma conta aprovada com esse e-mail (a pessoa precisa se cadastrar e ser aprovada antes)'; end if;
+  if exists (select 1 from public.project_members where project_id = p_project and user_id = u) then raise exception 'Essa pessoa já está no projeto'; end if;
+  insert into public.project_invites(project_id, invitee_id, invited_by) values (p_project, u, (select auth.uid())) on conflict do nothing;
+end $$;
+
+create function public.my_invites() returns table(id bigint, project_id bigint, project_name text, inviter_name text)
+language sql stable security definer set search_path = '' as $$
+  select i.id, i.project_id, p.name, (select name from public.profiles where id = i.invited_by)
+    from public.project_invites i join public.projects p on p.id = i.project_id
+   where i.invitee_id = (select auth.uid()) and public.is_member() order by i.id
+$$;
+
+create function public.respond_invite(p_invite bigint, p_accept boolean) returns bigint
+language plpgsql security definer set search_path = '' as $$
+declare inv record;
+begin
+  select * into inv from public.project_invites where id = p_invite and invitee_id = (select auth.uid());
+  if not found then raise exception 'Convite não encontrado'; end if;
+  delete from public.project_invites where id = p_invite;
+  if p_accept then
+    insert into public.project_members(project_id, user_id, role) values (inv.project_id, inv.invitee_id, 'member') on conflict do nothing;
+    return inv.project_id;
+  end if;
+  return null;
+end $$;
+
+create function public.cancel_invite(p_invite bigint) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  delete from public.project_invites where id = p_invite and (public.is_project_owner(project_id) or invited_by = (select auth.uid()));
+end $$;
+create function public.remove_member(p_project bigint, p_user uuid) returns void
+language plpgsql security definer set search_path = '' as $$
+declare uid uuid := (select auth.uid());
+begin
+  if p_user <> uid and not public.is_project_owner(p_project) then raise exception 'Só o dono do projeto pode remover membros'; end if;
+  if not public.is_member() then raise exception 'Sem permissão'; end if;
+  if exists (select 1 from public.project_members where project_id = p_project and user_id = p_user and role = 'owner')
+     and (select count(*) from public.project_members where project_id = p_project and role = 'owner') <= 1 then
+    raise exception 'O projeto precisa de um dono: passe a posse ou exclua o projeto';
+  end if;
+  update public.tasks set assignee_id = null where project_id = p_project and assignee_id = p_user;
+  delete from public.project_members where project_id = p_project and user_id = p_user;
+end $$;
+
+create function public.set_member_role(p_project bigint, p_user uuid, p_role text) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.is_project_owner(p_project) then raise exception 'Só o dono do projeto pode fazer isso'; end if;
+  if p_role not in ('owner', 'member') then raise exception 'Papel inválido'; end if;
+  if p_role = 'member' and (select count(*) from public.project_members where project_id = p_project and role = 'owner' and user_id <> p_user) = 0 then
+    raise exception 'O projeto precisa de pelo menos um dono';
+  end if;
+  update public.project_members set role = p_role where project_id = p_project and user_id = p_user;
+end $$;
+
+create function public.set_member_can_invite(p_project bigint, p_user uuid, p_can boolean) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.is_project_owner(p_project) then raise exception 'Só o dono do projeto pode fazer isso'; end if;
+  update public.project_members set can_invite = p_can where project_id = p_project and user_id = p_user and role <> 'owner';
+end $$;
+
+revoke all on function public.set_member_can_invite(bigint, uuid, boolean) from public, anon;
+grant execute on function public.set_member_can_invite(bigint, uuid, boolean) to authenticated;
+
+revoke all on function public.create_project(text), public.rename_project(bigint, text), public.delete_project(bigint),
+  public.invite_to_project(bigint, text), public.my_invites(), public.respond_invite(bigint, boolean), public.cancel_invite(bigint),
+  public.remove_member(bigint, uuid), public.set_member_role(bigint, uuid, text) from public, anon;
+grant execute on function public.create_project(text), public.rename_project(bigint, text), public.delete_project(bigint),
+  public.invite_to_project(bigint, text), public.my_invites(), public.respond_invite(bigint, boolean), public.cancel_invite(bigint),
+  public.remove_member(bigint, uuid), public.set_member_role(bigint, uuid, text) to authenticated;

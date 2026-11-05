@@ -1,0 +1,59 @@
+create or replace function public.columns_before_insert() returns trigger
+language plpgsql set search_path = '' as $$
+begin
+  new.project_id := coalesce(new.project_id,
+    (select project_id from public.project_members where user_id = (select auth.uid()) order by created_at, project_id limit 1));
+  new.position := (select coalesce(max(position), -1) + 1 from public.board_columns where project_id = new.project_id);
+  return new;
+end $$;
+
+create or replace function public.tasks_before_insert() returns trigger
+language plpgsql security definer set search_path = '' as $$
+declare k record;
+begin
+  select kind, project_id into k from public.board_columns where id = new.column_id;
+  new.project_id := k.project_id;
+  new.creator_id := (select auth.uid());
+  new.position := (select coalesce(max(position), -1) + 1 from public.tasks where column_id = new.column_id);
+  new.completed_at := case when k.kind = 'done' then now() end;
+  new.column_since := now();
+  new.started_at := case when k.kind in ('doing', 'done') then now() end;
+  new.finished_at := case when k.kind = 'done' then now() end;
+  return new;
+end $$;
+
+create or replace function public.tasks_before_update() returns trigger
+language plpgsql security definer set search_path = '' as $$
+declare k record; fromname text;
+begin
+  new.project_id := old.project_id;
+  if new.column_id is distinct from old.column_id then
+    select * into k from public.board_columns where id = new.column_id;
+    if k.project_id is distinct from old.project_id then raise exception 'Essa coluna é de outro projeto'; end if;
+    select name into fromname from public.board_columns where id = old.column_id;
+    new.column_since := now();
+    if k.kind = 'done' then
+      new.completed_at := coalesce(old.completed_at, now());
+      new.finished_at  := coalesce(old.finished_at, now());
+      new.started_at   := coalesce(old.started_at, now());
+    else
+      new.completed_at := null;
+      new.finished_at  := null;
+      if k.kind = 'doing' then new.started_at := coalesce(old.started_at, now()); end if;
+    end if;
+    perform public.log_event(new.id, 'moved', jsonb_build_object('from', fromname, 'to', k.name, 'kind', k.kind));
+    if k.kind = 'doing' and new.assignee_id is null then new.assignee_id := (select auth.uid()); end if;
+  end if;
+  if new.assignee_id is distinct from old.assignee_id then
+    if new.assignee_id is not null and not exists (select 1 from public.project_members where project_id = new.project_id and user_id = new.assignee_id) then
+      raise exception 'O responsável precisa ser membro do projeto';
+    end if;
+    perform public.log_event(new.id, 'assigned', jsonb_build_object('to', new.assignee_id));
+  end if;
+  if (new.title, new.description, new.diary, new.priority, new.due_date, new.labels, new.checklist, new.notes)
+     is distinct from (old.title, old.description, old.diary, old.priority, old.due_date, old.labels, old.checklist, old.notes) then
+    perform public.log_event(new.id, 'edited');
+  end if;
+  new.updated_at := now();
+  return new;
+end $$;

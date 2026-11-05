@@ -1,0 +1,51 @@
+drop policy columns_all on public.board_columns;
+create policy columns_all on public.board_columns for all to authenticated
+  using (public.is_project_member(project_id)) with check (public.is_project_member(project_id));
+drop policy tasks_all on public.tasks;
+create policy tasks_all on public.tasks for all to authenticated
+  using (public.is_project_member(project_id)) with check (public.is_project_member(project_id));
+drop policy events_select on public.events;
+create policy events_select on public.events for select to authenticated
+  using (exists (select 1 from public.tasks t where t.id = task_id and public.is_project_member(t.project_id)));
+drop policy notes_all on public.notes;
+create policy notes_all on public.notes for all to authenticated
+  using (public.is_project_member(project_id)) with check (public.is_project_member(project_id));
+drop policy attachments_select on public.attachments;
+drop policy attachments_insert on public.attachments;
+drop policy attachments_delete on public.attachments;
+create policy attachments_select on public.attachments for select to authenticated
+  using (exists (select 1 from public.tasks t where t.id = task_id and public.is_project_member(t.project_id)));
+create policy attachments_insert on public.attachments for insert to authenticated
+  with check (user_id = (select auth.uid()) and exists (select 1 from public.tasks t where t.id = task_id and public.is_project_member(t.project_id)));
+create policy attachments_delete on public.attachments for delete to authenticated
+  using (exists (select 1 from public.tasks t where t.id = task_id and public.is_project_member(t.project_id)));
+
+create function public.can_access_task_file(p_name text) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.tasks t where t.id::text = (string_to_array(p_name, '/'))[1] and public.is_project_member(t.project_id))
+$$;
+revoke all on function public.can_access_task_file(text) from public, anon;
+grant execute on function public.can_access_task_file(text) to authenticated;
+drop policy attachments_obj_select on storage.objects;
+drop policy attachments_obj_insert on storage.objects;
+drop policy attachments_obj_delete on storage.objects;
+create policy attachments_obj_select on storage.objects for select to authenticated
+  using (bucket_id = 'attachments' and public.can_access_task_file(name));
+create policy attachments_obj_insert on storage.objects for insert to authenticated
+  with check (bucket_id = 'attachments' and public.can_access_task_file(name));
+create policy attachments_obj_delete on storage.objects for delete to authenticated
+  using (bucket_id = 'attachments' and public.can_access_task_file(name));
+drop policy profiles_select on public.profiles;
+create policy profiles_select on public.profiles for select to authenticated
+  using (id = (select auth.uid()) or public.is_admin() or public.shares_project(id));
+
+alter table public.projects        enable row level security;
+alter table public.project_members enable row level security;
+alter table public.project_invites enable row level security;
+create policy projects_select on public.projects for select to authenticated using (public.is_project_member(id));
+create policy members_select on public.project_members for select to authenticated using (public.is_project_member(project_id));
+create policy invites_select on public.project_invites for select to authenticated
+  using (invitee_id = (select auth.uid()) or public.can_invite_to(project_id));
+revoke all on public.projects, public.project_members, public.project_invites from anon;
+revoke insert, update, delete on public.projects, public.project_members, public.project_invites from authenticated;
+grant select on public.projects, public.project_members, public.project_invites to authenticated;

@@ -1,0 +1,78 @@
+drop function public.diary(timestamptz, timestamptz, boolean, boolean);
+create function public.diary(p_from timestamptz, p_to timestamptz, p_team boolean default false, p_doing boolean default true, p_project bigint default null)
+returns table(id bigint, title text, diary text, column_name text, kind text, first_at timestamptz, source text)
+language sql stable set search_path = '' as $$
+  select * from (
+    select t.id, t.title, t.diary, k.name, k.kind, min(e.at) as first_at, 'activity'::text as source
+      from public.events e
+      join public.tasks t on t.id = e.task_id and t.deleted_at is null and (p_project is null or t.project_id = p_project)
+      join public.board_columns k on k.id = t.column_id
+     where e.at between p_from and p_to and (p_team or e.user_id = (select auth.uid()))
+     group by t.id, k.name, k.kind
+    union all
+    select t.id, t.title, t.diary, k.name, k.kind, t.created_at, 'doing'::text
+      from public.tasks t join public.board_columns k on k.id = t.column_id
+     where p_doing and k.kind = 'doing' and t.deleted_at is null and (p_project is null or t.project_id = p_project)
+       and (case when p_team then t.assignee_id is not null else t.assignee_id = (select auth.uid()) end)
+       and not exists (select 1 from public.events e where e.task_id = t.id and e.at between p_from and p_to
+                       and (p_team or e.user_id = (select auth.uid())))
+  ) x order by (x.source = 'doing'), x.first_at
+$$;
+revoke all on function public.diary(timestamptz, timestamptz, boolean, boolean, bigint) from public, anon;
+grant execute on function public.diary(timestamptz, timestamptz, boolean, boolean, bigint) to authenticated;
+
+create function public.api_create_task(p_user uuid, p_project bigint, p_column bigint, p_title text, p_description text default '',
+  p_priority int default 1, p_due date default null, p_labels text[] default '{}', p_notes text default '') returns bigint
+language plpgsql security definer set search_path = '' as $$
+declare tid bigint; cid bigint := p_column;
+begin
+  perform set_config('request.jwt.claim.sub', p_user::text, true);
+  if not (exists (select 1 from public.profiles where id = p_user and approved)
+          and exists (select 1 from public.project_members where project_id = p_project and user_id = p_user)) then
+    raise exception 'Sem acesso a este projeto';
+  end if;
+  if cid is null or not exists (select 1 from public.board_columns where id = cid and project_id = p_project) then
+    select id into cid from public.board_columns where project_id = p_project and kind = 'todo' order by position, id limit 1;
+  end if;
+  if cid is null then raise exception 'Projeto sem colunas'; end if;
+  insert into public.tasks(title, description, column_id, priority, due_date, labels, notes, assignee_id)
+    values (left(trim(p_title), 300), left(coalesce(p_description, ''), 10000), cid, greatest(0, least(3, coalesce(p_priority, 1))), p_due,
+            coalesce((select array_agg(l) from (select distinct left(trim(x), 24) l from unnest(p_labels) x where trim(x) <> '' limit 8) s), '{}'),
+            left(coalesce(p_notes, ''), 20000),
+            p_user)
+    returning id into tid;
+  return tid;
+end $$;
+
+create function public.api_move_task(p_user uuid, p_task bigint, p_column bigint) returns void
+language plpgsql security definer set search_path = '' as $$
+declare pid bigint;
+begin
+  perform set_config('request.jwt.claim.sub', p_user::text, true);
+  select project_id into pid from public.tasks where id = p_task;
+  if pid is null or not exists (select 1 from public.project_members where project_id = pid and user_id = p_user) then raise exception 'Sem acesso a esta task'; end if;
+  if not exists (select 1 from public.board_columns where id = p_column and project_id = pid) then raise exception 'Coluna inválida'; end if;
+  update public.tasks set column_id = p_column,
+    position = (select coalesce(max(position), -1) + 1 from public.tasks where column_id = p_column) where id = p_task;
+end $$;
+
+create function public.api_comment(p_user uuid, p_task bigint, p_text text) returns void
+language plpgsql security definer set search_path = '' as $$
+declare pid bigint;
+begin
+  perform set_config('request.jwt.claim.sub', p_user::text, true);
+  select project_id into pid from public.tasks where id = p_task;
+  if pid is null or not exists (select 1 from public.project_members where project_id = pid and user_id = p_user) then raise exception 'Sem acesso a esta task'; end if;
+  if trim(coalesce(p_text, '')) = '' or char_length(p_text) > 2000 then raise exception 'Comentário inválido'; end if;
+  insert into public.events(task_id, user_id, type, data) values (p_task, p_user, 'comment', jsonb_build_object('text', trim(p_text)));
+end $$;
+revoke all on function public.api_create_task(uuid, bigint, bigint, text, text, int, date, text[], text), public.api_move_task(uuid, bigint, bigint),
+  public.api_comment(uuid, bigint, text) from public, anon, authenticated;
+grant execute on function public.api_create_task(uuid, bigint, bigint, text, text, int, date, text[], text), public.api_move_task(uuid, bigint, bigint),
+  public.api_comment(uuid, bigint, text) to service_role;
+
+do $$ begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    alter publication supabase_realtime add table public.projects, public.project_members, public.project_invites;
+  end if;
+end $$;

@@ -11,11 +11,11 @@ Idioma da interface e das conversas: **português do Brasil**.
 ## 2. Onde as coisas estão
 | O quê | Valor |
 |---|---|
-| Site em produção | https://kanban-board-kappa-ruby.vercel.app/ |
+| Site em produção | https://runtime-board.vercel.app/ (o endereço antigo kanban-board-kappa-ruby.vercel.app continua funcionando) |
 | GitHub | `ThiagoBritoo/Kanban-board` — branch padrão `main`; branch de trabalho `claude/kanban-tarefas-empresa-7s5zgh` |
 | Vercel | projeto `kanban-board` (`prj_4CRK99K4wnUp5s6u4CJm1Xd5q9kD`), time `team_81Icx9qhcrIF6EBaUeEJIgcW`; deploy automático a cada merge na `main`; saída = pasta `public`, sem build |
 | Supabase | projeto **`kanban-empresa`** ref `obmbjszdfvwhajgvkfpi` (sa-east-1, org `lhstkmmuoghaiwfpmmdh`). **Não mexer nos outros projetos da conta** (conexao-api, gerenciamento-de-ativos, locativo-teste, o do e-mail, Vantablack-Financas) |
-| Migrações aplicadas no Supabase | `0001` esquema+RLS+gatilhos · `0002` trava funções · `0003` checklist/lixeira/comentários/cor de coluna · `0004` limite WIP, cronômetro, anexos (+ bucket privado `attachments`, 10 MB) · `0005` datas início/fim, regras por coluna, colunas recolhidas, anotações, avatar, tokens de API (**aplicada em 05/11**) · `0006` projetos (**ESCRITA E TESTADA NUM POSTGRES LOCAL, MAS AINDA NÃO APLICADA NO SUPABASE**: o MCP pediu confirmação humana por causa dos `drop policy`/`drop function`) |
+| Migrações aplicadas no Supabase | `0001` esquema+RLS+gatilhos · `0002` trava funções · `0003` checklist/lixeira/comentários/cor de coluna · `0004` limite WIP, cronômetro, anexos (+ bucket privado `attachments`, 10 MB) · `0005` datas início/fim, regras por coluna, colunas recolhidas, anotações, avatar, tokens de API (**aplicada em 05/11**) · `0006` projetos (**aplicada em 05/11 pelo Thiago no SQL Editor, em 6 partes** — `docs/migracao-0006/`; o MCP `apply_migration` pede confirmação humana que não chega ao agente) · função de borda `api` publicada (verify_jwt off) |
 | Contas | a primeira conta criada vira admin; as demais ficam pendentes até aprovação em avatar → Equipe |
 
 ## 3. Fluxo de trabalho que o Thiago autorizou
