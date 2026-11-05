@@ -11,7 +11,7 @@ Idioma da interface e das conversas: **português do Brasil**.
 ## 2. Onde as coisas estão
 | O quê | Valor |
 |---|---|
-| Site em produção | https://kanban-board-kappa-ruby.vercel.app/ |
+| Site em produção | https://runtime-board.vercel.app/ (o endereço antigo kanban-board-kappa-ruby.vercel.app continua funcionando) |
 | GitHub | `ThiagoBritoo/Kanban-board` — branch padrão `main`; branch de trabalho `claude/kanban-tarefas-empresa-7s5zgh` |
 | Vercel | projeto `kanban-board` (`prj_4CRK99K4wnUp5s6u4CJm1Xd5q9kD`), time `team_81Icx9qhcrIF6EBaUeEJIgcW`; deploy automático a cada merge na `main`; saída = pasta `public`, sem build |
 | Supabase | projeto **`kanban-empresa`** ref `obmbjszdfvwhajgvkfpi` (sa-east-1, org `lhstkmmuoghaiwfpmmdh`). **Não mexer nos outros projetos da conta** (conexao-api, gerenciamento-de-ativos, locativo-teste, o do e-mail, Vantablack-Financas) |
