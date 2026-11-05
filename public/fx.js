@@ -8,6 +8,12 @@
     gelo:  { fxBg: '#f3f8fb', fxC1: '#2b6cb0', fxC2: '#0e9aa7' },
     mono:  { fxBg: '#0a0a0a', fxC1: '#f4f4f5', fxC2: '#71717a' },
   };
+  const AUTO = {
+    chuvaluz: ['lightfall', { fxBg: '#f4f7fb', fxC1: '#2b5fd9', fxC2: '#0e9aa7' }, { fxBg: '#04050d', fxC1: '#7c9cff', fxC2: '#ff5fd2' }],
+    singular: ['gridhole', { fxBg: '#f6f3ee', fxC1: '#3a3a46', fxC2: '#d2461e' }, { fxBg: '#030308', fxC1: '#6d7dff', fxC2: '#ff7a1a' }],
+    nanquim: ['ink', { fxBg: '#f4efe6', fxC1: '#1b2a41', fxC2: '#b4432a' }, { fxBg: '#07090c', fxC1: '#5ad1c4', fxC2: '#e8c15a' }],
+    cordilheira: ['parallax', { fxBg: '#f6efe8', fxC1: '#7a5a8a', fxC2: '#e8825a' }, { fxBg: '#0a0814', fxC1: '#7c6cf0', fxC2: '#ff7ab0' }],
+  };
   const TYPES = ['lightfall', 'gridhole', 'ink', 'parallax'];
   const rgb = (hex) => { const n = parseInt(String(hex).replace('#', ''), 16) || 0; return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
   const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
@@ -142,14 +148,17 @@
       const s = performance.now(); for (let i = 0; i < n; i++) draw(i / 30, 0.033); ctx.getImageData(0, 0, 1, 1);
       return { ms: (performance.now() - s) / n, w: W, h: H };
     },
-    update(p) {
-      const on = TYPES.includes(p.bg);
-      document.documentElement.dataset.fxbg = on ? p.bg : 'off';
+    // mode = claro/escuro; theme = id (os temas de AUTO ligam o fundo sozinhos quando o fundo é "do tema")
+    update(p, mode, theme) {
+      const au = AUTO[theme] && (!p.bg || p.bg === 'theme') ? AUTO[theme] : null;
+      const on = !!au || TYPES.includes(p.bg), type = au ? au[0] : p.bg;
+      if (au) p = { ...p, ...au[mode === 'dark' ? 2 : 1] };
+      document.documentElement.dataset.fxbg = on ? type : 'off';
       if (!on) { stop(); if (cv) cv.style.display = 'none'; return; }
       if (!init()) return;
       cv.style.display = '';
       const bgc = rgb(p.fxBg || '#05060f');
-      cfg = { type: p.bg, bgc, c1: rgb(p.fxC1 || '#7c9cff'), c2: rgb(p.fxC2 || '#ff5fd2'), sp: Math.max(0.05, (p.fxSp ?? 100) / 100), amt: Math.max(0.2, (p.fxAmt ?? 100) / 100),
+      cfg = { type, bgc, c1: rgb(p.fxC1 || '#7c9cff'), c2: rgb(p.fxC2 || '#ff5fd2'), sp: Math.max(0.05, (p.fxSp ?? 100) / 100), amt: Math.max(0.2, (p.fxAmt ?? 100) / 100),
         animate: p.fx !== false && p.motion !== false };
       qual = 1; ema = 0; streaks = []; parts = []; inkReset = true; seed = 7; resize(); stop();
       if (!animated()) for (let i = 0; i < (cfg.type === 'ink' ? 260 : 3); i++) draw(i / 30, 0.033); // quadro estático já "desenvolvido"

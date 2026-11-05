@@ -134,6 +134,10 @@ const THEMES = [
   ['caderno', 'Caderno', 'post-its / quadro negro', 'Únicos', false],
   ['blueprint', 'Blueprint', 'planta técnica', 'Únicos', false],
   ['topografia', 'Topografia', 'curvas de nível em 3D', 'Únicos', true],
+  ['chuvaluz', 'Chuva de luz', 'fios de luz caindo', 'Únicos', true],
+  ['singular', 'Singularidade', 'grade sugada por um buraco', 'Únicos', true],
+  ['nanquim', 'Nanquim', 'tinta em fluxo', 'Únicos', true],
+  ['cordilheira', 'Cordilheira', 'camadas com parallax', 'Únicos', true],
   ['hud', 'HUD', 'linhas finas e colchetes', 'Únicos', false],
   ['terminal', 'Terminal', 'verde sobre preto, CRT', 'Únicos', false],
   ['retro95', 'Retrô 95', 'janelas com relevo', 'Únicos', false],
@@ -188,7 +192,7 @@ function applyPrefs() {
   }
   window.KBShader && window.KBShader.update(p, resolvedMode());
   window.KBTerrain && window.KBTerrain.update(p, resolvedMode(), p.theme);
-  window.KBFx && window.KBFx.update(p);
+  window.KBFx && window.KBFx.update(p, resolvedMode(), p.theme);
   r.dataset.pulse = p.pulse || 'off';
   r.dataset.cardlight = p.cardLight ? 'on' : 'off';
   const bg = bgCss(p, resolvedMode());

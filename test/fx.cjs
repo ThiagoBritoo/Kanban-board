@@ -31,5 +31,11 @@ const srv = http.createServer((q, r) => { let u = new URL(q.url, 'http://x').pat
   const f1 = (await p.screenshot()).toString('base64'); await p.waitForTimeout(1000); ok(f1 === (await p.screenshot()).toString('base64'), 'fundo parado com fx desligado');
   await p.evaluate(() => window.KBApp.setPrefs({ fx: true, bg: 'theme' }, { refreshSettings: false })); await p.waitForTimeout(300);
   ok(await p.evaluate(() => document.documentElement.dataset.fxbg === 'off'), 'voltar ao fundo do tema desliga o canvas');
+  for (const [th, ty] of [['chuvaluz', 'lightfall'], ['singular', 'gridhole'], ['nanquim', 'ink'], ['cordilheira', 'parallax']]) for (const m of ['light', 'dark']) {
+    await p.evaluate(([t, mm]) => window.KBApp.setPrefs({ theme: t, mode: mm, bg: 'theme', fx: true }, { refreshSettings: false }), [th, m]); await p.waitForTimeout(900);
+    ok(await p.evaluate((t) => document.documentElement.dataset.fxbg === t, ty), `tema ${th} (${m}) liga ${ty}`); await p.screenshot({ path: OUT + `/tema-${th}-${m}.png` });
+  }
+  await p.evaluate(() => window.KBApp.setPrefs({ theme: 'minimal', bg: 'theme' }, { refreshSettings: false })); await p.waitForTimeout(300);
+  ok(await p.evaluate(() => document.documentElement.dataset.fxbg === 'off'), 'sair do tema desliga o fundo');
   ok(!errs.length, 'sem erros de JS' + (errs.length ? ': ' + errs.join(' | ') : '')); await b.close(); srv.close(); process.exit(fails ? 1 : 0);
 })();

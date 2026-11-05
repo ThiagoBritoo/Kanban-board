@@ -4,7 +4,7 @@
 > Não há segredos aqui. A chave `anon` do Supabase é pública por desenho e está em `public/config.js`.
 
 ## 1. O que é
-Kanban para as tasks da empresa de **Thiago** (e talvez mais 1 pessoa). Login com contas, tempo real, 34 temas (todos claro+escuro), "gerar diário"
+Kanban para as tasks da empresa de **Thiago** (e talvez mais 1 pessoa). Login com contas, tempo real, 38 temas (todos claro+escuro), "gerar diário"
 (bullets do que foi trabalhado hoje), cronômetro, anexos, vistas Quadro/Lista/Calendário/Painel. Em produção e em uso.
 Idioma da interface e das conversas: **português do Brasil**.
 
@@ -49,7 +49,7 @@ Playwright e Chromium já vêm no ambiente de nuvem (`require('playwright')`). O
 - Exclusão de task = lixeira (`deleted_at`), com "Desfazer".
 - Preferências por usuário em `profiles.prefs` (jsonb) + `localStorage`; `setPrefs()` aplica na hora e salva com debounce.
 - Segurança: `vercel.json` (CSP, X-Frame-Options…). Atenção: se adicionar domínio externo (fonte, script), liberar na CSP.
-- PWA: `manifest.webmanifest` + `sw.js` (rede primeiro). **Subir o número de `CACHE` em `sw.js` a cada release** (hoje `kanban-v11`).
+- PWA: `manifest.webmanifest` + `sw.js` (rede primeiro). **Subir o número de `CACHE` em `sw.js` a cada release** (hoje `kanban-v12`).
 
 ## 7. Regras de design (resumo; o completo está em `docs/DESIGN.md`)
 Tokens por tema (claro e escuro; `--pop` sempre opaco; `--bw/--font` só no bloco claro) · contraste mínimo 7:1 / 3,5:1 / 4,5:1 (botão) · movimento 150–200 ms, saída mais sutil que a entrada, nada pulsando ·
@@ -60,6 +60,7 @@ estrutura: barra lateral com contadores, modal da task em 2 colunas, cartão com
 - Medido no sandbox (**sem GPU**, renderização por software, então é pessimista para o WebGL): terreno ≈ 8–12 ms/quadro (CPU, ruído em JS); shader ≈ 34 ms no desktop emulado e ≈ 9 ms no tamanho de celular.
   O terreno é limitado pela CPU; numa GPU real o shader custa quase nada. O terreno tem **qualidade adaptativa** (reduz linhas em aparelho lento). Botão **"Medir desempenho neste aparelho"** em Personalizar → Fundo.
 - **Fundos de efeito** (`public/fx.js`, Canvas 2D, teste `test/fx.cjs`): Lightfall, Grid Hole, Ink Flow Field e Parallax vertical (rola o quadro). Pedidos pelo Thiago em 05/11; **recriados do zero a partir do nome** porque o OriginKit estava fora do ar (503) e as páginas originais não foram abertas — reabrir quando voltar e comparar variantes/controles. Em cartões: borda pulsante (opt-in, só prioridade alta/urgente, sem animação com movimento reduzido) e luz caindo no hover (`pulse`, `cardLight`).
+- **Temas com fundo automático** (como Topografia, mas via `fx.js`): Chuva de luz (lightfall), Singularidade (grid hole), Nanquim (ink flow), Cordilheira (parallax); paleta claro/escuro no mapa `AUTO` de `fx.js` + tokens em `themes.css`. Total: 38 temas.
 - Ideia pendente: versão **WebGL** do terreno ("qualidade alta": malha mais densa, brilho), com o Canvas 2D como reserva.
 
 ## 9. Pendências e ideias
