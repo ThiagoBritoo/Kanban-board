@@ -707,10 +707,22 @@ body.touch-dragging .board{scroll-snap-type:none;scroll-behavior:auto}body.touch
 /* ===== Border Beam (opt-in, só alta/urgente; parado com movimento reduzido) ===== */
 @property --beam-a{syntax:"<angle>";initial-value:0deg;inherits:false}
 html[data-beam="urgent"] .card[data-p="3"]::after,html[data-beam="high"] .card[data-p="2"]::after,html[data-beam="high"] .card[data-p="3"]::after{
-  content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1.5px;pointer-events:none;width:auto;height:auto;top:auto;right:auto;
+  content:"";position:absolute;top:-1px;right:-1px;bottom:-1px;left:-1px;width:auto;height:auto;border-radius:inherit;padding:2px;pointer-events:none;
   background:conic-gradient(from var(--beam-a),transparent 0 62%,var(--beam-c,var(--p2)) 88%,transparent 100%);
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
 html[data-beam] .card[data-p="3"]{--beam-c:var(--p3)}
 html[data-beam="high"][data-fx="on"][data-motion="on"] .card[data-p="2"]::after,html[data-beam="high"][data-fx="on"][data-motion="on"] .card[data-p="3"]::after,html[data-beam="urgent"][data-fx="on"][data-motion="on"] .card[data-p="3"]::after{animation:beam-spin calc(5s / var(--fx-speed,1)) linear infinite}
 @keyframes beam-spin{to{--beam-a:360deg}}
 @media (prefers-reduced-motion:reduce){html[data-beam] .card::after{animation:none!important}}
+html[data-add="inline"] .col-quick{display:none}
+html[data-add="popover"] .col-foot{display:none}
+html[data-add="popover"] .col-body{padding-bottom:var(--gap)}
+
+/* ===== app instalado (Chrome/PWA): áreas seguras do celular, sem "puxar para atualizar" no meio do arrasto ===== */
+html{overscroll-behavior-y:none}
+.topbar{padding-top:max(10px,env(safe-area-inset-top));padding-left:max(20px,env(safe-area-inset-left));padding-right:max(20px,env(safe-area-inset-right))}
+@media (max-width:720px){.topbar{padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}}
+#toasts{bottom:max(24px,calc(env(safe-area-inset-bottom) + 12px))}
+.board{padding-bottom:max(28px,calc(env(safe-area-inset-bottom) + 16px))}
+.overlay.drawer .drawer-panel{padding-bottom:env(safe-area-inset-bottom)}
+@media (display-mode:standalone){body{-webkit-tap-highlight-color:transparent}.card,.btn,.chip{-webkit-touch-callout:none}}

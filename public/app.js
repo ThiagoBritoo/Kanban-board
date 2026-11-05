@@ -157,7 +157,9 @@ const THEMES = [
   ['meialuz', 'Meia-luz', 'painéis claros e escuros', 'Únicos', false],
   ['camara', 'Câmara Escura', 'breu quente, creme, tracejado', 'Únicos', false],
 ];
-const DEFAULT_PREFS = { fxBg: '#05060f', fxC1: '#7c9cff', fxC2: '#ff5fd2', fxSp: 100, fxAmt: 100, pulse: 'off', beam: 'off', cardLight: false, theme: 'minimal', mode: 'system', accent: null, font: 'auto', radius: null, density: 'comfortable', motion: true, autoAssign: true, hideOldDone: true, view: 'board', bg: 'theme', bgUrl: '', notify: false,
+// temas mais "suaves" nascem com o botão + (formulário que cresce); os demais com o campo de texto no rodapé. Dá para trocar em Personalizar → Cartões.
+const POPOVER_THEMES = new Set(['ocean', 'aurora', 'sunset', 'argila', 'adesivo', 'canelado', 'espacial', 'limao', 'geist', 'prisma', 'warp', 'gelo', 'sage']);
+const DEFAULT_PREFS = { fxBg: '#05060f', fxC1: '#7c9cff', fxC2: '#ff5fd2', fxSp: 100, fxAmt: 100, pulse: 'off', beam: 'off', addStyle: 'auto', cardLight: false, theme: 'minimal', mode: 'system', accent: null, font: 'auto', radius: null, density: 'comfortable', motion: true, autoAssign: true, hideOldDone: true, view: 'board', bg: 'theme', bgUrl: '', notify: false,
   shType: 'plane', shC1: '#52ff89', shC2: '#dbba95', shC3: '#d0bce1', shSpeed: 40, shStrength: 50, shDensity: 40, shGrain: 4, shDim: 0,
   trType: 'linhas', trBg: '#f1ecdf', trLine: '#4a5a4c', trAccent: '#c8522e', trSun: 170, trRelief: 100, trDensity: 110, trSpeed: 40, trCam: 100, trHover: 40, trInterval: 5, trSoft: 0,
   sidebar: true, fx: true, fxSpeed: 100, fxIntensity: 100, cardStyle: 'theme', border: 'theme', shadow: 'theme', size: 'normal' };
@@ -205,6 +207,13 @@ function applyPrefs() {
   window.KBTerrain && window.KBTerrain.update(p, resolvedMode(), p.theme);
   window.KBFx && window.KBFx.update(p, resolvedMode(), p.theme);
   r.dataset.pulse = p.pulse || 'off'; r.dataset.beam = p.beam || 'off';
+  try { // a barra de cima do app instalado acompanha a cor do tema
+    const bg = getComputedStyle(r).getPropertyValue('--surface').trim() || getComputedStyle(r).getPropertyValue('--bg').trim();
+    const c = document.createElement('i'); c.style.color = bg; document.body.append(c); const rgb = getComputedStyle(c).color; c.remove();
+    const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/.exec(rgb);
+    if (m && m[4] !== '0') document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#' + [m[1], m[2], m[3]].map((x) => Number(x).toString(16).padStart(2, '0')).join(''));
+  } catch { /* ok */ }
+  r.dataset.add = (p.addStyle && p.addStyle !== 'auto') ? p.addStyle : (POPOVER_THEMES.has(p.theme) ? 'popover' : 'inline');
   r.dataset.cardlight = p.cardLight ? 'on' : 'off';
   const bg = bgCss(p, resolvedMode());
   if (bg) { r.style.setProperty('--bg-user', bg); r.dataset.bg = 'user'; } else { r.style.removeProperty('--bg-user'); delete r.dataset.bg; }
@@ -1361,6 +1370,8 @@ function viewLook() {
       h('div', { class: 'field' }, h('label', null, 'Efeitos nos cartões'),
         seg('pulse', [['off', 'Sem borda pulsante'], ['high', 'Pulsar: alta e urgente'], ['urgent', 'Pulsar: só urgente']]),
         seg('beam', [['off', 'Sem feixe de luz'], ['high', 'Feixe: alta e urgente'], ['urgent', 'Feixe: só urgente']]),
+        h('label', { class: 'help' }, 'Como adicionar task na coluna'),
+        seg('addStyle', [['auto', 'Pelo tema'], ['inline', 'Campo no rodapé'], ['popover', 'Botão + (formulário)'], ['both', 'Os dois']]),
         toggle('cardLight', 'Luz caindo no cartão ao passar o mouse')),
       h('div', { class: 'row' },
         h('div', { class: 'field' }, h('label', null, 'Cartões'), seg('cardStyle', [['theme', 'Do tema'], ['solid', 'Sólido'], ['glass', 'Vidro'], ['outline', 'Contorno'], ['fold', 'Dobrado']])),
@@ -1518,6 +1529,12 @@ async function boot(user) {
     return;
   }
   connectStream();
+  // app instalado: atalho "Nova task" (?new=1) e Compartilhar → Runtime (?title=&text=&url=)
+  try {
+    const q = new URLSearchParams(location.search), shared = [q.get('title'), q.get('text'), q.get('url')].filter(Boolean).join(' — ');
+    if (q.get('new') === '1' || shared) { history.replaceState(null, '', location.pathname); setTimeout(() => openQuickAdd(shared.slice(0, 300)), 300); }
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); // pede para o navegador não apagar o login
+  } catch { /* ok */ }
 }
 window.KBApp = {
   S, h, $, icon, api, toast, guard, openModal, modalHead, popover, askText, confirmBox, setPrefs, resolvedMode, THEMES,

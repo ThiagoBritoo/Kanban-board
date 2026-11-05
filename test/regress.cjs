@@ -42,7 +42,7 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   ok((await p.locator('.look-tabs button.on').textContent()) === 'Tema', 'continua na aba Tema após escolher tema animado');
   ok((await p.locator('.theme-filter button.on').textContent()) === 'Animados', 'filtro "Animados" continua ligado');
   ok((await vis()) === before && before > 0 && before < 38, 'lista continua filtrada (' + before + ' temas)');
-  await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+  await p.keyboard.press('Escape'); await p.waitForTimeout(300); await p.evaluate(() => KBApp.setPrefs({ theme: 'minimal' }, { refreshSettings: false })); await p.waitForTimeout(150);
   // filtro de prioridade e atalhos
   await p.fill('.column:nth-child(1) .add-input', 'Normal aqui'); await p.press('.column:nth-child(1) .add-input', 'Enter'); await p.waitForTimeout(300);
   await p.fill('.column:nth-child(1) .add-input', 'Urgente aqui !urgente'); await p.press('.column:nth-child(1) .add-input', 'Enter'); await p.waitForTimeout(400);
@@ -105,11 +105,19 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   await p.locator('.card').first().click(); await p.waitForSelector('.modal'); await p.fill('textarea[placeholder^="Anotações desta"]', 'rodar npm test'); await p.locator('textarea[placeholder^="Anotações desta"]').blur(); await p.waitForTimeout(500);
   ok(fake.db.tasks.some((t) => t.notes === 'rodar npm test'), 'anotações da task são salvas'); await p.keyboard.press('Escape'); await p.waitForTimeout(250);
   // Popover Form: + da coluna abre mini formulário e cria
+  const isVis = (q) => p.evaluate((q) => { const e = document.querySelector(q); return !!e && getComputedStyle(e).display !== 'none' && e.offsetParent !== null; }, q);
+  ok((await isVis('.column .add-input')) && !(await isVis('.col-quick')), 'tema padrão usa o campo de texto no rodapé (sem botão +)');
+  await p.evaluate(() => KBApp.setPrefs({ addStyle: 'popover' }, { refreshSettings: false })); await p.waitForTimeout(150);
+  ok(!(await isVis('.column .add-input')) && (await isVis('.col-quick')), 'estilo "Botão +" esconde o campo do rodapé e mostra o botão');
+  await p.evaluate(() => KBApp.setPrefs({ theme: 'aurora', addStyle: 'auto' }, { refreshSettings: false })); await p.waitForTimeout(150);
+  ok(!(await isVis('.column .add-input')) && (await isVis('.col-quick')), 'tema suave (Aurora) usa o botão + por padrão');
+  await p.evaluate(() => KBApp.setPrefs({ theme: 'minimal', addStyle: 'both' }, { refreshSettings: false })); await p.waitForTimeout(150);
   const antes = await p.locator('.card').count();
   await p.locator('.column:nth-child(1) .col-quick').click(); await p.waitForSelector('.qform');
   await p.fill('.qform input[type=text], .qform input:not([type])', 'Criada pelo formulário rápido'); await p.locator('.qform .seg button', { hasText: 'Alta' }).click(); await p.click('.qform .btn.primary'); await p.waitForTimeout(900);
   ok((await p.locator('.card').count()) === antes + 1 && fake.db.tasks.some((t) => t.title === 'Criada pelo formulário rápido' && t.priority === 2), 'Popover Form cria a task com prioridade');
   ok((await p.locator('.qform').count()) === 0, 'formulário rápido fecha sozinho depois de criar');
+  await p.evaluate(() => KBApp.setPrefs({ addStyle: 'auto' }, { refreshSettings: false }));
   // Expandable Card: abre no lugar e marca item do checklist
   await p.evaluate(() => KBApp.api('PATCH', `/api/tasks/${KBApp.S.tasks[0].id}`, { checklist: [{ text: 'item um', done: false }, { text: 'item dois', done: true }], description: 'descrição longa do cartão' }).then(() => KBApp.loadBoard())); await p.waitForTimeout(500);
   const card0 = p.locator('.card').filter({ hasText: 'item um' }).first().or(p.locator('.card').first());
@@ -119,8 +127,16 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   ok(fake.db.tasks.some((t) => (t.checklist || []).filter((i) => i.done).length === 2), 'marcar item no cartão expandido salva');
   // Border Beam: opt-in
   await p.evaluate(() => KBApp.setPrefs({ beam: 'high' }, { refreshSettings: false })); await p.waitForTimeout(200);
-  ok(await p.evaluate(() => { const c = document.querySelector('.card[data-p="2"], .card[data-p="3"]'); return !c || getComputedStyle(c, '::after').backgroundImage.includes('conic-gradient'); }), 'Border Beam desenha o feixe nos cartões de prioridade alta');
+  ok(await p.evaluate(() => { const c = document.querySelector('.card[data-p="2"], .card[data-p="3"]'); if (!c) return true; const st = getComputedStyle(c, '::after'); return st.backgroundImage.includes('conic-gradient') && parseFloat(st.width) > 100 && parseFloat(st.height) > 20; }), 'Border Beam desenha o feixe nos cartões de prioridade alta');
   await p.evaluate(() => KBApp.setPrefs({ beam: 'off' }, { refreshSettings: false }));
+  // app instalado: compartilhar para o Runtime e atalho Nova task
+  await p.goto('http://localhost:3222/?title=Ler&text=artigo%20sobre%20kanban&url=https://x.com/a'); await p.waitForSelector('.big-input', { timeout: 8000 });
+  ok((await p.inputValue('.big-input')).includes('Ler') && (await p.inputValue('.big-input')).includes('artigo sobre kanban'), 'compartilhar para o Runtime abre "Nova task" já preenchida');
+  ok(!/title=/.test(await p.evaluate(() => location.search)), 'o endereço é limpo depois de abrir');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(250);
+  await p.goto('http://localhost:3222/?new=1'); await p.waitForSelector('.big-input', { timeout: 8000 }); ok(true, 'atalho ?new=1 abre "Nova task"'); await p.keyboard.press('Escape'); await p.waitForTimeout(250);
+  const tc = await p.evaluate(() => document.querySelector('meta[name="theme-color"]').content); ok(/^#[0-9a-f]{6}$/.test(tc), 'cor da barra do app segue o tema (' + tc + ')');
+  const man = await p.evaluate(() => fetch('manifest.webmanifest').then((r) => r.json())); ok(man.shortcuts && man.share_target && man.id, 'manifesto com atalho, compartilhar e id');
   // 2) sessão sobrevive a recarregar, mesmo se a leitura do perfil falhar na 1ª vez
   let n = 0;
   await p.route('**/rest/v1/profiles?*', (r) => { if (n++ < 1) return r.abort(); return fake.handle(r); });

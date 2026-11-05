@@ -100,3 +100,9 @@ estrutura: barra lateral com contadores, modal da task em 2 colunas, cartão com
 
 ## 10. Mapa de documentos
 `AGENTS.md` (entrada; `CLAUDE.md` só importa ele) · `docs/HANDOFF.md` (este) · `docs/DESIGN.md` (design system) · `docs/PROCESSO_COMPONENTES.md` (**playbook portátil**: do componente de referência ao código próprio) · `docs/REFERENCIAS_DESIGN.md` (referências, o que foi aplicado de cada, como a IA vê sites) · `docs/originkit-cache/` (código do OriginKit já baixado) · `README.md` (uso) · `supabase/migrations/` · `test/` · `scripts/browse-sites.cjs`.
+
+## 9d. Ajustes pedidos depois (05/11, manhã)
+- **Border Beam** não aparecia (pseudo-elemento sem tamanho) — corrigido; liga em Personalizar → Cartões.
+- **Estilo de adicionar task:** pref `addStyle` (`auto` pelo tema | `inline` campo no rodapé | `popover` botão + | `both`); `POPOVER_THEMES` em `app.js` define quais temas nascem com o botão +. CSS: `html[data-add=…]`.
+- **Arrastar no celular:** rolagem automática nas bordas agora é lenta e com espera (350 ms; máx. 360 px/s) em `touch.js`.
+- **App instalado (PWA do Chrome):** manifesto com `id`, atalho "Nova task" (`?new=1`), Compartilhar → Runtime (`share_target`, `?title&text&url`), cor da barra segue o tema (`meta theme-color`), áreas seguras (`viewport-fit=cover`), sem "puxar para atualizar", pede armazenamento persistente, cache da casca no `sw.js`.
