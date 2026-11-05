@@ -419,7 +419,8 @@ function renderAuth(mode = 'login') {
   const signup = mode === 'signup', forgot = mode === 'forgot';
   const err = h('div', { class: 'err-msg' }), info = h('div', { class: 'help' });
   const name = h('input', { class: 'input', placeholder: 'Seu nome', autocomplete: 'name' });
-  const email = h('input', { class: 'input', type: 'email', placeholder: 'voce@empresa.com', autocomplete: 'username' });
+  let lastEmail = ''; try { lastEmail = localStorage.getItem('kb-email') || ''; } catch { /* ok */ }
+  const email = h('input', { class: 'input', type: 'email', placeholder: 'voce@empresa.com', autocomplete: 'username', value: signup ? '' : lastEmail });
   const pass = h('input', { class: 'input', type: 'password', placeholder: signup ? 'Mínimo 6 caracteres' : 'Senha', autocomplete: signup ? 'new-password' : 'current-password' });
   const go = (m) => h('button', { type: 'button', class: 'btn ghost sm', onclick: () => renderAuth(m) });
   const submit = async (e) => {
@@ -430,7 +431,7 @@ function renderAuth(mode = 'login') {
         if (!name.value.trim()) throw new Error('Informe seu nome');
         const r = await KB.signUp(name.value, email.value, pass.value);
         if (r.needsConfirm) { info.textContent = 'Conta criada! Confirme seu e-mail (veja a caixa de entrada) e depois entre.'; return; }
-      } else await KB.signIn(email.value, pass.value);
+      } else { await KB.signIn(email.value, pass.value); try { localStorage.setItem('kb-email', email.value.trim()); } catch { /* ok */ } }
       await start();
     } catch (x) { err.textContent = x.message; }
   };
@@ -478,6 +479,7 @@ function moreMenu() {
     'hr',
     { label: 'Resumo da equipe', icon: 'chart', onClick: () => A.openSummary && A.openSummary() },
     { label: 'Atividade recente', icon: 'pulse', onClick: () => A.openActivity && A.openActivity() },
+    { label: 'Lixeira (restaurar excluídas)', icon: 'trash', onClick: () => openTrash() },
     'hr',
     { label: 'Exportar tasks (CSV)', icon: 'download', onClick: () => A.exportCsv && A.exportCsv() },
     { label: 'Backup completo (JSON)', icon: 'download', onClick: () => A.exportJson && A.exportJson() },
@@ -729,6 +731,15 @@ function cardMenu(t) {
     'hr', ...S.columns.map((c) => ({ label: 'Mover para ' + c.name, checked: c.id === t.column_id, onClick: guard(() => c.id === t.column_id ? null : moveTask(t.id, c.id, null)) })),
     'hr', { label: 'Excluir', icon: 'trash', danger: true, onClick: guard(() => deleteTask(t)) },
   ];
+}
+async function openTrash() {
+  const list = h('div', { class: 'trash-list' }, h('div', { class: 'help' }, 'Carregando…'));
+  const close = openModal([modalHead('Lixeira', () => close()), h('div', { class: 'modal-body' }, h('div', { class: 'help' }, 'Tasks excluídas ficam aqui para você restaurar (as 60 mais recentes).'), list)]);
+  const row = (r, rows) => h('div', { class: 'trash-row' },
+    h('div', { class: 'trash-info' }, h('div', { class: 'trash-title' }, r.title), h('div', { class: 'help' }, `${(colById(r.column_id) || { name: 'coluna removida' }).name} · excluída em ${fmtTime(r.deleted_at)}`)),
+    h('button', { class: 'btn sm', onclick: guard(async () => { await api('POST', `/api/tasks/${r.id}/restore`); await loadBoard(); draw(rows.filter((x) => x.id !== r.id)); toast('Task restaurada'); }) }, 'Restaurar'));
+  const draw = (rows) => list.replaceChildren(...(rows.length ? rows.map((r) => row(r, rows)) : [h('div', { class: 'empty-note' }, 'A lixeira está vazia.')]));
+  try { draw(await api('GET', '/api/trash')); } catch (e) { list.replaceChildren(h('div', { class: 'err-msg' }, e.message)); }
 }
 async function deleteTask(t) {
   await api('DELETE', `/api/tasks/${t.id}`);
@@ -1227,7 +1238,7 @@ async function boot(user) {
 }
 window.KBApp = {
   S, h, $, icon, api, toast, guard, openModal, modalHead, popover, askText, confirmBox, setPrefs, resolvedMode, THEMES,
-  eventText, openTask, openQuickAdd, openDiary, openShortcuts, openSettings, renderBoard, loadBoard, moveTask, deleteTask, upsertTask, userById, colById, avatar,
+  eventText, openTask, openQuickAdd, openDiary, openShortcuts, openTrash, openSettings, renderBoard, loadBoard, moveTask, deleteTask, upsertTask, userById, colById, avatar,
   matches, filtersActive, clearFilters, dueState, fmtDay, fmtTime, fmtDur, totalSecs, ymd, pad, addDays, norm, hueOf, cap, PRIO_NAME, views: {},
 };
 (async function init() {

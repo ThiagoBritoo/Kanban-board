@@ -611,3 +611,5 @@ input[type=range]{max-width:100%}
 input[type=range]{margin-left:0;margin-right:0;width:100%}
 .auth-card .err-msg:empty,.auth-card .help:empty{display:none}
 .range-row>.help{flex:none;white-space:nowrap}.range-row>input[type=range]{flex:1;min-width:60px}
+.trash-list{display:grid;gap:2px;margin-top:6px}.trash-row{display:flex;align-items:center;gap:12px;padding:9px 2px;border-bottom:1px solid var(--line)}.trash-row:last-child{border-bottom:none}
+.trash-info{flex:1;min-width:0}.trash-title{font-weight:550;overflow-wrap:anywhere}.empty-note{padding:18px 0;text-align:center;color:var(--muted)}.trash-row .btn{flex:none}
