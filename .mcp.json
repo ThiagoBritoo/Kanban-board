@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "originkit": {
+      "type": "http",
+      "url": "https://mcp.originkit.dev/mcp",
+      "headers": { "Authorization": "Bearer ${ORIGINKIT_API_KEY}" }
+    }
+  }
+}
