@@ -1340,6 +1340,32 @@ async function squareJpeg(file, size) {
   x.drawImage(bmp, (bmp.width - m) / 2, (bmp.height - m) / 2, m, m, 0, 0, size, size);
   return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('Não foi possível ler a imagem'))), 'image/jpeg', 0.86));
 }
+// tokens pessoais para criar tasks de fora (IA no VS Code, scripts): ver docs/API.md
+function tokenBox() {
+  const list = h('div', { class: 'member-list' });
+  const draw = async () => {
+    let rows = []; try { rows = await api('GET', '/api/tokens'); } catch { /* tabela ainda não existe */ }
+    list.replaceChildren(...(rows.length ? rows.map((t) => h('div', { class: 'member-row' }, h('div', { class: 'member-info' }, h('b', null, t.name),
+      h('small', null, 'criado ' + fmtTime(t.created_at) + (t.last_used_at ? ' · usado ' + fmtTime(t.last_used_at) : ' · nunca usado'))),
+      h('button', { class: 'btn ghost sm danger-text', onclick: guard(async () => { if (!(await confirmBox(`Revogar o token "${t.name}"? Quem usa ele perde o acesso.`, 'Revogar'))) return; await api('DELETE', `/api/tokens/${t.id}`); draw(); }) }, 'Revogar'))) : [h('div', { class: 'help' }, 'Nenhum token.')]));
+  };
+  const gen = guard(async () => {
+    const name = await askText('Nome do token (onde ele será usado)', '', { placeholder: 'Ex.: VS Code do notebook', ok: 'Gerar' }); if (!name) return;
+    const { token } = await api('POST', '/api/tokens', { name });
+    const url = ((window.KB_CONFIG || {}).SUPABASE_URL || '') + '/functions/v1/api';
+    const close = openModal([modalHead('Token gerado', () => close()), h('div', { class: 'modal-body' },
+      h('p', null, 'Copie agora: ele não aparece de novo. Trate como uma senha.'),
+      h('input', { class: 'input mono', readonly: true, value: token, onfocus: (e) => e.target.select(), 'aria-label': 'Token' }),
+      h('div', { class: 'row' }, h('button', { class: 'btn primary', onclick: async () => { try { await navigator.clipboard.writeText(token); toast('Token copiado'); } catch { toast('Selecione e copie manualmente', true); } } }, 'Copiar token'),
+        h('button', { class: 'btn', onclick: async () => { try { await navigator.clipboard.writeText(url); toast('Endereço copiado'); } catch { /* ok */ } } }, 'Copiar endereço da API')),
+      h('div', { class: 'help' }, 'Endereço: ' + url + ' · veja docs/API.md para o servidor MCP (scripts/runtime-mcp.cjs).'))]);
+    draw();
+  });
+  draw();
+  return h('div', { class: 'field' }, h('label', null, 'Acesso por API (IA / VS Code)'),
+    h('div', { class: 'help' }, 'Crie tasks de fora do Runtime (ex.: pela IA no VS Code) com um token pessoal.'), list,
+    h('div', null, h('button', { class: 'btn sm', onclick: gen }, icon('plus'), 'Gerar token')));
+}
 function viewAccount() {
   const name = h('input', { class: 'input', value: S.me.name, maxLength: 80 });
   const cur = h('input', { class: 'input', type: 'password', autocomplete: 'current-password' });
@@ -1362,7 +1388,8 @@ function viewAccount() {
     h('div', { class: 'field' }, h('label', null, 'Nome'), h('div', { class: 'row' }, name, h('button', { class: 'btn', style: { flex: '0 0 auto' }, onclick: guard(async () => { if (!name.value.trim()) return; await api('PATCH', '/api/me', { name: name.value }); S.me.name = name.value.trim(); await loadBoard(); toast('Nome atualizado'); }) }, 'Salvar'))),
     h('div', { class: 'field' }, h('label', null, 'E-mail'), h('div', { class: 'help' }, S.me.email)),
     h('div', { class: 'row' }, h('div', { class: 'field' }, h('label', null, 'Senha atual'), cur), h('div', { class: 'field' }, h('label', null, 'Nova senha'), nw)),
-    h('div', null, h('button', { class: 'btn', onclick: guard(async () => { await api('PATCH', '/api/me', { current_password: cur.value, new_password: nw.value }); cur.value = nw.value = ''; toast('Senha alterada'); }) }, 'Trocar senha')));
+    h('div', null, h('button', { class: 'btn', onclick: guard(async () => { await api('PATCH', '/api/me', { current_password: cur.value, new_password: nw.value }); cur.value = nw.value = ''; toast('Senha alterada'); }) }, 'Trocar senha')),
+    tokenBox());
 }
 
 function viewTeam() {

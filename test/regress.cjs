@@ -91,6 +91,12 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   ok(!!fake.db.profiles[0].avatar_url && Object.keys(fake.db.files).some((k) => k.startsWith('avatars/')), 'foto de perfil enviada e salva no perfil');
   ok((await p.locator('.topbar .avatar.has-img img, .photo-row .avatar.has-img img').count()) >= 1, 'avatar mostra a foto');
   await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+  // token de API
+  await p.evaluate(() => KBApp.openSettings('account')); await p.waitForSelector('.drawer-panel'); await p.click('.tabs button:has-text("Conta")').catch(() => {}); await p.waitForTimeout(300);
+  await p.click('button:has-text("Gerar token")'); await p.waitForTimeout(400); await p.locator('.overlay').last().locator('input').first().fill('VS Code'); await p.keyboard.press('Enter'); await p.waitForSelector('input[aria-label="Token"]');
+  const tok = await p.inputValue('input[aria-label="Token"]');
+  ok(/^kb_[0-9a-f]{48}$/.test(tok) && fake.db.api_tokens.length === 1 && fake.db.api_tokens[0].token_hash !== tok && fake.db.api_tokens[0].token_hash.length === 64, 'token gerado (kb_…) e só o hash vai para o banco');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(250); await p.keyboard.press('Escape'); await p.waitForTimeout(250);
   // anotações gerais e da task
   await p.evaluate(() => KBApp.openNotes()); await p.waitForSelector('.notes-wrap'); await p.click('.notes-side .btn:has-text("Nova")'); await p.waitForTimeout(300);
   await p.fill('.notes-editor input', 'Ideias'); await p.fill('.notes-editor textarea', 'comprar domínio'); await p.waitForTimeout(900);
