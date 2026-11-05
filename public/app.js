@@ -81,7 +81,13 @@ const api = async (method, url, body) => {
   try { const r = await KB.api(method, url, body); if (S.offline) setOffline(false); return r; }
   catch (e) {
     if (/Sem conexão|Failed to fetch|NetworkError/i.test(e.message)) setOffline(true);
-    if (/JWT|token is expired|not authenticated|invalid claim/i.test(e.message)) { try { await KB.signOut(); } catch { /* ok */ } location.reload(); }
+    if (/JWT|token is expired|not authenticated|invalid claim/i.test(e.message)) {
+      // tenta renovar a sessão e repetir UMA vez; só desloga se a renovação falhar de forma definitiva
+      let st = 'error'; try { st = await KB.refresh(); } catch { /* ok */ }
+      if (st === 'ok') return KB.api(method, url, body);
+      if (st === 'invalid') { try { await KB.signOut(); } catch { /* ok */ } location.reload(); }
+      else setOffline(true);
+    }
     throw e;
   }
 };
@@ -399,7 +405,14 @@ function authShell(...kids) {
   authBackdrop();
 }
 async function start() {
-  const s = await KB.getSession();
+  // a leitura pode falhar por instantes (renovação do token ao trocar de aparelho/modo/aba): tenta de novo antes de mandar para o login
+  let s = { user: null }, lastErr = null;
+  for (const wait of [0, 500, 1500]) {
+    if (wait) await new Promise((r) => setTimeout(r, wait));
+    try { s = await KB.getSession(); lastErr = null; } catch (e) { lastErr = e; }
+    if (s.user || !KB.hasStoredSession()) break; // sem sessão guardada = visitante novo: login na hora
+  }
+  if (lastErr) throw lastErr;
   s.user ? await boot(s.user) : renderAuth('login');
 }
 function renderAuth(mode = 'login') {
@@ -528,10 +541,11 @@ function matches(t) {
   if (!['all', 'me', 'none'].includes(f.who) && t.assignee_id !== f.who) return false;
   if (f.label && !t.labels.some((l) => l.toLowerCase() === f.label.toLowerCase())) return false;
   if (f.due && dueState(t) !== f.due) return false;
+  if (f.prio != null && t.priority !== f.prio) return false;
   if (f.q) { const hay = norm(t.title + ' ' + t.description + ' ' + t.labels.join(' ') + ' ' + (userById(t.assignee_id)?.name || '')); if (!norm(f.q).split(/\s+/).every((w) => hay.includes(w))) return false; }
   return true;
 }
-const filtersActive = () => S.filter.q || S.filter.who !== 'all' || S.filter.due || S.filter.label;
+const filtersActive = () => S.filter.q || S.filter.who !== 'all' || S.filter.due || S.filter.label || S.filter.prio != null;
 function clearFilters() { S.filter = { q: '', who: 'all', due: null, label: null }; const s = $('#search'); if (s) s.value = ''; renderBoard(); }
 
 function renderToolbar() {
@@ -553,11 +567,12 @@ function renderSidebar() {
   const sb = $('#sidebar'); if (!sb) return;
   const f = S.filter, open = S.tasks.filter((t) => (colById(t.column_id) || {}).kind !== 'done');
   const n = (fn) => open.filter(fn).length;
-  const none = !f.q && f.who === 'all' && !f.due && !f.label;
+  const none = !f.q && f.who === 'all' && !f.due && !f.label && f.prio == null;
   const item = (label, count, active, onclick, lead, cls = '') => h('button', { type: 'button', class: 'sb-item' + (active ? ' on' : '') + (cls ? ' ' + cls : ''), 'aria-pressed': String(!!active), onclick },
     lead, h('span', { class: 'sb-label' }, label), count != null && h('span', { class: 'sb-count' }, count));
   const who = (v) => () => { f.who = f.who === v && v !== 'all' ? 'all' : v; renderBoard(); };
   const due = (v) => () => { f.due = f.due === v ? null : v; renderBoard(); };
+  const prio = (v) => () => { f.prio = f.prio === v ? null : v; renderBoard(); };
   const labels = [...new Map(S.tasks.flatMap((t) => t.labels).map((l) => [l.toLowerCase(), l])).values()].sort((a, b) => a.localeCompare(b, 'pt-BR')).slice(0, 14);
   const dot = (css) => h('i', { class: 'sb-dot', style: css });
   sb.replaceChildren(
@@ -568,6 +583,9 @@ function renderSidebar() {
     h('div', { class: 'sb-sec' }, h('div', { class: 'sb-h' }, 'Prazos'),
       item('Atrasadas', n((t) => dueState(t) === 'late'), f.due === 'late', due('late'), dot({ background: 'var(--p3)' }), 'late'),
       item('Vencem hoje', n((t) => dueState(t) === 'today'), f.due === 'today', due('today'), dot({ background: 'var(--p2)' }))),
+    h('div', { class: 'sb-sec' }, h('div', { class: 'sb-h' }, 'Prioridade'),
+      item('Urgente', n((t) => t.priority === 3), f.prio === 3, prio(3), dot({ background: 'var(--p3)' })),
+      item('Alta', n((t) => t.priority === 2), f.prio === 2, prio(2), dot({ background: 'var(--p2)' }))),
     S.users.length > 1 && h('div', { class: 'sb-sec' }, h('div', { class: 'sb-h' }, 'Equipe'),
       ...S.users.filter((u) => u.id !== S.me.id).map((u) => item(u.name.split(' ')[0], n((t) => t.assignee_id === u.id), f.who === u.id, who(u.id), h('span', { class: 'av-wrap' + (S.online.has(u.id) ? ' online' : '') }, avatar(u, 18))))),
     labels.length > 0 && h('div', { class: 'sb-sec' }, h('div', { class: 'sb-h' }, 'Etiquetas'),
@@ -1056,13 +1074,12 @@ function viewLook() {
   const seg = (key, opts) => h('div', { class: 'seg' }, opts.map(([v, l]) => h('button', { type: 'button', class: p[key] === v ? 'on' : '', onclick: () => setPrefs({ [key]: v }) }, l)));
   const toggle = (key, label) => h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !!p[key], onchange: (e) => setPrefs({ [key]: e.target.checked }) }), label);
   const swatchColors = ['#6366f1', '#2563eb', '#0ea5e9', '#14b8a6', '#22c55e', '#eab308', '#f97316', '#ef4444', '#ec4899', '#a855f7'];
-  themeFilterState.q = ''; themeFilterState.fx = 'all';
   const G = {
     tema: [
       h('div', { class: 'field' }, h('label', null, `Tema (${THEMES.length})`),
         h('div', { class: 'theme-tools' },
-          h('input', { class: 'input', style: { maxWidth: '220px' }, placeholder: 'Buscar tema…', type: 'search', 'aria-label': 'Buscar tema', oninput: (e) => filterThemes(e.target.closest('.field'), { q: e.target.value }) }),
-          h('div', { class: 'seg theme-filter' }, [['all', 'Todos'], ['fx', 'Animados'], ['static', 'Estáticos']].map(([k, l]) => h('button', { type: 'button', class: k === 'all' ? 'on' : '', onclick: (e) => { const f = e.target.closest('.field'); f.querySelectorAll('.theme-filter button').forEach((b) => b.classList.toggle('on', b === e.target)); filterThemes(f, { fx: k }); } }, l))),
+          h('input', { class: 'input', style: { maxWidth: '220px' }, placeholder: 'Buscar tema…', type: 'search', value: themeFilterState.q, 'aria-label': 'Buscar tema', oninput: (e) => filterThemes(e.target.closest('.field'), { q: e.target.value }) }),
+          h('div', { class: 'seg theme-filter' }, [['all', 'Todos'], ['fx', 'Animados'], ['static', 'Estáticos']].map(([k, l]) => h('button', { type: 'button', class: k === themeFilterState.fx ? 'on' : '', onclick: (e) => { const f = e.target.closest('.field'); f.querySelectorAll('.theme-filter button').forEach((b) => b.classList.toggle('on', b === e.target)); filterThemes(f, { fx: k }); } }, l))),
           h('button', { class: 'btn sm', onclick: () => { const others = THEMES.filter((t) => t[0] !== p.theme); setPrefs({ theme: others[Math.floor(Math.random() * others.length)][0] }); } }, 'Surpreenda-me')),
         h('span', { class: 'help' }, 'Todos têm modo claro e escuro. “Animado” = tem efeito de fundo (dá para desligar ou ajustar abaixo).'),
         [...new Set(THEMES.map((t) => t[3]))].map((cat) => h('div', { class: 'theme-group' }, h('div', { class: 'theme-cat' }, cat),
@@ -1126,6 +1143,7 @@ function viewLook() {
   };
   const tabs = [['tema', 'Tema'], ['cores', 'Cores'], ['fundo', 'Fundo'], ['cartoes', 'Cartões'], ['comportamento', 'Geral']];
   const cur = G[S.lookTab] ? S.lookTab : 'tema';
+  if (cur === 'tema' && (themeFilterState.q || themeFilterState.fx !== 'all')) filterThemes(G.tema[0], {});
   return h('div', { class: 'modal-body' },
     h('div', { class: 'seg look-tabs', role: 'tablist' }, tabs.map(([k, l]) => h('button', { type: 'button', role: 'tab', 'aria-selected': String(k === cur), class: k === cur ? 'on' : '', onclick: () => { if (k === cur) return; S.tabDir = tabs.findIndex((x) => x[0] === k) > tabs.findIndex((x) => x[0] === cur) ? 1 : -1; S.lookTab = k; S.refreshSettings && S.refreshSettings(); slideIn([...document.querySelectorAll('.drawer-panel .modal-body > :not(.look-tabs):not(.set-foot)')]); } }, l))),
     ...G[cur],
@@ -1178,7 +1196,12 @@ document.addEventListener('keydown', (e) => {
   if (/INPUT|TEXTAREA|SELECT/.test(tag)) return;
   if (e.key === 'n' || e.key === 'c') { e.preventDefault(); openQuickAdd(); }
   else if (e.key === '/') { e.preventDefault(); $('#search') && $('#search').focus(); }
+  else if (e.key === '?') { e.preventDefault(); openShortcuts(); }
 });
+function openShortcuts() {
+  const rows = [['N ou C', 'Nova task'], ['/', 'Buscar'], ['Ctrl+K', 'Paleta de comandos'], ['?', 'Esta lista'], ['Esc', 'Fechar janela ou menu'], ['Enter', 'Abrir a task em foco / criar (nos campos)'], ['Ctrl+Enter', 'Criar e continuar · enviar comentário'], ['Ctrl+V', 'Colar print como anexo (dentro da task)']];
+  const close = openModal([modalHead('Atalhos do teclado', () => close()), h('div', { class: 'modal-body' }, h('div', { class: 'kbd-list' }, rows.map(([k, d]) => h('div', { class: 'kbd-row' }, h('span', { class: 'kbd' }, k), h('span', null, d)))))]);
+}
 
 /* ================= inicialização ================= */
 async function boot(user) {
@@ -1199,7 +1222,7 @@ async function boot(user) {
 }
 window.KBApp = {
   S, h, $, icon, api, toast, guard, openModal, modalHead, popover, askText, confirmBox, setPrefs, resolvedMode, THEMES,
-  eventText, openTask, openQuickAdd, openDiary, openSettings, renderBoard, loadBoard, moveTask, deleteTask, upsertTask, userById, colById, avatar,
+  eventText, openTask, openQuickAdd, openDiary, openShortcuts, openSettings, renderBoard, loadBoard, moveTask, deleteTask, upsertTask, userById, colById, avatar,
   matches, filtersActive, clearFilters, dueState, fmtDay, fmtTime, fmtDur, totalSecs, ymd, pad, addDays, norm, hueOf, cap, PRIO_NAME, views: {},
 };
 (async function init() {
