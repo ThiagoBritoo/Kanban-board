@@ -605,6 +605,7 @@ function renderSkeleton() {
 }
 function renderBoard() {
   const board = $('#board'); if (!board) return;
+  const sx = board.scrollLeft; // lido antes de qualquer redesenho (senão o quadro volta para a 1ª coluna a cada atualização)
   renderToolbar(); renderSidebar(); syncViewSeg(); window.KBApp.updateIsland && window.KBApp.updateIsland();
   const view = S.prefs.view || 'board';
   if (view !== 'board' && window.KBApp.views[view]) {
@@ -614,7 +615,7 @@ function renderBoard() {
     return;
   }
   board.className = 'board';
-  const keep = { x: board.scrollLeft, y: {} };
+  const keep = { x: sx, y: {} };
   board.querySelectorAll('.col-body').forEach((b) => { keep.y[b.parentElement.dataset.id] = b.scrollTop; });
   const fa = document.activeElement;
   const focusCol = fa && fa.classList && fa.classList.contains('add-input') ? { id: fa.dataset.col, pos: fa.selectionStart } : null;
@@ -627,7 +628,7 @@ function renderBoard() {
 
   board.scrollLeft = keep.x;
   board.querySelectorAll('.col-body').forEach((b) => { const y = keep.y[b.parentElement.dataset.id]; if (y) b.scrollTop = y; });
-  if (focusCol) { const el = board.querySelector(`.add-input[data-col="${focusCol.id}"]`); if (el) { el.focus(); try { el.setSelectionRange(focusCol.pos, focusCol.pos); } catch { /* ok */ } } }
+  if (focusCol) { const el = board.querySelector(`.add-input[data-col="${focusCol.id}"]`); if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(focusCol.pos, focusCol.pos); } catch { /* ok */ } } }
   S.seen = new Set(S.tasks.map((t) => t.id));
 }
 
