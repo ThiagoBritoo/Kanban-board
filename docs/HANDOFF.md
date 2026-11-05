@@ -47,6 +47,7 @@ Playwright e Chromium já vêm no ambiente de nuvem (`require('playwright')`). O
 - Chave: variável de ambiente **`ORIGINKIT_API_KEY`** (o Thiago colocou no ambiente; nunca pedir/colar no chat, nunca gravar em arquivo). Vale só em sessão **nova**.
 - Jeito 1: `.mcp.json` do repositório registra o servidor (aprovar quando o Claude Code perguntar). Jeito 2 (sempre funciona): `node scripts/originkit.cjs list|search <texto>|get <nome>`.
 - **Cota Free = 3 componentes/dia** (só `get_component`/`fetch` contam; `list_components` e `search` são grátis; 15/hora = pausa de 4 h). Gaste com cuidado.
+- Código já baixado (Lightfall, Grid Hole, Ink Flow Field) em `docs/originkit-cache/` — **não gastar cota de novo**; falta baixar Vertical Parallax e Pulsating Border.
 - **Os 5 que o Thiago curtiu** (05/11): **Vertical Parallax, Pulsating Border, Lightfall, Grid Hole, Ink Flow Field** — podem ir também em cartões/títulos, não só fundo. Já existe versão **minha** de cada em `public/fx.js` (feita sem ver o original): usar `get` (no máx. 3/dia) para comparar variantes/controles e ajustar. Códigos baixados são referência: recriar com código próprio, não colar licença/dependências de terceiros.
 
 ## 6. Arquitetura em 10 linhas
