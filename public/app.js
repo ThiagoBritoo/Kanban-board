@@ -722,6 +722,10 @@ function cardMenu(t) {
     { label: 'Abrir', icon: 'edit', onClick: () => openTask(t.id) },
     mine ? { label: 'Soltar (ficar sem dono)', icon: 'x', onClick: guard(async () => { upsertTask(await api('PATCH', `/api/tasks/${t.id}`, { assignee_id: null })); renderBoard(); }) }
       : { label: 'Pegar pra mim', icon: 'take', onClick: guard(async () => { upsertTask(await api('PATCH', `/api/tasks/${t.id}`, { assignee_id: S.me.id })); renderBoard(); toast('Task é sua'); }) },
+    { label: 'Duplicar', icon: 'copy', onClick: guard(async () => {
+      const n = await api('POST', '/api/tasks', { title: (t.title.slice(0, 288) + ' (cópia)'), column_id: t.column_id, description: t.description, diary: t.diary, priority: t.priority, due_date: t.due_date, assignee_id: t.assignee_id, labels: t.labels, checklist: (t.checklist || []).map((i) => ({ text: i.text, done: false })) });
+      upsertTask(n); renderBoard(); toast('Task duplicada');
+    }) },
     'hr', ...S.columns.map((c) => ({ label: 'Mover para ' + c.name, checked: c.id === t.column_id, onClick: guard(() => c.id === t.column_id ? null : moveTask(t.id, c.id, null)) })),
     'hr', { label: 'Excluir', icon: 'trash', danger: true, onClick: guard(() => deleteTask(t)) },
   ];

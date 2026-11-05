@@ -51,6 +51,10 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   ok((await p.locator('.card').count()) === 1 && total > 1, 'filtro de prioridade: só as urgentes (' + total + ' -> 1)');
   await p.click('.sb-foot .btn:has-text("Limpar")'); await p.waitForTimeout(200);
   await p.keyboard.press('?'); await p.waitForSelector('.kbd-list'); ok(true, 'tecla ? abre a lista de atalhos'); await p.keyboard.press('Escape'); await p.waitForTimeout(250);
+  // duplicar task pelo menu do cartão
+  const nCards = await p.locator('.card').count();
+  await p.locator('.card').first().hover(); await p.locator('.card').first().locator('.card-menu').click(); await p.click('.popover >> text=Duplicar'); await p.waitForTimeout(500);
+  ok((await p.locator('.card').count()) === nCards + 1 && (await p.locator('.card-title', { hasText: '(cópia)' }).count()) === 1, 'Duplicar cria a cópia');
   // 2) sessão sobrevive a recarregar, mesmo se a leitura do perfil falhar na 1ª vez
   let n = 0;
   await p.route('**/rest/v1/profiles?*', (r) => { if (n++ < 1) return r.abort(); return fake.handle(r); });
