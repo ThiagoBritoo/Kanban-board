@@ -24,7 +24,7 @@
   const rgb = (hex) => { const n = parseInt(String(hex).replace('#', ''), 16) || 0; return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
   const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 
-  let cv, ctx, cfg = null, raf = 0, running = false, last = 0, t0 = performance.now(), mx = 0, my = 0, tmx = 0, tmy = 0, W = 2, H = 2;
+  let qual = 1, ema = 0, cv, ctx, cfg = null, raf = 0, running = false, last = 0, t0 = performance.now(), mx = 0, my = 0, tmx = 0, tmy = 0, W = 2, H = 2;
 
   function init() {
     if (cv) return true;
@@ -48,7 +48,7 @@
     if (!ctx || !cfg) return;
     const c = cfg, bg = rgb(c.bg), line = rgb(c.line), acc = rgb(c.accent), type = c.type;
     mx += (tmx - mx) * 0.06; my += (tmy - my) * 0.06;
-    const hov = c.hover / 100, N = Math.max(24, Math.min(150, Math.round(c.density * 0.7))), M = type === 'pontos' ? 70 : 120;
+    const hov = c.hover / 100, N = Math.max(18, Math.min(150, Math.round(c.density * 0.7 * qual))), M = Math.max(40, Math.round((type === 'pontos' ? 70 : 120) * (0.5 + 0.5 * qual)));
     const horizon = H * (0.40 + my * 0.02 * hov), f = H * 0.13, cx = W / 2;
     const camX = -mx * 5 * hov, camH = 4.2 * (c.cam / 100), hmax = 13 * (c.relief / 100), scroll = time * c.speed / 100 * 3.2;
     // céu
@@ -125,7 +125,12 @@
     }
     if (c.soft > 0) { ctx.fillStyle = rgba(bg, Math.min(0.7, c.soft / 130)); ctx.fillRect(0, 0, W, H); }
   }
-  function frame(now) { raf = requestAnimationFrame(frame); if (now - last < 33) return; last = now; draw((now - t0) / 1000); }
+  // qualidade adaptativa: se desenhar custa muito (aparelho fraco), reduz linhas/colunas aos poucos; nunca volta sozinha
+  function frame(now) {
+    raf = requestAnimationFrame(frame); if (now - last < 33) return; last = now;
+    const s = performance.now(); draw((now - t0) / 1000); ema = ema ? ema * 0.9 + (performance.now() - s) * 0.1 : performance.now() - s;
+    if (ema > 22 && qual > 0.46) { qual = Math.max(0.45, qual * 0.8); ema = 14; }
+  }
   const animated = () => cfg && cfg.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches;
   function run() { if (cfg && ctx && animated() && !document.hidden && !running) { running = true; raf = requestAnimationFrame(frame); } }
   function stop() { running = false; cancelAnimationFrame(raf); }
@@ -133,6 +138,12 @@
   window.KBTerrain = {
     PRESETS,
     // p = preferências; mode = claro/escuro; theme = id do tema (o tema "topografia" liga o terreno sozinho)
+    // mede o custo de desenho neste aparelho (inclui a rasterização: força a leitura de 1 pixel no fim)
+    bench(n = 40) {
+      if (!ctx || !cfg) return null;
+      const s = performance.now(); for (let i = 0; i < n; i++) draw(i / 30); ctx.getImageData(0, 0, 1, 1);
+      return { ms: (performance.now() - s) / n, w: W, h: H };
+    },
     update(p, mode, theme) {
       const auto = theme === 'topografia' && (!p.bg || p.bg === 'theme');
       const on = p.bg === 'terrain' || auto;
@@ -144,7 +155,7 @@
       cfg = { type: s.trType || 'linhas', bg: s.trBg || '#f1ecdf', line: s.trLine || '#4a5a4c', accent: s.trAccent || '#c8522e', density: s.trDensity ?? 110, speed: s.trSpeed ?? 40,
         relief: s.trRelief ?? 100, sun: s.trSun ?? 170, cam: s.trCam ?? 100, hover: s.trHover ?? 40, interval: Math.max(2, s.trInterval ?? 5), soft: auto ? 0 : (p.trSoft ?? 0),
         animate: p.fx !== false && p.motion !== false };
-      resize(); stop(); run();
+      qual = 1; ema = 0; resize(); stop(); run();
     },
   };
 })();

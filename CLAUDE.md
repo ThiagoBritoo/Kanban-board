@@ -1,5 +1,6 @@
 # Kanban da empresa — contexto do projeto
 
+Estado atual do projeto, IDs, fluxo de trabalho e pendências: @docs/HANDOFF.md (leia primeiro numa sessão nova).
 Antes de mudar qualquer interface, leia @docs/DESIGN.md (tokens, movimento, anti-slop, checklist de entrega).
 Use cores, tipografia e espaçamento do design system; derive campos, textos e estados deste projeto, não de memória.
 

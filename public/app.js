@@ -978,6 +978,13 @@ function filterThemes(field, patch) {
   field.querySelectorAll('.theme-group').forEach((g) => g.classList.toggle('hidden', !g.querySelector('.theme-tile:not(.hidden)')));
   field.querySelector('.theme-empty').classList.toggle('hidden', shown > 0);
 }
+function benchRow(api) {
+  const out = h('span', { class: 'help' });
+  return h('div', { class: 'range-row' }, h('button', { class: 'btn sm', onclick: () => {
+    const r = api && api.bench && api.bench(40);
+    out.textContent = r ? `≈ ${r.ms.toFixed(1)} ms por quadro (${r.w}×${r.h}). Ideal: abaixo de 16 ms; o fundo roda a 30 fps, então até 33 ms é tranquilo.` : 'Ative o fundo para medir.';
+  } }, 'Medir desempenho neste aparelho'), out);
+}
 function terrainControls(p) {
   const slider = (key, label, min, max, fmt = (v) => v) => h('div', { class: 'range-row' }, h('span', { class: 'help', style: { width: '96px' } }, label),
     h('input', { type: 'range', min, max, value: p[key], oninput: (e) => { setPrefs({ [key]: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = fmt(e.target.value); } }), h('output', null, fmt(p[key])));
@@ -992,6 +999,7 @@ function terrainControls(p) {
       h('div', { class: 'field' }, h('label', null, 'Cores'), h('div', { class: 'swatches' }, color('trBg', 'Fundo'), color('trLine', 'Linha'), color('trAccent', 'Destaque')))),
     slider('trDensity', 'Densidade', 20, 160), slider('trSpeed', 'Velocidade', 0, 150), slider('trRelief', 'Relevo', 0, 200, (v) => v + '%'), slider('trSun', 'Tamanho do sol', 0, 250, (v) => v + '%'),
     slider('trCam', 'Altura da câmera', 30, 200, (v) => v + '%'), slider('trHover', 'Hover (mouse)', 0, 200, (v) => v + '%'), slider('trInterval', 'Linha de destaque a cada', 2, 12), slider('trSoft', 'Suavizar linhas', 0, 80, (v) => v + '%'),
+    benchRow(window.KBTerrain),
     h('div', { class: 'help' }, 'Mova o mouse: a câmera acompanha. Com “Fundo animado” desligado (ou movimento reduzido no sistema) o terreno fica parado.'));
 }
 function shaderControls(p) {
@@ -1008,6 +1016,7 @@ function shaderControls(p) {
       h('div', { class: 'field' }, h('label', null, 'Cores'), h('div', { class: 'swatches' }, color('shC1', '1'), color('shC2', '2'), color('shC3', '3')))),
     slider('shSpeed', 'Velocidade', 0, 150, (v) => (v / 100).toFixed(1).replace('.', ',') + '×'), slider('shStrength', 'Força', 0, 100, (v) => v + '%'),
     slider('shDensity', 'Densidade', 0, 100, (v) => v + '%'), slider('shGrain', 'Grão', 0, 30, (v) => v + '%'), slider('shDim', 'Escurecer', 0, 80, (v) => v + '%'),
+    benchRow(window.KBShader),
     h('div', { class: 'help' }, 'Dica: no modo escuro o fundo escurece sozinho. Com “Fundo animado” desligado (ou movimento reduzido no sistema) ele fica parado.'));
 }
 async function resetPrefs() {
