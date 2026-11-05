@@ -1057,17 +1057,21 @@ function openTask(id) {
     if (!el.isConnected || !el.offsetParent) { if (n < 40) requestAnimationFrame(() => fitCl(el, n + 1)); return; }
     el.style.height = 'auto'; el.style.height = Math.max(26, el.scrollHeight) + 'px';
   };
+  let hideDone = false; try { hideDone = localStorage.getItem('kb-cl-hide') === '1'; } catch { /* ok */ }
   const drawCl = () => {
     const done = items.filter((i) => i.done).length;
+    const oldList = clBox.querySelector('.cl-list'), keepY = oldList ? oldList.scrollTop : 0;
+    const shown = items.map((it, idx) => [it, idx]).filter(([it]) => !(hideDone && it.done));
     clBox.replaceChildren(
-      items.length > 0 && h('div', { class: 'cl-head' }, h('div', { class: 'cl-bar' }, h('i', { style: { width: (items.length ? (done / items.length) * 100 : 0) + '%' } })), h('span', { class: 'help' }, `${done}/${items.length}`)),
-      ...items.map((it, idx) => h('div', { class: 'cl-item' + (it.done ? ' done' : '') },
+      items.length > 0 && h('div', { class: 'cl-head' }, h('div', { class: 'cl-bar' }, h('i', { style: { width: (items.length ? (done / items.length) * 100 : 0) + '%' } })), h('span', { class: 'help' }, `${done}/${items.length}`),
+        done > 0 && h('button', { class: 'btn ghost sm cl-toggle', type: 'button', 'aria-pressed': String(hideDone), onclick: () => { hideDone = !hideDone; try { localStorage.setItem('kb-cl-hide', hideDone ? '1' : ''); } catch { /* ok */ } drawCl(); } }, hideDone ? `Mostrar concluídos (${done})` : 'Ocultar concluídos')),
+      h('div', { class: 'cl-list' }, shown.length === 0 && items.length > 0 ? h('div', { class: 'help', style: { padding: '6px 2px' } }, 'Todos os itens estão concluídos (ocultos).') : null, ...shown.map(([it, idx]) => h('div', { class: 'cl-item' + (it.done ? ' done' : '') },
         h('input', { type: 'checkbox', checked: it.done, 'aria-label': 'Concluir item', onchange: (e) => { it.done = e.target.checked; drawCl(); saveCl(); } }),
         h('textarea', { class: 'cl-text', rows: 1, value: it.text, maxLength: 2000, 'aria-label': 'Texto do item',
           oninput: (e) => fitCl(e.target),
           onkeydown: (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.target.blur(); } }, // Enter confirma; Shift+Enter quebra linha
           onchange: (e) => { const v = e.target.value.trim(); if (!v) items.splice(idx, 1); else it.text = v; drawCl(); saveCl(); } }),
-        h('button', { class: 'btn ghost icon sm', title: 'Remover item', 'aria-label': 'Remover item', onclick: () => { items.splice(idx, 1); drawCl(); saveCl(); } }, icon('x')))),
+        h('button', { class: 'btn ghost icon sm', title: 'Remover item', 'aria-label': 'Remover item', onclick: () => { items.splice(idx, 1); drawCl(); saveCl(); } }, icon('x'))))),
       items.length < 300 && h('textarea', { class: 'input cl-add', rows: 1, placeholder: '+ Adicionar item (Enter) · ou cole uma lista', maxLength: 20000, 'aria-label': 'Novo item do checklist',
         // plano B se o navegador não entregar o evento "paste": o campo aceita quebras de linha, então a lista colada chega inteira
         oninput: (e) => {
@@ -1093,6 +1097,7 @@ function openTask(id) {
       } }));
     clBox.querySelectorAll('.btn svg').forEach((v) => Object.assign(v.style, { width: '14px', height: '14px' }));
     clBox.querySelectorAll('.cl-text').forEach((e) => fitCl(e));
+    const nl = clBox.querySelector('.cl-list'); if (nl && keepY) nl.scrollTop = keepY;
   };
   drawCl();
 
