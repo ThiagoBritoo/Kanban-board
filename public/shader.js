@@ -77,6 +77,12 @@ void main(){
   // chamado pelo applyPrefs: p = preferências, mode = 'light' | 'dark'
   window.KBShader = {
     supported: () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl')); } catch { return false; } },
+    // mede o custo de desenho neste aparelho (gl.readPixels no fim espera a GPU terminar)
+    bench(n = 40) {
+      if (!gl || !cfg) return null;
+      const s0 = performance.now(); for (let i = 0; i < n; i++) draw(i / 30); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));
+      return { ms: (performance.now() - s0) / n, w: cv.width, h: cv.height };
+    },
     update(p, mode) {
       const on = p.bg === 'shader';
       document.documentElement.dataset.shader = on ? 'on' : 'off';
