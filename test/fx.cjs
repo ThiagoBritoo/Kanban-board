@@ -1,4 +1,4 @@
-// Teste do fundo "fundos de efeito (fx.js)" (Canvas 2D). Uso: SUPABASE_UMD=<supabase.js> node test/terrain.cjs [pasta-de-capturas]
+// Teste do fundo "fundos de efeito (fx.js)" (Lightfall em WebGL, os demais em Canvas 2D). Uso: SUPABASE_UMD=<supabase.js> node test/terrain.cjs [pasta-de-capturas]
 const { chromium } = require('playwright'); const fs = require('fs'), http = require('http'), path = require('path'), os = require('os');
 const ROOT = path.join(__dirname, '..', 'public'), UMD = fs.readFileSync(process.env.SUPABASE_UMD || require.resolve('@supabase/supabase-js/dist/umd/supabase.js'), 'utf8'), fake = require('./fake-supabase.cjs')();
 const OUT = process.argv[2] || os.tmpdir(); let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fails++; };
@@ -37,5 +37,7 @@ const srv = http.createServer((q, r) => { let u = new URL(q.url, 'http://x').pat
   }
   await p.evaluate(() => window.KBApp.setPrefs({ theme: 'minimal', bg: 'theme' }, { refreshSettings: false })); await p.waitForTimeout(300);
   ok(await p.evaluate(() => document.documentElement.dataset.fxbg === 'off'), 'sair do tema desliga o fundo');
+  await p.setViewportSize({ width: 390, height: 800 }); await p.evaluate(() => window.KBApp.setPrefs({ theme: 'chuvaluz', mode: 'dark', bg: 'theme', fx: true }, { refreshSettings: false })); await p.waitForTimeout(900);
+  ok(await p.evaluate(() => document.documentElement.dataset.fxbg === 'lightfall' && document.getElementById('fxgl').width > 64), 'celular: Lightfall em WebGL ligado'); await p.screenshot({ path: OUT + '/tema-chuvaluz-celular.png' });
   ok(!errs.length, 'sem erros de JS' + (errs.length ? ': ' + errs.join(' | ') : '')); await b.close(); srv.close(); process.exit(fails ? 1 : 0);
 })();

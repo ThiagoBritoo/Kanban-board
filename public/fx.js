@@ -1,5 +1,5 @@
-// Fundos de efeito (Canvas 2D, sem dependências): Lightfall, Grid Hole, Ink Flow Field e Parallax vertical.
-// Recriados do zero a partir do nome/ideia do efeito (as páginas originais não estavam acessíveis). Controles: cores, velocidade, intensidade.
+// Fundos de efeito (sem dependências): Lightfall (WebGL, com reserva em Canvas 2D), Grid Hole, Ink Flow Field e Parallax vertical (Canvas 2D).
+// Código próprio, a partir do efeito do OriginKit (referência em docs/originkit-cache). Controles: cores, velocidade, intensidade.
 // ~30 fps, meia resolução, pausa com a aba oculta; parado com "fundo animado" desligado ou movimento reduzido.
 (() => {
   const PRESETS = {
@@ -25,6 +25,82 @@
   let mx = 0.5, my = 0.5, tx = 0.5, ty = 0.5, scrollY = 0, scrollT = 0;
   let streaks = [], parts = [], inkReset = true, ema = 0, qual = 1;
 
+  // ---------- Lightfall em WebGL: fios de luz caem na parede curva de um cilindro (interseção analítica, sem raymarch).
+  // Colunas com sorteio próprio (velocidade, fase, cor, cauda); cabeça brilhante, cauda que some, cintilar e brilho de fundo.
+  const GL_VS = 'attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}';
+  const GL_FS = `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+uniform vec2 uRes; uniform float uT, uMx, uGlow, uLayers, uDark; uniform vec3 uBg, uC1, uC2;
+const float D = 15.0;      // colunas por unidade de x
+const float F = 1.35;      // distância focal (curvatura da parede)
+const float LOOP = 2.3;    // comprimento (rad) do ciclo de uma faixa
+float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+void main(){
+  vec2 u = (gl_FragCoord.xy * 2.0 - uRes) / uRes.y;
+  u.x += (uMx - 0.5) * 0.25;
+  float rho = sqrt(u.y * u.y + F * F), x = u.x / rho * D, th = atan(u.y, F) / LOOP;
+  // tamanho do pixel em unidades de coluna: dá o suavizado das bordas sem derivadas do hardware
+  float fp = (abs(1.0 / rho) + abs(u.x * u.y / (rho * rho * rho))) * D * (2.0 / uRes.y);
+  float e = 0.004;
+  vec3 accC = vec3(0.0); float accA = 0.0;
+  for (int m = 0; m < 12; m++) {
+    float fm = float(m);
+    if (fm >= uLayers) break;
+    float xs = x + fm * 0.37 + fm * fm * 0.11, cell = floor(xs), fx = fract(xs) - 0.5;
+    float i1 = h21(vec2(cell, fm)), i2 = h21(vec2(cell, fm + 20.0)), i3 = h21(vec2(cell, fm + 40.0)), i4 = h21(vec2(cell, fm + 60.0));
+    float b = fract(th + uT * (0.05 + 0.11 * i1) + i2 + e) - e;     // distância atrás da cabeça (fração do ciclo)
+    float tl = 0.10 + 0.32 * i3, bp = max(b, 0.0);
+    float tail = exp(-bp / tl * 3.2) * smoothstep(-e, 0.0, b);
+    float head = exp(-bp / (tl * 0.07)) * 1.5 * smoothstep(-e, 0.0, b);
+    float hw = 0.075 + 0.05 * i4, w = max(hw, fp);                   // largura da linha (nunca menor que um pixel)
+    float lat = exp(-(fx * fx) / (w * w)) * min(1.0, hw / w);
+    vec3 col = mix(uC1, uC2, i4);
+    float tw = 1.0 + 0.4 * sin(uT * 1.7 + i3 * 40.0);
+    float a = (tail + head) * lat * tw * (0.5 + 0.5 * i2) * (1.0 - 0.7 * smoothstep(0.8, 1.9, abs(u.x)));   // bordas mais fracas: não brigam com a barra lateral
+    vec3 hc = mix(col, vec3(1.0), 0.45 * uDark);
+    accC += mix(col, hc, clamp(head / max(tail + head, 1e-4), 0.0, 1.0)) * a; accA += a;
+  }
+  float g = exp(-dot(u * vec2(0.7, 1.0), u * vec2(0.7, 1.0)) * 1.1);
+  vec3 base = mix(uBg, mix(uBg, uC1, 0.16), g * mix(0.45, 1.0, uDark));
+  vec3 outc;
+  if (uDark > 0.5) outc = base + (1.0 - exp(-accC * uGlow));
+  else outc = mix(base, accC / max(accA, 1e-4), (1.0 - exp(-accA * uGlow * 0.8)) * 0.9);
+  gl_FragColor = vec4(outc, 1.0);
+}`;
+  let gcv, gl, glProg, glU, glOk = false;
+  function glInit() {
+    if (glOk) return true; if (gcv === false) return false;
+    const deco = document.getElementById('deco'); if (!deco) return false;
+    gcv = document.createElement('canvas'); gcv.id = 'fxgl'; gcv.setAttribute('aria-hidden', 'true'); deco.prepend(gcv);
+    gl = gcv.getContext('webgl', { alpha: false, antialias: false, powerPreference: 'low-power' });
+    const bad = () => { gcv.remove(); gcv = false; gl = null; return false; };
+    if (!gl) return bad();
+    const sh = (t, src) => { const o = gl.createShader(t); gl.shaderSource(o, src); gl.compileShader(o); return gl.getShaderParameter(o, gl.COMPILE_STATUS) ? o : null; };
+    const vs = sh(gl.VERTEX_SHADER, GL_VS), fs = sh(gl.FRAGMENT_SHADER, GL_FS); if (!vs || !fs) return bad();
+    glProg = gl.createProgram(); gl.attachShader(glProg, vs); gl.attachShader(glProg, fs); gl.linkProgram(glProg);
+    if (!gl.getProgramParameter(glProg, gl.LINK_STATUS)) return bad();
+    gl.useProgram(glProg); const bf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, bf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const pl = gl.getAttribLocation(glProg, 'p'); gl.enableVertexAttribArray(pl); gl.vertexAttribPointer(pl, 2, gl.FLOAT, false, 0, 0);
+    glU = {}; for (const n of ['uRes', 'uT', 'uMx', 'uGlow', 'uLayers', 'uDark', 'uBg', 'uC1', 'uC2']) glU[n] = gl.getUniformLocation(glProg, n);
+    // se o navegador perder o contexto, volta para a versão em Canvas 2D sem quebrar a tela
+    gcv.addEventListener('webglcontextlost', (e) => { e.preventDefault(); glOk = false; if (cfg) { stop(); gcv.style.display = 'none'; cv && (cv.style.display = ''); resize(); run(); } });
+    return (glOk = true);
+  }
+  const useGL = () => glOk && cfg && cfg.type === 'lightfall';
+  function glDraw(t) {
+    const c = cfg, dark = lum(c.bgc) < 0.5;
+    gl.viewport(0, 0, gcv.width, gcv.height); gl.uniform2f(glU.uRes, gcv.width, gcv.height);
+    gl.uniform1f(glU.uT, t * c.sp + 8); gl.uniform1f(glU.uMx, mx);
+    gl.uniform1f(glU.uLayers, Math.max(3, Math.min(12, Math.round(7 * c.amt)))); gl.uniform1f(glU.uGlow, (dark ? 0.9 : 1.1) * Math.min(1.4, 0.6 + c.amt * 0.4)); gl.uniform1f(glU.uDark, dark ? 1 : 0);
+    gl.uniform3f(glU.uBg, c.bgc[0] / 255, c.bgc[1] / 255, c.bgc[2] / 255); gl.uniform3f(glU.uC1, c.c1[0] / 255, c.c1[1] / 255, c.c1[2] / 255); gl.uniform3f(glU.uC2, c.c2[0] / 255, c.c2[1] / 255, c.c2[2] / 255);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
   function init() {
     if (cv) return true;
     const deco = document.getElementById('deco'); if (!deco) return false;
@@ -42,6 +118,7 @@
     const s = Math.min(1, window.devicePixelRatio || 1) * 0.6;
     W = Math.max(64, Math.round(innerWidth * s)); H = Math.max(64, Math.round(innerHeight * s));
     if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+    if (gcv && glOk) { const g = Math.min(1.5, window.devicePixelRatio || 1) * 0.75; gcv.width = Math.max(64, Math.round(innerWidth * g)); gcv.height = Math.max(64, Math.round(innerHeight * g)); }
     streaks = []; parts = []; inkReset = true;
     draw((performance.now() - t0) / 1000, 0.033);
   }
@@ -130,6 +207,7 @@
   function draw(t, dt) {
     if (!ctx || !cfg) return;
     mx += (tx - mx) * 0.07; my += (ty - my) * 0.07;
+    if (useGL()) return glDraw(t);
     ({ lightfall, gridhole, ink, parallax }[cfg.type] || lightfall)(t, dt || 0.033);
   }
   function frame(now) {
@@ -145,7 +223,8 @@
     PRESETS, TYPES,
     bench(n = 40) {
       if (!ctx || !cfg) return null;
-      const s = performance.now(); for (let i = 0; i < n; i++) draw(i / 30, 0.033); ctx.getImageData(0, 0, 1, 1);
+      const s = performance.now(); for (let i = 0; i < n; i++) draw(i / 30, 0.033);
+      if (useGL()) gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4)); else ctx.getImageData(0, 0, 1, 1);
       return { ms: (performance.now() - s) / n, w: W, h: H };
     },
     // mode = claro/escuro; theme = id (os temas de AUTO ligam o fundo sozinhos quando o fundo é "do tema")
@@ -154,9 +233,10 @@
       const on = !!au || TYPES.includes(p.bg), type = au ? au[0] : p.bg;
       if (au) p = { ...p, ...au[mode === 'dark' ? 2 : 1] };
       document.documentElement.dataset.fxbg = on ? type : 'off';
-      if (!on) { stop(); if (cv) cv.style.display = 'none'; return; }
+      if (!on) { stop(); if (cv) cv.style.display = 'none'; if (gcv) gcv.style.display = 'none'; return; }
       if (!init()) return;
-      cv.style.display = '';
+      if (type === 'lightfall') glInit();
+      const gl_ = type === 'lightfall' && glOk; cv.style.display = gl_ ? 'none' : ''; if (gcv) gcv.style.display = gl_ ? '' : 'none';
       const bgc = rgb(p.fxBg || '#05060f');
       cfg = { type, bgc, c1: rgb(p.fxC1 || '#7c9cff'), c2: rgb(p.fxC2 || '#ff5fd2'), sp: Math.max(0.05, (p.fxSp ?? 100) / 100), amt: Math.max(0.2, (p.fxAmt ?? 100) / 100),
         animate: p.fx !== false && p.motion !== false };
