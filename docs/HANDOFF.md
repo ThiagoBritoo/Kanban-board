@@ -4,7 +4,7 @@
 > Não há segredos aqui. A chave `anon` do Supabase é pública por desenho e está em `public/config.js`.
 
 ## 1. O que é
-Kanban para as tasks da empresa de **Thiago** (e talvez mais 1 pessoa). Login com contas, tempo real, 38 temas (todos claro+escuro), "gerar diário"
+Kanban para as tasks da empresa de **Thiago** (e talvez mais 1 pessoa). Login com contas, tempo real, 41 temas (todos claro+escuro), "gerar diário"
 (bullets do que foi trabalhado hoje), cronômetro, anexos, vistas Quadro/Lista/Calendário/Painel. Em produção e em uso.
 Idioma da interface e das conversas: **português do Brasil**.
 
@@ -73,7 +73,7 @@ estrutura: barra lateral com contadores, modal da task em 2 colunas, cartão com
   O terreno é limitado pela CPU; numa GPU real o shader custa quase nada. O terreno tem **qualidade adaptativa** (reduz linhas em aparelho lento). Botão **"Medir desempenho neste aparelho"** em Personalizar → Fundo.
 - **Fundos de efeito** (`public/fx.js`, Canvas 2D, teste `test/fx.cjs`): Lightfall, Grid Hole, Ink Flow Field e Parallax vertical (rola o quadro). Pedidos pelo Thiago em 05/11; Lightfall, Grid Hole e Ink já foram refeitos vendo o original (ver acima); Parallax e Pulsating Border ainda são recriações a partir do nome. Em cartões: borda pulsante (opt-in, só prioridade alta/urgente, sem animação com movimento reduzido) e luz caindo no hover (`pulse`, `cardLight`).
 - **Fundos refeitos a partir dos originais** (código em `docs/originkit-cache/`, tudo com código próprio em `public/fx.js`; controles continuam só cores/velocidade/intensidade): **Lightfall** = shader WebGL (faixas na parede curva de um cilindro; cabeça/cauda, cintilar, brilho de fundo) · **Ink Flow Field** = fluido estável WebGL (splat, vorticidade, pressão Jacobi, advecção; dois agitadores autônomos + mouse; densidade no canal alfa; exige `OES_texture_half_float(+linear)` e `EXT_color_buffer_half_float`) · **Grid Hole** = Canvas 2D (o original é Canvas 2D): funil com anéis elípticos fluindo, 80 linhas radiais, túnel recortado, partículas em leque, vinheta e brilho. Lightfall e Ink compartilham um canvas WebGL (`#fxgl`); sem WebGL (ou sem textura de meia precisão) caem na versão Canvas 2D antiga (`#fxbg`). **Falta** abrir Vertical Parallax e Pulsating Border (cota do OriginKit) e compará-los com `fx.js`/`app.css`.
-- **Temas com fundo automático** (como Topografia, mas via `fx.js`): Chuva de luz (lightfall), Singularidade (grid hole), Nanquim (ink flow), Cordilheira (parallax); paleta claro/escuro no mapa `AUTO` de `fx.js` + tokens em `themes.css`. Total: 38 temas.
+- **Temas com fundo automático** (como Topografia, mas via `fx.js`): Chuva de luz (lightfall), Singularidade (grid hole), Nanquim (ink flow), Cordilheira (parallax); paleta claro/escuro no mapa `AUTO` de `fx.js` + tokens em `themes.css`. Total: 41 temas.
 - Ideia pendente: versão **WebGL** do terreno ("qualidade alta": malha mais densa, brilho), com o Canvas 2D como reserva.
 
 ## 9. Pendências e ideias

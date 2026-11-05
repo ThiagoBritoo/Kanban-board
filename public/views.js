@@ -31,7 +31,11 @@
           h('td', { class: 'c-labels' }, t.labels.map((l) => h('span', { class: 'tag', style: { '--h': hueOf(l) } }, l))),
           h('td', { class: 'c-time' }, totalSecs(t) > 0 ? h('span', { class: 'due' + (t.timer_started_at ? ' timer-live running' : ''), dataset: t.timer_started_at ? { since: t.timer_started_at, base: t.time_spent } : {} }, icon('timer'), fmtDur(totalSecs(t))) : ''));
       })));
-    const wrap = h('div', { class: 'list-wrap' }, rows.length ? table : h('div', { class: 'empty-hint', style: { padding: '40px' } }, A.filtersActive() ? 'Nada com esse filtro' : 'Nenhuma task ainda. Pressione N para criar a primeira.'),
+    const sortBar = h('div', { class: 'list-sort' }, h('label', { class: 'help' }, 'Ordenar por'),
+      h('select', { class: 'input', 'aria-label': 'Ordenar lista por', onchange: (e) => { S.listSort = { key: e.target.value, dir: 1 }; A.renderBoard(); } },
+        [['col', 'Status'], ['title', 'Task'], ['owner', 'Responsável'], ['prio', 'Prioridade'], ['due', 'Prazo'], ['time', 'Tempo']].map(([k, l]) => h('option', { value: k, selected: sort.key === k }, l))),
+      h('button', { class: 'btn sm', type: 'button', 'aria-label': 'Inverter a ordem', title: 'Inverter a ordem', onclick: () => { S.listSort = { key: sort.key, dir: -sort.dir }; A.renderBoard(); } }, sort.dir > 0 ? '▲' : '▼'));
+    const wrap = h('div', { class: 'list-wrap' }, sortBar, rows.length ? table : h('div', { class: 'empty-hint', style: { padding: '40px' } }, A.filtersActive() ? 'Nada com esse filtro' : 'Nenhuma task ainda. Pressione N para criar a primeira.'),
       h('div', { class: 'help', style: { padding: '8px 4px' } }, `${rows.length} task${rows.length === 1 ? '' : 's'}`));
     svgIcons(wrap, 13);
     return wrap;
