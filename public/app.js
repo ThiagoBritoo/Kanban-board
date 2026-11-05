@@ -81,7 +81,13 @@ const api = async (method, url, body) => {
   try { const r = await KB.api(method, url, body); if (S.offline) setOffline(false); return r; }
   catch (e) {
     if (/Sem conexão|Failed to fetch|NetworkError/i.test(e.message)) setOffline(true);
-    if (/JWT|token is expired|not authenticated|invalid claim/i.test(e.message)) { try { await KB.signOut(); } catch { /* ok */ } location.reload(); }
+    if (/JWT|token is expired|not authenticated|invalid claim/i.test(e.message)) {
+      // tenta renovar a sessão e repetir UMA vez; só desloga se a renovação falhar de forma definitiva
+      let st = 'error'; try { st = await KB.refresh(); } catch { /* ok */ }
+      if (st === 'ok') return KB.api(method, url, body);
+      if (st === 'invalid') { try { await KB.signOut(); } catch { /* ok */ } location.reload(); }
+      else setOffline(true);
+    }
     throw e;
   }
 };
@@ -399,7 +405,14 @@ function authShell(...kids) {
   authBackdrop();
 }
 async function start() {
-  const s = await KB.getSession();
+  // a leitura pode falhar por instantes (renovação do token ao trocar de aparelho/modo/aba): tenta de novo antes de mandar para o login
+  let s = { user: null }, lastErr = null;
+  for (const wait of [0, 500, 1500]) {
+    if (wait) await new Promise((r) => setTimeout(r, wait));
+    try { s = await KB.getSession(); lastErr = null; } catch (e) { lastErr = e; }
+    if (s.user || !KB.hasStoredSession()) break; // sem sessão guardada = visitante novo: login na hora
+  }
+  if (lastErr) throw lastErr;
   s.user ? await boot(s.user) : renderAuth('login');
 }
 function renderAuth(mode = 'login') {
@@ -1056,13 +1069,12 @@ function viewLook() {
   const seg = (key, opts) => h('div', { class: 'seg' }, opts.map(([v, l]) => h('button', { type: 'button', class: p[key] === v ? 'on' : '', onclick: () => setPrefs({ [key]: v }) }, l)));
   const toggle = (key, label) => h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !!p[key], onchange: (e) => setPrefs({ [key]: e.target.checked }) }), label);
   const swatchColors = ['#6366f1', '#2563eb', '#0ea5e9', '#14b8a6', '#22c55e', '#eab308', '#f97316', '#ef4444', '#ec4899', '#a855f7'];
-  themeFilterState.q = ''; themeFilterState.fx = 'all';
   const G = {
     tema: [
       h('div', { class: 'field' }, h('label', null, `Tema (${THEMES.length})`),
         h('div', { class: 'theme-tools' },
-          h('input', { class: 'input', style: { maxWidth: '220px' }, placeholder: 'Buscar tema…', type: 'search', 'aria-label': 'Buscar tema', oninput: (e) => filterThemes(e.target.closest('.field'), { q: e.target.value }) }),
-          h('div', { class: 'seg theme-filter' }, [['all', 'Todos'], ['fx', 'Animados'], ['static', 'Estáticos']].map(([k, l]) => h('button', { type: 'button', class: k === 'all' ? 'on' : '', onclick: (e) => { const f = e.target.closest('.field'); f.querySelectorAll('.theme-filter button').forEach((b) => b.classList.toggle('on', b === e.target)); filterThemes(f, { fx: k }); } }, l))),
+          h('input', { class: 'input', style: { maxWidth: '220px' }, placeholder: 'Buscar tema…', type: 'search', value: themeFilterState.q, 'aria-label': 'Buscar tema', oninput: (e) => filterThemes(e.target.closest('.field'), { q: e.target.value }) }),
+          h('div', { class: 'seg theme-filter' }, [['all', 'Todos'], ['fx', 'Animados'], ['static', 'Estáticos']].map(([k, l]) => h('button', { type: 'button', class: k === themeFilterState.fx ? 'on' : '', onclick: (e) => { const f = e.target.closest('.field'); f.querySelectorAll('.theme-filter button').forEach((b) => b.classList.toggle('on', b === e.target)); filterThemes(f, { fx: k }); } }, l))),
           h('button', { class: 'btn sm', onclick: () => { const others = THEMES.filter((t) => t[0] !== p.theme); setPrefs({ theme: others[Math.floor(Math.random() * others.length)][0] }); } }, 'Surpreenda-me')),
         h('span', { class: 'help' }, 'Todos têm modo claro e escuro. “Animado” = tem efeito de fundo (dá para desligar ou ajustar abaixo).'),
         [...new Set(THEMES.map((t) => t[3]))].map((cat) => h('div', { class: 'theme-group' }, h('div', { class: 'theme-cat' }, cat),
@@ -1126,6 +1138,7 @@ function viewLook() {
   };
   const tabs = [['tema', 'Tema'], ['cores', 'Cores'], ['fundo', 'Fundo'], ['cartoes', 'Cartões'], ['comportamento', 'Geral']];
   const cur = G[S.lookTab] ? S.lookTab : 'tema';
+  if (cur === 'tema' && (themeFilterState.q || themeFilterState.fx !== 'all')) filterThemes(G.tema[0], {});
   return h('div', { class: 'modal-body' },
     h('div', { class: 'seg look-tabs', role: 'tablist' }, tabs.map(([k, l]) => h('button', { type: 'button', role: 'tab', 'aria-selected': String(k === cur), class: k === cur ? 'on' : '', onclick: () => { if (k === cur) return; S.tabDir = tabs.findIndex((x) => x[0] === k) > tabs.findIndex((x) => x[0] === cur) ? 1 : -1; S.lookTab = k; S.refreshSettings && S.refreshSettings(); slideIn([...document.querySelectorAll('.drawer-panel .modal-body > :not(.look-tabs):not(.set-foot)')]); } }, l))),
     ...G[cur],

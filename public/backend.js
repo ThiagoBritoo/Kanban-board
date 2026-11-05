@@ -153,6 +153,14 @@
       const p = await profile(session.user.id);
       return p ? { user: userOut(p) } : { user: null };
     },
+    hasStoredSession() { try { return Object.keys(localStorage).some((k) => /^sb-.*-auth-token$/.test(k) && localStorage.getItem(k)); } catch { return false; } },
+    // renova o token: 'ok' | 'invalid' (sessão realmente inválida) | 'error' (rede/instabilidade: não deslogar)
+    async refresh() {
+      need();
+      const { data, error } = await sb.auth.refreshSession();
+      if (data && data.session) return 'ok';
+      return error && /refresh_token|invalid|not found|expired|already used/i.test(error.message || '') && !/fetch|network/i.test(error.message || '') ? 'invalid' : 'error';
+    },
     async signIn(email, password) { need(); unwrap(await sb.auth.signInWithPassword({ email: email.trim(), password })); },
     async signUp(name, email, password) {
       need();

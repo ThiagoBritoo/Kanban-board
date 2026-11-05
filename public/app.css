@@ -572,3 +572,26 @@ html[data-cardlight="on"][data-fx="on"][data-motion="on"] .card:hover{background
 .col-body[data-scb="1"]::after{bottom:0;margin:calc(-16px - var(--gap)) 0 calc(-1 * var(--gap)) 0;-webkit-mask-image:linear-gradient(transparent,#000 65%);mask-image:linear-gradient(transparent,#000 65%)}
 @keyframes fade-edge{from{opacity:0}}
 html[data-fx="off"] .col-body::before,html[data-fx="off"] .col-body::after{-webkit-backdrop-filter:none;backdrop-filter:none}
+
+/* ===== palavras estourando / celular ===== */
+body{overflow-wrap:break-word}
+.seg{max-width:100%;flex-wrap:wrap}
+.theme-name b,.theme-name span,.lt-title,.col-title,.sb-label,.cal-chip,.kpi-l,.help{overflow-wrap:anywhere}
+.fx-badge{white-space:nowrap;display:inline-block}
+.modal,.modal-body,.field{min-width:0}
+.btn{max-width:100%}
+@media (max-width:480px){
+  .brand{display:none}
+  .view-seg button{padding:5px 7px}
+}
+@media (max-width:720px){
+  /* lista vira linhas empilhadas (sem rolagem horizontal) */
+  .list-table thead{display:none}
+  .list-table,.list-table tbody{display:block}
+  .list-table tr{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:10px 12px;border-bottom:1px solid var(--line)}
+  .list-table tbody tr:last-child{border-bottom:none}
+  .list-table td{padding:0;border:0;min-width:0}
+  .list-table td.c-title{flex:1 1 100%;overflow-wrap:anywhere}
+}
+input[type=range]{max-width:100%}
+.cal-day{min-width:0;overflow:hidden}.cal-num{white-space:nowrap}
