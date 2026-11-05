@@ -112,6 +112,8 @@ module.exports = function makeFake() {
         if (m === 'POST') return send(200, { signedURL: p.replace('/storage/v1', '') + '?token=t' });
         return route.fulfill({ status: 200, headers: { ...cors, 'content-type': 'image/png' }, body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64') });
       }
+      if (p.startsWith('/storage/v1/object/public/avatars/')) return route.fulfill({ status: 200, headers: { ...cors, 'content-type': 'image/png' }, body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64') });
+      if (p.startsWith('/storage/v1/object/avatars/')) { if (m === 'POST' || m === 'PUT') { db.files['avatars/' + decodeURIComponent(p.replace('/storage/v1/object/avatars/', ''))] = 1; return send(200, { Key: 'avatars/x', Id: 'x' }); } }
       if (p.startsWith('/storage/v1/object/attachments')) {
         if (m === 'POST') { db.files[decodeURIComponent(p.replace('/storage/v1/object/attachments/', ''))] = (req.postDataBuffer() || Buffer.from('')).length; return send(200, { Key: 'attachments/x', Id: 'x' }); }
         if (m === 'DELETE') { const b = JSON.parse(req.postData() || '{}'); (b.prefixes || []).forEach((x) => delete db.files[x]); return send(200, []); }

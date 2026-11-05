@@ -75,6 +75,22 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   // setas navegam entre cartões
   await p.locator('.column:nth-child(1) .card').first().focus(); await p.keyboard.press('ArrowDown'); await p.waitForTimeout(100);
   ok(await p.evaluate(() => document.activeElement.classList.contains('card') && document.activeElement === document.querySelectorAll('.column:nth-child(1) .col-body > .card')[1]), 'seta para baixo vai para o próximo cartão');
+  // regra automática + coluna recolhida
+  await p.evaluate(async () => { await KBApp.api('PATCH', '/api/columns/3', { collapsed: true }); await KBApp.api('PATCH', '/api/columns/1', { auto_days: 1, auto_to: 3 }); await KBApp.loadBoard(); });
+  await p.waitForTimeout(300);
+  ok((await p.locator('.column').count()) === 3 && (await p.locator('.show-hidden').count()) === 1, 'coluna recolhida some do quadro e aparece o botão "Mostrar"');
+  await p.click('.show-hidden'); await p.waitForTimeout(250); ok((await p.locator('.column').count()) === 4, '"Mostrar" revela a coluna recolhida');
+  fake.db.tasks.filter((t) => t.column_id === 1).forEach((t) => (t.column_since = new Date(Date.now() - 3 * 864e5).toISOString()));
+  const moved = await p.evaluate(() => KBApp.api('POST', '/api/rules/apply')); await p.evaluate(() => KBApp.loadBoard()); await p.waitForTimeout(400);
+  ok(moved.moved >= 1 && (await p.locator('.column:nth-child(1) .card').count()) === 0, 'regra move as tasks antigas para a coluna de destino (' + moved.moved + ')');
+  await p.evaluate(async () => { await KBApp.api('PATCH', '/api/columns/3', { collapsed: false }); await KBApp.api('PATCH', '/api/columns/1', { auto_days: null, auto_to: null }); await KBApp.loadBoard(); });
+  // foto de perfil
+  await p.evaluate(() => KBApp.openSettings('account')); await p.waitForSelector('.drawer-panel'); await p.click('.tabs button:has-text("Conta")').catch(() => {}); await p.waitForTimeout(300);
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+  await p.setInputFiles('.photo-row ~ input[type=file], .field input[accept^="image"]', { name: 'eu.png', mimeType: 'image/png', buffer: png }); await p.waitForTimeout(1200);
+  ok(!!fake.db.profiles[0].avatar_url && Object.keys(fake.db.files).some((k) => k.startsWith('avatars/')), 'foto de perfil enviada e salva no perfil');
+  ok((await p.locator('.topbar .avatar.has-img img, .photo-row .avatar.has-img img').count()) >= 1, 'avatar mostra a foto');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(300);
   // 2) sessão sobrevive a recarregar, mesmo se a leitura do perfil falhar na 1ª vez
   let n = 0;
   await p.route('**/rest/v1/profiles?*', (r) => { if (n++ < 1) return r.abort(); return fake.handle(r); });

@@ -153,6 +153,7 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   ok(ajustes().finished_at == null && ajustes().started_at === started, 'voltar de Concluído limpa o fim e mantém o início');
 
   // anexos (upload + miniatura + contagem no card)
+  await p.locator('.card').filter({ hasText: 'Ajustes' }).first().click(); await p.waitForSelector('.modal'); await p.waitForTimeout(300);
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
   await p.setInputFiles('.modal input[type=file]', { name: 'print.png', mimeType: 'image/png', buffer: png }); await p.waitForTimeout(900);
   ok((await p.locator('.att-name:has-text("print.png")').count()) === 1, 'anexo enviado aparece na lista');

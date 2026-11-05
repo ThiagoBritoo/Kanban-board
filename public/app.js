@@ -160,7 +160,7 @@ const DEFAULT_PREFS = { fxBg: '#05060f', fxC1: '#7c9cff', fxC2: '#ff5fd2', fxSp:
   shType: 'plane', shC1: '#52ff89', shC2: '#dbba95', shC3: '#d0bce1', shSpeed: 40, shStrength: 50, shDensity: 40, shGrain: 4, shDim: 0,
   trType: 'linhas', trBg: '#f1ecdf', trLine: '#4a5a4c', trAccent: '#c8522e', trSun: 170, trRelief: 100, trDensity: 110, trSpeed: 40, trCam: 100, trHover: 40, trInterval: 5, trSoft: 0,
   sidebar: true, fx: true, fxSpeed: 100, fxIntensity: 100, cardStyle: 'theme', border: 'theme', shadow: 'theme', size: 'normal' };
-const S = { me: null, users: [], columns: [], tasks: [], prefs: { ...DEFAULT_PREFS }, filter: { q: '', who: 'all', due: null, label: null }, drafts: {}, drag: null, seen: null, showAllDone: false, online: new Set(), lastWrite: 0, loadedOnce: false };
+const S = { showHidden: (() => { try { return !!localStorage.getItem('kb-show-hidden'); } catch { return false; } })(), me: null, users: [], columns: [], tasks: [], prefs: { ...DEFAULT_PREFS }, filter: { q: '', who: 'all', due: null, label: null }, drafts: {}, drag: null, seen: null, showAllDone: false, online: new Set(), lastWrite: 0, loadedOnce: false };
 
 const SHADER_PRESETS = [
   ['Menta', 'plane', '#52ff89', '#dbba95', '#d0bce1'], ['Pôr do sol', 'plane', '#ff7a59', '#ffd27a', '#b967ff'], ['Oceano', 'waves', '#0ea5e9', '#22d3ee', '#6366f1'],
@@ -231,7 +231,9 @@ const colById = (id) => S.columns.find((c) => c.id === id);
 
 function avatar(user, size = 26) {
   if (!user) return h('span', { class: 'avatar empty', style: { '--s': size + 'px' }, title: 'Sem responsável' }, '?');
-  return h('span', { class: 'avatar', style: { '--s': size + 'px', background: user.color }, title: user.name }, initials(user.name));
+  const url = user.avatar_url && window.KB && KB.avatarUrl(user.avatar_url);
+  return h('span', { class: 'avatar' + (url ? ' has-img' : ''), style: { '--s': size + 'px', background: user.color }, title: user.name },
+    url ? h('img', { src: url, alt: '', loading: 'lazy', decoding: 'async', onerror: (e) => e.target.remove() }) : null, initials(user.name));
 }
 
 /* ================= modais, popovers, diálogos ================= */
@@ -315,7 +317,13 @@ async function loadBoard() {
   S.me = { ...S.me, ...me };
   renderBoard();
 }
+let rulesTimer = null;
+async function runRules() {
+  if (!S.columns.some((c) => c.auto_days && c.auto_to)) return;
+  try { const r = await api('POST', '/api/rules/apply'); if (r && r.moved > 0) { await loadBoard(); toast(`${r.moved} task${r.moved > 1 ? 's' : ''} movida${r.moved > 1 ? 's' : ''} pela regra automática`); } } catch { /* tenta de novo depois */ }
+}
 function connectStream() {
+  runRules(); clearInterval(rulesTimer); rulesTimer = setInterval(() => { if (!document.hidden) runRules(); }, 10 * 60 * 1000);
   KB.subscribe(scheduleLoad, { presence: { id: S.me.id, name: S.me.name }, onPresence: (ids) => { S.online = new Set(ids); renderToolbar(); } });
 }
 const upsertTask = (t) => { const i = S.tasks.findIndex((x) => x.id === t.id); i >= 0 ? (S.tasks[i] = t) : S.tasks.push(t); };
@@ -575,7 +583,7 @@ function renderToolbar() {
 
 function renderSidebar() {
   const sb = $('#sidebar'); if (!sb) return;
-  const f = S.filter, open = S.tasks.filter((t) => (colById(t.column_id) || {}).kind !== 'done');
+  const f = S.filter, open = S.tasks.filter((t) => { const c = colById(t.column_id) || {}; return c.kind !== 'done' && !c.collapsed; });
   const n = (fn) => open.filter(fn).length;
   const none = !f.q && f.who === 'all' && !f.due && !f.label && f.prio == null;
   const item = (label, count, active, onclick, lead, cls = '') => h('button', { type: 'button', class: 'sb-item' + (active ? ' on' : '') + (cls ? ' ' + cls : ''), 'aria-pressed': String(!!active), onclick },
@@ -630,7 +638,10 @@ function renderBoard() {
   const fa = document.activeElement;
   const focusCol = fa && fa.classList && fa.classList.contains('add-input') ? { id: fa.dataset.col, pos: fa.selectionStart } : null;
 
-  board.replaceChildren(...S.columns.map(renderColumn),
+  const hiddenCols = S.columns.filter((c) => c.collapsed);
+  board.replaceChildren(...S.columns.filter((c) => !c.collapsed || S.showHidden).map(renderColumn),
+    ...(hiddenCols.length ? [h('button', { class: 'new-col show-hidden', onclick: () => { S.showHidden = !S.showHidden; try { localStorage.setItem('kb-show-hidden', S.showHidden ? '1' : ''); } catch { /* ok */ } renderBoard(); } },
+      S.showHidden ? 'Ocultar ' : 'Mostrar ', hiddenCols.map((c) => c.name).join(' · '), ` (${S.tasks.filter((t) => hiddenCols.some((c) => c.id === t.column_id)).length})`)] : []),
     h('button', { class: 'new-col', onclick: guard(async () => {
       const name = await askText('Nova coluna', '', { placeholder: 'Ex.: Em teste', ok: 'Criar' });
       if (name) { await api('POST', '/api/columns', { name }); await loadBoard(); }
@@ -712,6 +723,16 @@ function columnMenu(col, anchor) {
     }) },
     ...(col.wip_limit ? [{ label: 'Remover limite', icon: 'x', onClick: guard(async () => { await api('PATCH', `/api/columns/${col.id}`, { wip_limit: null }); await loadBoard(); }) }] : []),
     { label: 'Cor da coluna…', icon: 'palette', onClick: () => popover(anchor, COL_COLORS.map(([name, c]) => ({ label: name, dot: c, checked: (col.color || null) === c, onClick: guard(async () => { await api('PATCH', `/api/columns/${col.id}`, { color: c }); await loadBoard(); }) }))) },
+    { label: col.auto_days ? `Regra: após ${col.auto_days} ${col.auto_days > 1 ? 'dias' : 'dia'} → ${(colById(col.auto_to) || {}).name || '?'}…` : 'Mover sozinhas depois de N dias…', icon: 'calendar', onClick: guard(async () => {
+      const v = await askText(`Depois de quantos dias nesta coluna a task vai para outra? (1 a 365)`, col.auto_days ? String(col.auto_days) : '', { ok: 'Escolher destino', placeholder: 'Ex.: 7' });
+      if (v == null) return; const n = parseInt(v, 10);
+      if (!(n >= 1 && n <= 365)) return toast('Informe um número de 1 a 365', true);
+      popover(anchor, S.columns.filter((c) => c.id !== col.id).map((c) => ({ label: 'Mover para ' + c.name, checked: col.auto_to === c.id, onClick: guard(async () => {
+        await api('PATCH', `/api/columns/${col.id}`, { auto_days: n, auto_to: c.id }); await loadBoard(); await runRules(); toast(`Depois de ${n} ${n > 1 ? 'dias' : 'dia'} as tasks de ${col.name} vão para ${c.name}`);
+      }) })));
+    }) },
+    ...(col.auto_days ? [{ label: 'Remover regra automática', icon: 'x', onClick: guard(async () => { await api('PATCH', `/api/columns/${col.id}`, { auto_days: null, auto_to: null }); await loadBoard(); }) }] : []),
+    { label: col.collapsed ? 'Mostrar sempre (não recolher)' : 'Recolher (escondida até pedir)', icon: 'list', checked: undefined, onClick: guard(async () => { await api('PATCH', `/api/columns/${col.id}`, { collapsed: !col.collapsed }); await loadBoard(); toast(col.collapsed ? 'Coluna visível' : 'Coluna recolhida: use "Mostrar" no fim do quadro'); }) },
     'hr', ...kinds.map(([k, label]) => ({ label: 'Conta como: ' + label, checked: col.kind === k, onClick: guard(async () => { await api('PATCH', `/api/columns/${col.id}`, { kind: k }); await loadBoard(); }) })),
     'hr',
     ...(idx > 0 ? [{ label: 'Mover para a esquerda', icon: 'left', onClick: guard(async () => { await api('PATCH', `/api/columns/${col.id}`, { dir: -1 }); await loadBoard(); }) }] : []),
@@ -887,12 +908,14 @@ function openTask(id) {
   const fmtSize = (n) => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
   const openAtt = async (a) => { const w = window.open('about:blank', '_blank'); try { const url = await KB.attachmentUrl(a.path); if (w) w.location.href = url; } catch (e) { w && w.close(); toast(e.message, true); } };
   const drawAtts = (list) => {
+    attBox.classList.toggle('grid', list.length > 0);
     attBox.replaceChildren(...list.map((a) => {
-      const thumb = h('span', { class: 'att-thumb' }, icon('clip'));
-      if ((a.mime || '').startsWith('image/')) KB.attachmentUrl(a.path).then((u) => { const im = h('img', { src: u, alt: '', loading: 'lazy' }); thumb.replaceChildren(im); }).catch(() => {});
-      return h('div', { class: 'att' }, thumb,
-        h('button', { class: 'att-name', title: 'Abrir', onclick: () => openAtt(a) }, a.name, h('small', null, `${fmtSize(a.size)} · ${userById(a.user_id)?.name || ''}`)),
-        h('button', { class: 'btn ghost icon sm', title: 'Remover anexo', 'aria-label': 'Remover anexo', onclick: guard(async () => { await KB.removeAttachment(a); loadAtts(); loadBoard(); }) }, icon('x')));
+      const isImg = (a.mime || '').startsWith('image/');
+      const thumb = h('button', { type: 'button', class: 'att-thumb' + (isImg ? ' img' : ''), title: 'Abrir ' + a.name, 'aria-label': 'Abrir ' + a.name, onclick: () => openAtt(a) }, icon('clip'));
+      if (isImg) KB.attachmentUrl(a.path).then((u) => { const im = h('img', { src: u, alt: a.name, loading: 'lazy' }); thumb.replaceChildren(im); }).catch(() => {});
+      return h('div', { class: 'att' + (isImg ? ' is-img' : '') }, thumb,
+        h('div', { class: 'att-info' }, h('button', { class: 'att-name', title: a.name, onclick: () => openAtt(a) }, a.name), h('small', null, fmtSize(a.size))),
+        h('button', { class: 'att-del btn ghost icon sm', title: 'Remover anexo', 'aria-label': 'Remover anexo', onclick: guard(async () => { await KB.removeAttachment(a); loadAtts(); loadBoard(); }) }, icon('x')));
     }), h('div', { class: 'att-add' }, h('button', { class: 'btn sm', onclick: () => fileInput.click() }, icon('clip'), 'Anexar arquivo'), h('span', { class: 'help' }, 'ou cole um print (Ctrl+V) / arraste arquivos aqui · até 10 MB'), fileInput));
     attBox.querySelectorAll('.btn svg').forEach((v) => Object.assign(v.style, { width: '14px', height: '14px' }));
   };
@@ -907,15 +930,19 @@ function openTask(id) {
   const comment = h('textarea', { class: 'textarea', style: { minHeight: '56px' }, placeholder: 'Escrever um comentário… (Ctrl+Enter envia)', maxLength: 2000,
     onkeydown: (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendComment(); } } });
   const sendComment = guard(async () => { const text = comment.value.trim(); if (!text) return; comment.value = ''; try { await api('POST', `/api/tasks/${id}/comments`, { text }); } catch (x) { comment.value = text; throw x; } loadEvents(); });
+  const commentsEl = h('div', { class: 'cm-list' });
   const timeline = h('div', { class: 'timeline' });
+  const histCount = h('span', { class: 'help' });
   async function loadEvents() {
     try {
       const ev = await api('GET', `/api/tasks/${id}/events`);
-      timeline.replaceChildren(...ev.map((e) => e.type === 'comment'
-        ? h('div', { class: 'cm' }, h('div', null, h('b', null, e.user_name || 'Alguém'), ' comentou', h('time', null, fmtTime(e.at))), h('div', { class: 'cm-text' }, (e.data && e.data.text) || ''))
-        : h('div', null, h('b', null, e.user_name || 'Alguém'), ' ' + eventText(e), h('time', null, fmtTime(e.at)))));
+      const cms = ev.filter((e) => e.type === 'comment'), rest = ev.filter((e) => e.type !== 'comment');
+      commentsEl.replaceChildren(...(cms.length ? cms.map((e) => h('div', { class: 'cm' }, h('div', null, h('b', null, e.user_name || 'Alguém'), h('time', null, fmtTime(e.at))), h('div', { class: 'cm-text' }, (e.data && e.data.text) || ''))) : [h('div', { class: 'help' }, 'Nenhum comentário ainda.')]));
+      timeline.replaceChildren(...rest.map((e) => h('div', null, h('b', null, e.user_name || 'Alguém'), ' ' + eventText(e), h('time', null, fmtTime(e.at)))));
+      histCount.textContent = rest.length ? `(${rest.length})` : '';
     } catch { /* ignora */ }
   }
+  const notes = h('textarea', { class: 'textarea', placeholder: 'Anotações desta task (links, comandos, decisões…)', value: t.notes || '', rows: 4, maxLength: 20000, onchange: () => save({ notes: notes.value }) });
   const worked = h('button', { class: 'btn sm', title: 'Marca esta task como trabalhada hoje (entra no diário)', onclick: guard(async () => { await api('POST', `/api/tasks/${id}/worked`); toast('Registrado no diário de hoje'); loadEvents(); }) }, icon('check'), 'Trabalhei hoje');
 
   const propField = (label, el) => h('div', { class: 'field' }, h('label', null, label), el);
@@ -923,8 +950,9 @@ function openTask(id) {
     h('div', { class: 'modal-head task-head' }, h('div', { class: 'grow' }, title), h('button', { class: 'btn ghost icon sm', 'aria-label': 'Fechar', onclick: () => { document.activeElement && document.activeElement.blur(); close(); } }, icon('x'))),
     h('div', { class: 'task-grid' },
       h('div', { class: 'task-main' },
-        propField('Descrição', desc), propField('Checklist', clBox), propField('Anexos', attBox),
-        h('div', { class: 'field' }, h('label', null, 'Comentários e histórico'), comment, h('div', null, h('button', { class: 'btn sm', onclick: sendComment }, 'Comentar')), timeline)),
+        propField('Descrição', desc), propField('Checklist', clBox), propField('Anotações', notes), propField('Anexos', attBox),
+        h('div', { class: 'field' }, h('label', null, 'Comentários'), comment, h('div', null, h('button', { class: 'btn sm', onclick: sendComment }, 'Comentar')), commentsEl),
+        h('details', { class: 'hist' }, h('summary', null, 'Histórico de atividade ', histCount), timeline)),
       h('aside', { class: 'task-side', 'aria-label': 'Propriedades da task' },
         propField('Status', colSel), propField('Responsável', own), propField('Prazo', due), propField('Prioridade', h('div', { class: 'seg' }, prioBtns)),
         propField('Etiquetas', labelBox), propField('Tempo', timeBox), propField('Texto para o diário', diary))),
@@ -1185,11 +1213,32 @@ function viewLook() {
     h('div', { class: 'set-foot' }, h('span', { class: 'help save-note' }, icon('check'), 'Salvo automaticamente na sua conta'), h('button', { class: 'btn sm', onclick: resetPrefs }, 'Restaurar padrões')));
 }
 
+// recorta no centro em quadrado e reduz (foto de perfil leve)
+async function squareJpeg(file, size) {
+  const bmp = await createImageBitmap(file); const m = Math.min(bmp.width, bmp.height);
+  const c = document.createElement('canvas'); c.width = c.height = size; const x = c.getContext('2d');
+  x.drawImage(bmp, (bmp.width - m) / 2, (bmp.height - m) / 2, m, m, 0, 0, size, size);
+  return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('Não foi possível ler a imagem'))), 'image/jpeg', 0.86));
+}
 function viewAccount() {
   const name = h('input', { class: 'input', value: S.me.name, maxLength: 80 });
   const cur = h('input', { class: 'input', type: 'password', autocomplete: 'current-password' });
   const nw = h('input', { class: 'input', type: 'password', autocomplete: 'new-password', placeholder: 'Mínimo 6 caracteres' });
+  const photo = h('div', { class: 'photo-row' });
+  const drawPhoto = () => photo.replaceChildren(avatar(S.me, 56),
+    h('div', { class: 'photo-btns' },
+      h('button', { class: 'btn sm', type: 'button', onclick: () => pick.click() }, S.me.avatar_url ? 'Trocar foto' : 'Enviar foto'),
+      S.me.avatar_url && h('button', { class: 'btn ghost sm', type: 'button', onclick: guard(async () => { await api('PATCH', '/api/me', { avatar_url: null }); S.me.avatar_url = null; await loadBoard(); drawPhoto(); toast('Foto removida'); }) }, 'Remover'),
+      h('span', { class: 'help' }, 'JPG, PNG ou WebP; é recortada em quadrado.')));
+  const pick = h('input', { type: 'file', accept: 'image/jpeg,image/png,image/webp', class: 'hidden', onchange: guard(async () => {
+    const f = pick.files[0]; pick.value = ''; if (!f) return;
+    const blob = await squareJpeg(f, 256);
+    const path = await KB.uploadAvatar(blob, S.me.id);
+    await api('PATCH', '/api/me', { avatar_url: path }); S.me.avatar_url = path; await loadBoard(); drawPhoto(); toast('Foto atualizada');
+  }) });
+  drawPhoto();
   return h('div', { class: 'modal-body' },
+    h('div', { class: 'field' }, h('label', null, 'Foto de perfil'), photo, pick),
     h('div', { class: 'field' }, h('label', null, 'Nome'), h('div', { class: 'row' }, name, h('button', { class: 'btn', style: { flex: '0 0 auto' }, onclick: guard(async () => { if (!name.value.trim()) return; await api('PATCH', '/api/me', { name: name.value }); S.me.name = name.value.trim(); await loadBoard(); toast('Nome atualizado'); }) }, 'Salvar'))),
     h('div', { class: 'field' }, h('label', null, 'E-mail'), h('div', { class: 'help' }, S.me.email)),
     h('div', { class: 'row' }, h('div', { class: 'field' }, h('label', null, 'Senha atual'), cur), h('div', { class: 'field' }, h('label', null, 'Nova senha'), nw)),
