@@ -161,7 +161,7 @@ const DEFAULT_PREFS = { fxBg: '#05060f', fxC1: '#7c9cff', fxC2: '#ff5fd2', fxSp:
   trType: 'linhas', trBg: '#f1ecdf', trLine: '#4a5a4c', trAccent: '#c8522e', trSun: 170, trRelief: 100, trDensity: 110, trSpeed: 40, trCam: 100, trHover: 40, trInterval: 5, trSoft: 0,
   sidebar: true, fx: true, fxSpeed: 100, fxIntensity: 100, cardStyle: 'theme', border: 'theme', shadow: 'theme', size: 'normal' };
 const APP_NAME = 'Runtime';
-const S = { showHidden: (() => { try { return !!localStorage.getItem('kb-show-hidden'); } catch { return false; } })(), me: null, users: [], columns: [], tasks: [], prefs: { ...DEFAULT_PREFS }, filter: { q: '', who: 'all', due: null, label: null }, drafts: {}, drag: null, seen: null, showAllDone: false, online: new Set(), lastWrite: 0, loadedOnce: false };
+const S = { projectsOn: false, projects: [], invites: [], project: null, showHidden: (() => { try { return !!localStorage.getItem('kb-show-hidden'); } catch { return false; } })(), me: null, users: [], columns: [], tasks: [], prefs: { ...DEFAULT_PREFS }, filter: { q: '', who: 'all', due: null, label: null }, drafts: {}, drag: null, seen: null, showAllDone: false, online: new Set(), lastWrite: 0, loadedOnce: false };
 
 const SHADER_PRESETS = [
   ['Menta', 'plane', '#52ff89', '#dbba95', '#d0bce1'], ['Pôr do sol', 'plane', '#ff7a59', '#ffd27a', '#b967ff'], ['Oceano', 'waves', '#0ea5e9', '#22d3ee', '#6366f1'],
@@ -303,7 +303,19 @@ function notifyAssigned(t) {
     try { new Notification('Nova task para você', { body: t.title, icon: 'icon-192.png', tag: 'assign-' + t.id }); } catch { /* ok */ }
   }
 }
+async function loadProjects() {
+  let stored = null; try { stored = Number(localStorage.getItem('kb-project')) || null; } catch { /* ok */ }
+  KB.setProject(S.project || stored);
+  const pr = await api('GET', '/api/projects');
+  S.projectsOn = !!pr.available; S.projects = pr.projects || []; S.invites = pr.invites || [];
+  const prev = S.project; S.project = pr.available ? (pr.current || null) : null;
+  KB.setProject(S.project);
+  try { S.project ? localStorage.setItem('kb-project', String(S.project)) : localStorage.removeItem('kb-project'); } catch { /* ok */ }
+  return prev !== S.project;
+}
+const curProject = () => S.projects.find((p) => p.id === S.project) || null;
 async function loadBoard() {
+  await loadProjects(); renderBrand();
   const d = await api('GET', '/api/board');
   // nada mudou em relação ao que já está na tela (eco do tempo real): não redesenha o quadro inteiro
   if (S.loadedOnce && d.users.some((u) => u.id === S.me.id) && JSON.stringify([S.columns, S.tasks, S.users]) === JSON.stringify([d.columns, d.tasks, d.users])) return;
@@ -514,7 +526,7 @@ function renderShell() {
     oninput: () => { S.filter.q = search.value; renderBoard(); }, onkeydown: (e) => { if (e.key === 'Escape') { search.value = ''; S.filter.q = ''; search.blur(); renderBoard(); } } });
   const top = h('header', { class: 'topbar' },
     h('button', { class: 'btn ghost icon hide-m', id: 'sbToggle', title: 'Mostrar ou ocultar a barra lateral', 'aria-label': 'Alternar barra lateral', onclick: () => setPrefs({ sidebar: S.prefs.sidebar === false }, { refreshSettings: false }) }, icon('menu')),
-    h('div', { class: 'brand' }, h('span', { class: 'logo' }, icon('grid')), h('span', null, APP_NAME)),
+    h('div', { class: 'brand', id: 'brand' }, h('span', { class: 'logo' }, icon('grid')), h('span', null, APP_NAME)),
     h('label', { class: 'search' }, icon('search'), search, h('kbd', null, '/')),
     h('div', { class: 'seg view-seg', id: 'viewSeg', role: 'tablist' }, [['board', 'grid', 'Quadro'], ['list', 'table', 'Lista'], ['calendar', 'calendar', 'Calendário'], ['painel', 'bento', 'Painel']].map(([k, ic, l]) =>
       h('button', { type: 'button', title: l, 'aria-label': l, dataset: { view: k }, onclick: () => setPrefs({ view: k }, { refreshSettings: false }) }, icon(ic)))),
@@ -623,8 +635,84 @@ function renderSkeleton() {
     h('div', { class: 'col-head' }, h('span', { class: 'sk sk-title' })),
     h('div', { class: 'col-body' }, Array.from({ length: n }, () => h('div', { class: 'card sk-card' }, h('span', { class: 'sk sk-line' }), h('span', { class: 'sk sk-line short' })))))));
 }
+function renderBrand() {
+  const el = $('#brand'); if (!el) return;
+  const p = curProject();
+  el.classList.toggle('as-btn', S.projectsOn);
+  if (S.projectsOn) { el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0'); el.setAttribute('aria-haspopup', 'menu'); el.title = 'Trocar de projeto'; }
+  else { el.removeAttribute('role'); el.removeAttribute('tabindex'); el.removeAttribute('title'); }
+  el.onclick = S.projectsOn ? () => popover(el, projectMenu()) : null;
+  el.onkeydown = S.projectsOn ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); popover(el, projectMenu()); } } : null;
+  el.replaceChildren(h('span', { class: 'logo' }, icon('grid')),
+    h('span', { class: 'brand-name' }, S.projectsOn ? (p ? p.name : 'Sem projeto') : APP_NAME),
+    S.projectsOn && h('span', { class: 'brand-caret', 'aria-hidden': 'true' }, '▾'),
+    S.projectsOn && S.invites.length > 0 && h('i', { class: 'brand-dot', title: S.invites.length + ' convite(s) pendente(s)' }));
+}
+async function switchProject(id) {
+  if (id === S.project) return;
+  S.project = id; KB.setProject(id); S.filter = { q: '', who: 'all', due: null, label: null }; const sr = $('#search'); if (sr) sr.value = '';
+  try { localStorage.setItem('kb-project', String(id)); } catch { /* ok */ }
+  S.loadedOnce = false; S.tasks = []; renderSkeleton(); await loadBoard();
+}
+function projectMenu() {
+  return [
+    ...S.projects.map((p) => ({ label: p.name, checked: p.id === S.project, onClick: guard(() => switchProject(p.id)) })),
+    ...(S.invites.length ? ['hr', ...S.invites.flatMap((i) => [
+      { label: `Aceitar convite: ${i.project_name}${i.inviter_name ? ' (de ' + i.inviter_name.split(' ')[0] + ')' : ''}`, icon: 'check', onClick: guard(async () => { const r = await api('POST', `/api/invites/${i.id}/respond`, { accept: true }); S.project = r.project || S.project; await loadBoard(); toast('Você entrou em ' + i.project_name); }) },
+      { label: `Recusar: ${i.project_name}`, icon: 'x', onClick: guard(async () => { await api('POST', `/api/invites/${i.id}/respond`, { accept: false }); await loadBoard(); }) }])] : []),
+    'hr',
+    { label: 'Novo projeto…', icon: 'plus', onClick: guard(createProject) },
+    ...(curProject() ? [{ label: 'Membros e configurações…', icon: 'edit', onClick: () => openProjectModal() }] : []),
+  ];
+}
+async function createProject() {
+  const name = await askText('Novo projeto', '', { placeholder: 'Ex.: Locativo', ok: 'Criar' });
+  if (!name) return;
+  const r = await api('POST', '/api/projects', { name }); S.project = r.id; KB.setProject(r.id); await loadBoard(); toast('Projeto criado');
+}
+async function openProjectModal() {
+  const p = curProject(); if (!p) return;
+  const isOwner = p.role === 'owner';
+  const box = h('div', { class: 'modal-body proj-body' });
+  const close = openModal([modalHead('Projeto', () => close()), box]);
+  const draw = async () => {
+    let d; try { d = await api('GET', `/api/projects/${p.id}/members`); } catch (e) { return box.replaceChildren(h('div', { class: 'err-msg' }, e.message)); }
+    const name = h('input', { class: 'input', value: p.name, maxLength: 60, disabled: !isOwner, 'aria-label': 'Nome do projeto' });
+    const email = h('input', { class: 'input', type: 'email', placeholder: 'e-mail da pessoa (conta já aprovada)', 'aria-label': 'E-mail para convidar' });
+    const act = (fn) => guard(async () => { await fn(); await loadBoard(); draw(); });
+    box.replaceChildren(
+      h('div', { class: 'field' }, h('label', null, 'Nome'), h('div', { class: 'row' }, name, isOwner && h('button', { class: 'btn', style: { flex: '0 0 auto' }, onclick: act(async () => { await api('PATCH', `/api/projects/${p.id}`, { name: name.value }); toast('Nome atualizado'); }) }, 'Salvar'))),
+      h('div', { class: 'field' }, h('label', null, `Membros (${d.members.length})`),
+        h('div', { class: 'member-list' }, d.members.map((m) => h('div', { class: 'member-row' }, avatar(m, 28),
+          h('div', { class: 'member-info' }, h('b', null, m.name + (m.id === S.me.id ? ' (você)' : '')), h('small', null, m.email)),
+          h('span', { class: 'role-badge' + (m.role === 'owner' ? ' owner' : '') }, m.role === 'owner' ? 'dono' : 'membro'),
+          isOwner && m.id !== S.me.id && h('button', { class: 'btn ghost sm', onclick: act(async () => { await api('POST', `/api/projects/${p.id}/members/${m.id}/role`, { role: m.role === 'owner' ? 'member' : 'owner' }); }) }, m.role === 'owner' ? 'Tirar de dono' : 'Tornar dono'),
+          (isOwner || m.id === S.me.id) && h('button', { class: 'btn ghost sm danger-text', onclick: guard(async () => {
+            if (!(await confirmBox(m.id === S.me.id ? 'Sair deste projeto? Você deixa de ver as tasks dele.' : `Remover ${m.name} do projeto?`, m.id === S.me.id ? 'Sair' : 'Remover'))) return;
+            await api('DELETE', `/api/projects/${p.id}/members/${m.id}`); if (m.id === S.me.id) { close(); S.project = null; } await loadBoard(); if (m.id !== S.me.id) draw(); }) }, m.id === S.me.id ? 'Sair' : 'Remover'))))),
+      d.invites.length > 0 && h('div', { class: 'field' }, h('label', null, 'Convites pendentes'), d.invites.map((i) => h('div', { class: 'member-row' }, h('div', { class: 'member-info' }, h('b', null, i.name || i.email), h('small', null, i.email)),
+        isOwner && h('button', { class: 'btn ghost sm', onclick: act(async () => { await api('DELETE', `/api/invites/${i.id}`); }) }, 'Cancelar')))),
+      isOwner && h('div', { class: 'field' }, h('label', null, 'Convidar'), h('div', { class: 'row' }, email, h('button', { class: 'btn primary', style: { flex: '0 0 auto' }, onclick: act(async () => { if (!email.value.trim()) return; await api('POST', `/api/projects/${p.id}/invite`, { email: email.value }); toast('Convite enviado: a pessoa aceita pelo menu do projeto'); }) }, 'Convidar')),
+        h('span', { class: 'help' }, 'A pessoa precisa ter conta aprovada. Ela vê o convite ao clicar no nome do projeto (canto superior esquerdo).')),
+      isOwner && h('div', { class: 'proj-danger' }, h('button', { class: 'btn danger', onclick: guard(async () => {
+        if (!(await confirmBox(`Excluir o projeto "${p.name}" com todas as tasks, colunas e anotações? Isso não dá para desfazer.`, 'Excluir projeto'))) return;
+        await api('DELETE', `/api/projects/${p.id}`); close(); S.project = null; await loadBoard(); toast('Projeto excluído'); }) }, icon('trash'), 'Excluir projeto')));
+    box.querySelectorAll('svg').forEach((v) => Object.assign(v.style, { width: '14px', height: '14px' }));
+  };
+  draw();
+}
+function noProjectView() {
+  return h('div', { class: 'no-project' }, h('h2', null, 'Você ainda não está em nenhum projeto'),
+    h('p', { class: 'help' }, 'Crie o seu projeto ou peça para o dono de um projeto te convidar pelo e-mail desta conta (' + S.me.email + ').'),
+    h('button', { class: 'btn primary', onclick: guard(createProject) }, icon('plus'), 'Criar projeto'),
+    ...S.invites.map((i) => h('div', { class: 'invite-card' }, h('b', null, i.project_name), h('span', { class: 'help' }, i.inviter_name ? 'convite de ' + i.inviter_name : ''),
+      h('button', { class: 'btn sm primary', onclick: guard(async () => { const r = await api('POST', `/api/invites/${i.id}/respond`, { accept: true }); S.project = r.project; await loadBoard(); }) }, 'Aceitar'),
+      h('button', { class: 'btn sm ghost', onclick: guard(async () => { await api('POST', `/api/invites/${i.id}/respond`, { accept: false }); await loadBoard(); }) }, 'Recusar'))));
+}
 function renderBoard() {
   const board = $('#board'); if (!board) return;
+  renderBrand();
+  if (S.projectsOn && !S.project) { renderToolbar(); board.className = 'board alt'; board.replaceChildren(noProjectView()); return; }
   const sx = board.scrollLeft; // lido antes de qualquer redesenho (senão o quadro volta para a 1ª coluna a cada atualização)
   renderToolbar(); renderSidebar(); syncViewSeg(); window.KBApp.updateIsland && window.KBApp.updateIsland();
   const view = S.prefs.view || 'board';
