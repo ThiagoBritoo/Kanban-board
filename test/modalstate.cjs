@@ -80,5 +80,10 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   await paste(cento); await p.waitForTimeout(700);
   const n = await p.evaluate(() => KBApp.S.tasks.find((t) => t.title === 'Task para edição').checklist.length);
   ok(n > 250 && n <= 300, 'checklist passa de 150 itens (agora ' + n + ', limite 300)');
+  // checklist grande já salvo: ao reabrir a task, todos os itens têm altura legível (o bug: altura 0 quando o modal ainda não estava na tela)
+  await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+  await p.locator('.card').first().click(); await p.waitForSelector('.modal'); await p.waitForTimeout(500);
+  const alt = await p.evaluate(() => [...document.querySelectorAll('textarea.cl-text')].map((e) => e.offsetHeight));
+  ok(alt.length > 100 && Math.min(...alt) >= 24, 'ao reabrir, os ' + alt.length + ' itens do checklist têm altura legível (mín. ' + Math.min(...alt) + 'px)');
   await b.close(); srv.close(); process.exit(fails ? 1 : 0);
 })();

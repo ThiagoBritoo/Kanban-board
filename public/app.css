@@ -733,3 +733,5 @@ html{overscroll-behavior-y:none}
 .cl-text{resize:none;overflow:hidden;line-height:1.4;font:inherit;white-space:pre-wrap;overflow-wrap:anywhere}
 .cm-check .check span{white-space:pre-wrap}
 .cl-add{resize:none;overflow:hidden;line-height:1.4;min-height:38px;font:inherit}
+.cl-text{color:var(--text)}.cl-item.done .cl-text{color:var(--muted)}.cl-add{color:var(--text)}
+.cl-text{min-height:28px;field-sizing:content}
