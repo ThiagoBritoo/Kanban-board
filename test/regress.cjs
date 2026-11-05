@@ -91,6 +91,13 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   ok(!!fake.db.profiles[0].avatar_url && Object.keys(fake.db.files).some((k) => k.startsWith('avatars/')), 'foto de perfil enviada e salva no perfil');
   ok((await p.locator('.topbar .avatar.has-img img, .photo-row .avatar.has-img img').count()) >= 1, 'avatar mostra a foto');
   await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+  // anotações gerais e da task
+  await p.evaluate(() => KBApp.openNotes()); await p.waitForSelector('.notes-wrap'); await p.click('.notes-side .btn:has-text("Nova")'); await p.waitForTimeout(300);
+  await p.fill('.notes-editor input', 'Ideias'); await p.fill('.notes-editor textarea', 'comprar domínio'); await p.waitForTimeout(900);
+  ok(fake.db.notes.length === 1 && fake.db.notes[0].title === 'Ideias' && fake.db.notes[0].body === 'comprar domínio', 'anotação geral é criada e salva sozinha');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(250);
+  await p.locator('.card').first().click(); await p.waitForSelector('.modal'); await p.fill('textarea[placeholder^="Anotações desta"]', 'rodar npm test'); await p.locator('textarea[placeholder^="Anotações desta"]').blur(); await p.waitForTimeout(500);
+  ok(fake.db.tasks.some((t) => t.notes === 'rodar npm test'), 'anotações da task são salvas'); await p.keyboard.press('Escape'); await p.waitForTimeout(250);
   // 2) sessão sobrevive a recarregar, mesmo se a leitura do perfil falhar na 1ª vez
   let n = 0;
   await p.route('**/rest/v1/profiles?*', (r) => { if (n++ < 1) return r.abort(); return fake.handle(r); });

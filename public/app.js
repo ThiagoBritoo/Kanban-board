@@ -160,6 +160,7 @@ const DEFAULT_PREFS = { fxBg: '#05060f', fxC1: '#7c9cff', fxC2: '#ff5fd2', fxSp:
   shType: 'plane', shC1: '#52ff89', shC2: '#dbba95', shC3: '#d0bce1', shSpeed: 40, shStrength: 50, shDensity: 40, shGrain: 4, shDim: 0,
   trType: 'linhas', trBg: '#f1ecdf', trLine: '#4a5a4c', trAccent: '#c8522e', trSun: 170, trRelief: 100, trDensity: 110, trSpeed: 40, trCam: 100, trHover: 40, trInterval: 5, trSoft: 0,
   sidebar: true, fx: true, fxSpeed: 100, fxIntensity: 100, cardStyle: 'theme', border: 'theme', shadow: 'theme', size: 'normal' };
+const APP_NAME = 'Runtime';
 const S = { showHidden: (() => { try { return !!localStorage.getItem('kb-show-hidden'); } catch { return false; } })(), me: null, users: [], columns: [], tasks: [], prefs: { ...DEFAULT_PREFS }, filter: { q: '', who: 'all', due: null, label: null }, drafts: {}, drag: null, seen: null, showAllDone: false, online: new Set(), lastWrite: 0, loadedOnce: false };
 
 const SHADER_PRESETS = [
@@ -412,9 +413,9 @@ function authBackdrop() { // gradiente shader atrás do login; some quando o app
 function authShell(...kids) {
   const app = $('#app');
   app.replaceChildren(h('div', { class: 'auth split' },
-    h('div', { class: 'auth-hero' }, h('div', { class: 'auth-kicker' }, 'Kanban da equipe'), h('h2', null, 'Organize o trabalho.', h('br'), 'Registre o dia.'),
+    h('div', { class: 'auth-hero' }, h('div', { class: 'auth-kicker' }, APP_NAME + ' · equipe'), h('h2', null, 'Organize o trabalho.', h('br'), 'Registre o dia.'),
       h('p', null, 'Tasks, quem pegou o quê e um diário pronto no fim do expediente.')),
-    h('div', { class: 'auth-card' }, h('div', { class: 'brand' }, h('span', { class: 'logo' }, icon('grid')), 'Kanban'), ...kids)));
+    h('div', { class: 'auth-card' }, h('div', { class: 'brand' }, h('span', { class: 'logo' }, icon('grid')), APP_NAME), ...kids)));
   authBackdrop();
 }
 async function start() {
@@ -492,6 +493,7 @@ function moreMenu() {
     'hr',
     { label: 'Resumo da equipe', icon: 'chart', onClick: () => A.openSummary && A.openSummary() },
     { label: 'Atividade recente', icon: 'pulse', onClick: () => A.openActivity && A.openActivity() },
+    { label: 'Anotações', icon: 'edit', onClick: () => openNotes() },
     { label: 'Lixeira (restaurar excluídas)', icon: 'trash', onClick: () => openTrash() },
     'hr',
     { label: 'Exportar tasks (CSV)', icon: 'download', onClick: () => A.exportCsv && A.exportCsv() },
@@ -512,7 +514,7 @@ function renderShell() {
     oninput: () => { S.filter.q = search.value; renderBoard(); }, onkeydown: (e) => { if (e.key === 'Escape') { search.value = ''; S.filter.q = ''; search.blur(); renderBoard(); } } });
   const top = h('header', { class: 'topbar' },
     h('button', { class: 'btn ghost icon hide-m', id: 'sbToggle', title: 'Mostrar ou ocultar a barra lateral', 'aria-label': 'Alternar barra lateral', onclick: () => setPrefs({ sidebar: S.prefs.sidebar === false }, { refreshSettings: false }) }, icon('menu')),
-    h('div', { class: 'brand' }, h('span', { class: 'logo' }, icon('grid')), h('span', null, 'Kanban')),
+    h('div', { class: 'brand' }, h('span', { class: 'logo' }, icon('grid')), h('span', null, APP_NAME)),
     h('label', { class: 'search' }, icon('search'), search, h('kbd', null, '/')),
     h('div', { class: 'seg view-seg', id: 'viewSeg', role: 'tablist' }, [['board', 'grid', 'Quadro'], ['list', 'table', 'Lista'], ['calendar', 'calendar', 'Calendário'], ['painel', 'bento', 'Painel']].map(([k, ic, l]) =>
       h('button', { type: 'button', title: l, 'aria-label': l, dataset: { view: k }, onclick: () => setPrefs({ view: k }, { refreshSettings: false }) }, icon(ic)))),
@@ -761,6 +763,36 @@ function cardMenu(t) {
     'hr', ...S.columns.map((c) => ({ label: 'Mover para ' + c.name, checked: c.id === t.column_id, onClick: guard(() => c.id === t.column_id ? null : moveTask(t.id, c.id, null)) })),
     'hr', { label: 'Excluir', icon: 'trash', danger: true, onClick: guard(() => deleteTask(t)) },
   ];
+}
+// anotações gerais (que não são task): lista à esquerda, editor à direita, salva sozinho
+async function openNotes() {
+  let notes = [], cur = null, q = '', timer = null;
+  const list = h('div', { class: 'notes-list' }), editor = h('div', { class: 'notes-editor' });
+  const search = h('input', { class: 'input', type: 'search', placeholder: 'Buscar anotação…', 'aria-label': 'Buscar anotação', oninput: () => { q = norm(search.value); drawList(); } });
+  const label = (n) => (n.title || (n.body || '').split('\n')[0] || 'Sem título').slice(0, 60);
+  let pending = {}; // junta o que foi digitado em título e texto antes de gravar
+  const save = (n, patch) => { Object.assign(n, patch); Object.assign(pending, patch); clearTimeout(timer); timer = setTimeout(guard(async () => { const p = pending; pending = {}; await api('PATCH', `/api/notes/${n.id}`, p); }), 500); };
+  const drawList = () => {
+    const rows = notes.filter((n) => !q || norm(n.title + ' ' + n.body).includes(q));
+    list.replaceChildren(...(rows.length ? rows.map((n) => h('button', { type: 'button', class: 'note-item' + (cur && cur.id === n.id ? ' on' : ''), onclick: () => { cur = n; drawList(); drawEditor(); } },
+      h('b', null, label(n)), h('small', null, fmtTime(n.updated_at)))) : [h('div', { class: 'help', style: { padding: '8px' } }, notes.length ? 'Nada encontrado.' : 'Nenhuma anotação ainda.')]));
+  };
+  const drawEditor = () => {
+    if (!cur) return editor.replaceChildren(h('div', { class: 'empty-note' }, 'Escolha uma anotação ou crie uma nova.'));
+    const n = cur;
+    const title = h('input', { class: 'input', placeholder: 'Título', maxLength: 120, value: n.title, 'aria-label': 'Título da anotação', oninput: () => { save(n, { title: title.value }); drawList(); } });
+    const body = h('textarea', { class: 'textarea notes-body', placeholder: 'Escreva aqui…', maxLength: 20000, value: n.body, 'aria-label': 'Texto da anotação', oninput: () => save(n, { body: body.value }) });
+    editor.replaceChildren(title, body, h('div', { class: 'row-end' }, h('button', { class: 'btn danger sm', onclick: guard(async () => {
+      if (!(await confirmBox('Excluir esta anotação?', 'Excluir'))) return;
+      await api('DELETE', `/api/notes/${n.id}`); notes = notes.filter((x) => x.id !== n.id); cur = notes[0] || null; drawList(); drawEditor();
+    }) }, icon('trash'), 'Excluir')));
+    editor.querySelectorAll('svg').forEach((v) => Object.assign(v.style, { width: '14px', height: '14px' }));
+  };
+  const add = guard(async () => { const n = await api('POST', '/api/notes', { title: '', body: '' }); notes.unshift(n); cur = n; drawList(); drawEditor(); const t = editor.querySelector('input'); t && t.focus(); });
+  const close = openModal([modalHead('Anotações', () => close()), h('div', { class: 'notes-wrap' },
+    h('div', { class: 'notes-side' }, h('div', { class: 'row-gap' }, search, h('button', { class: 'btn sm primary', onclick: add }, '+ Nova')), list), editor)], { xwide: true });
+  try { notes = await api('GET', '/api/notes'); cur = notes[0] || null; } catch (e) { toast(e.message, true); }
+  drawList(); drawEditor();
 }
 async function openTrash() {
   const list = h('div', { class: 'trash-list' }, h('div', { class: 'help' }, 'Carregando…'));
@@ -1317,7 +1349,7 @@ async function boot(user) {
 }
 window.KBApp = {
   S, h, $, icon, api, toast, guard, openModal, modalHead, popover, askText, confirmBox, setPrefs, resolvedMode, THEMES,
-  eventText, openTask, openQuickAdd, openDiary, openShortcuts, openTrash, openSettings, renderBoard, loadBoard, moveTask, deleteTask, upsertTask, userById, colById, avatar,
+  eventText, openTask, openQuickAdd, openDiary, openShortcuts, openTrash, openNotes, openSettings, renderBoard, loadBoard, moveTask, deleteTask, upsertTask, userById, colById, avatar,
   matches, filtersActive, clearFilters, dueState, fmtDay, fmtTime, fmtDur, fmtWhen, totalSecs, isRunning, ymd, pad, addDays, norm, hueOf, cap, PRIO_NAME, views: {},
 };
 (async function init() {
