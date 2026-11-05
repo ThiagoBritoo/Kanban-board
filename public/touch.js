@@ -25,12 +25,22 @@
     const after = [...body.querySelectorAll('.card:not(.dragging)')].find((c) => { const r = c.getBoundingClientRect(); return y < r.top + r.height / 2; });
     after ? body.insertBefore(line, after) : body.append(line);
   };
-  const loop = () => {
+  // Rolagem automática nas bordas: devagar e com espera. Só começa depois de ~0,35 s com o dedo na borda e acelera aos poucos
+  // (antes passava direto da coluna que você queria). Velocidade máx.: 360 px/s na horizontal, 380 px/s na vertical.
+  const ZONE_X = 56, ZONE_Y = 48, MAX_X = 360, MAX_Y = 380, DWELL = 350;
+  const ramp = (d, z) => { const k = Math.max(0, Math.min(1, (z - d) / z)); return k * k; };
+  const loop = (ts) => {
     if (!st || !st.active) return;
+    const dt = Math.min(0.05, ((ts || performance.now()) - (st.t || ts || performance.now())) / 1000); st.t = ts || performance.now();
     const board = document.querySelector('.board'), { x, y } = st.last;
-    if (board) { if (x < 64) board.scrollLeft -= 18; else if (x > innerWidth - 64) board.scrollLeft += 18; }
+    const dirX = x < ZONE_X ? -ramp(x, ZONE_X) : x > innerWidth - ZONE_X ? ramp(innerWidth - x, ZONE_X) : 0;
+    if (board && dirX) { st.hs = st.hs || st.t; if (st.t - st.hs > DWELL) board.scrollLeft += dirX * MAX_X * dt; } else st.hs = 0;
     const col = target(x, y), body = col && col.querySelector('.col-body');
-    if (body) { const r = body.getBoundingClientRect(); if (y < r.top + 36) body.scrollTop -= 10; else if (y > r.bottom - 36) body.scrollTop += 10; }
+    if (body) {
+      const r = body.getBoundingClientRect();
+      const dirY = y < r.top + ZONE_Y ? -ramp(y - r.top, ZONE_Y) : y > r.bottom - ZONE_Y ? ramp(r.bottom - y, ZONE_Y) : 0;
+      if (dirY) { st.vs = st.vs || st.t; if (st.t - st.vs > DWELL) body.scrollTop += dirY * MAX_Y * dt; } else st.vs = 0;
+    }
     place(x, y); raf = requestAnimationFrame(loop);
   };
   const activate = () => {
