@@ -815,7 +815,7 @@ function openTask(id) {
   const t = S.tasks.find((x) => x.id === id); if (!t) return;
   const save = guard(async (patch) => { const nt = await api('PATCH', `/api/tasks/${id}`, patch); upsertTask(nt); renderBoard(); loadEvents(); return nt; });
 
-  const title = h('input', { class: 'title-input', value: t.title, maxLength: 300, onchange: () => title.value.trim() ? save({ title: title.value }) : (title.value = t.title) });
+  const title = h('input', { class: 'title-input', 'aria-label': 'Título da task', value: t.title, maxLength: 300, onchange: () => title.value.trim() ? save({ title: title.value }) : (title.value = t.title) });
   const desc = h('textarea', { class: 'textarea', placeholder: 'Detalhes, links, o que precisa ser feito…', value: t.description, onchange: () => save({ description: desc.value }) });
   const diary = h('input', { class: 'input', placeholder: 'Opcional: como isso deve aparecer no diário', value: t.diary, maxLength: 500, onchange: () => save({ diary: diary.value }) });
   const colSel = h('select', { class: 'select', onchange: guard(async () => { await moveTask(id, Number(colSel.value), null); loadEvents(); }) },
@@ -823,7 +823,7 @@ function openTask(id) {
   const own = h('select', { class: 'select', onchange: () => save({ assignee_id: own.value || null }) },
     h('option', { value: '' }, 'Sem responsável'), S.users.map((u) => h('option', { value: u.id, selected: u.id === t.assignee_id }, u.id === S.me.id ? `${u.name} (eu)` : u.name)));
   const takeBtn = h('button', { class: 'btn sm', onclick: async () => { await save({ assignee_id: S.me.id }); own.value = String(S.me.id); } }, icon('take'), 'Pegar pra mim');
-  const due = h('input', { class: 'input', type: 'date', value: t.due_date || '', onchange: () => save({ due_date: due.value || null }) });
+  const due = h('input', { class: 'input', type: 'date', 'aria-label': 'Prazo', value: t.due_date || '', onchange: () => save({ due_date: due.value || null }) });
 
   let prio = t.priority;
   const prioBtns = PRIO_NAME.map((n, i) => h('button', { type: 'button', class: i === prio ? 'on' : '', onclick: () => { prio = i; prioBtns.forEach((b, k) => b.classList.toggle('on', k === i)); save({ priority: i }); } }, n));
@@ -1039,7 +1039,7 @@ function benchRow(api) {
 }
 function fxControls(p) {
   const slider = (key, label, min, max, fmt = (v) => v) => h('div', { class: 'range-row' }, h('span', { class: 'help', style: { width: '96px' } }, label),
-    h('input', { type: 'range', min, max, value: p[key], oninput: (e) => { setPrefs({ [key]: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = fmt(e.target.value); } }), h('output', null, fmt(p[key])));
+    h('input', { type: 'range', 'aria-label': label, min, max, value: p[key], oninput: (e) => { setPrefs({ [key]: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = fmt(e.target.value); } }), h('output', null, fmt(p[key])));
   const color = (key, label) => h('label', { class: 'color-pick', title: label }, h('input', { type: 'color', value: p[key], oninput: (e) => setPrefs({ [key]: e.target.value }, { refreshSettings: false }), onchange: () => S.refreshSettings && S.refreshSettings() }), h('span', null, label));
   const PR = (window.KBFx && window.KBFx.PRESETS) || {};
   const names = { neon: 'Neon', ambar: 'Âmbar', gelo: 'Gelo', mono: 'Mono' };
@@ -1053,7 +1053,7 @@ function fxControls(p) {
 }
 function terrainControls(p) {
   const slider = (key, label, min, max, fmt = (v) => v) => h('div', { class: 'range-row' }, h('span', { class: 'help', style: { width: '96px' } }, label),
-    h('input', { type: 'range', min, max, value: p[key], oninput: (e) => { setPrefs({ [key]: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = fmt(e.target.value); } }), h('output', null, fmt(p[key])));
+    h('input', { type: 'range', 'aria-label': label, min, max, value: p[key], oninput: (e) => { setPrefs({ [key]: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = fmt(e.target.value); } }), h('output', null, fmt(p[key])));
   const color = (key, label) => h('label', { class: 'color-pick', title: label }, h('input', { type: 'color', value: p[key], oninput: (e) => setPrefs({ [key]: e.target.value }, { refreshSettings: false }), onchange: () => S.refreshSettings && S.refreshSettings() }), h('span', null, label));
   const PR = (window.KBTerrain && window.KBTerrain.PRESETS) || {};
   const names = { papel: 'Papel', carvao: 'Carvão', synth: 'Synthwave', pontos: 'Pontos' };
@@ -1070,7 +1070,7 @@ function terrainControls(p) {
 }
 function shaderControls(p) {
   const slider = (key, label, min, max, fmt = (v) => v) => h('div', { class: 'range-row' }, h('span', { class: 'help', style: { width: '90px' } }, label),
-    h('input', { type: 'range', min, max, value: p[key], oninput: (e) => { setPrefs({ [key]: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = fmt(e.target.value); } }), h('output', null, fmt(p[key])));
+    h('input', { type: 'range', 'aria-label': label, min, max, value: p[key], oninput: (e) => { setPrefs({ [key]: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = fmt(e.target.value); } }), h('output', null, fmt(p[key])));
   const color = (key, label) => h('label', { class: 'color-pick', title: label }, h('input', { type: 'color', value: p[key], oninput: (e) => setPrefs({ [key]: e.target.value }, { refreshSettings: false }), onchange: () => S.refreshSettings && S.refreshSettings() }), h('span', null, label));
   const supported = !window.KBShader || window.KBShader.supported();
   return h('div', { class: 'shader-box' },
@@ -1120,7 +1120,7 @@ function viewLook() {
           h('input', { type: 'color', value: p.accent || '#6366f1', title: 'Cor personalizada', oninput: (e) => setPrefs({ accent: e.target.value }, { refreshSettings: false }) }))),
       h('div', { class: 'field' }, h('label', null, 'Fonte'), seg('font', [['auto', 'Do tema'], ['sans', 'Inter'], ['serif', 'Serif'], ['grotesk', 'Grotesk'], ['rounded', 'Redonda'], ['hand', 'Manual'], ['mono', 'Mono']])),
         h('div', { class: 'field' }, h('label', null, `Cantos arredondados${p.radius == null ? ' (do tema)' : ': ' + p.radius + 'px'}`),
-          h('input', { type: 'range', min: 0, max: 28, value: p.radius ?? 12, oninput: (e) => { setPrefs({ radius: Number(e.target.value) }, { refreshSettings: false }); e.target.previousSibling.textContent = `Cantos arredondados: ${e.target.value}px`; } }),
+          h('input', { type: 'range', 'aria-label': 'Cantos arredondados', min: 0, max: 28, value: p.radius ?? 12, oninput: (e) => { setPrefs({ radius: Number(e.target.value) }, { refreshSettings: false }); e.target.previousSibling.textContent = `Cantos arredondados: ${e.target.value}px`; } }),
           p.radius != null && h('button', { class: 'btn sm ghost', style: { alignSelf: 'flex-start' }, onclick: () => setPrefs({ radius: null }) }, 'Voltar ao do tema')),
     ],
     fundo: [
@@ -1137,8 +1137,8 @@ function viewLook() {
         p.bg === 'custom' && h('input', { class: 'input', placeholder: 'https://…/imagem.jpg (link https)', value: p.bgUrl || '', onchange: (e) => setPrefs({ bgUrl: e.target.value.trim() }) })),
       h('div', { class: 'field' }, h('label', null, 'Efeitos de fundo'),
         toggle('fx', 'Fundo animado (estrelas, lava, grade…) — desligue para ficar estático'),
-        h('div', { class: 'range-row' }, h('span', { class: 'help', style: { width: '90px' } }, 'Velocidade'), h('input', { type: 'range', min: 40, max: 250, step: 10, value: p.fxSpeed ?? 100, oninput: (e) => { setPrefs({ fxSpeed: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = (e.target.value / 100).toFixed(1).replace('.', ',') + '×'; } }), h('output', null, ((p.fxSpeed ?? 100) / 100).toFixed(1).replace('.', ',') + '×')),
-        h('div', { class: 'range-row' }, h('span', { class: 'help', style: { width: '90px' } }, 'Intensidade'), h('input', { type: 'range', min: 0, max: 100, step: 5, value: p.fxIntensity ?? 100, oninput: (e) => { setPrefs({ fxIntensity: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = e.target.value + '%'; } }), h('output', null, (p.fxIntensity ?? 100) + '%'))),
+        h('div', { class: 'range-row' }, h('span', { class: 'help', style: { width: '90px' } }, 'Velocidade'), h('input', { type: 'range', 'aria-label': 'Velocidade', min: 40, max: 250, step: 10, value: p.fxSpeed ?? 100, oninput: (e) => { setPrefs({ fxSpeed: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = (e.target.value / 100).toFixed(1).replace('.', ',') + '×'; } }), h('output', null, ((p.fxSpeed ?? 100) / 100).toFixed(1).replace('.', ',') + '×')),
+        h('div', { class: 'range-row' }, h('span', { class: 'help', style: { width: '90px' } }, 'Intensidade'), h('input', { type: 'range', 'aria-label': 'Intensidade', min: 0, max: 100, step: 5, value: p.fxIntensity ?? 100, oninput: (e) => { setPrefs({ fxIntensity: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = e.target.value + '%'; } }), h('output', null, (p.fxIntensity ?? 100) + '%'))),
     ],
     cartoes: [
       h('div', { class: 'field' }, h('label', null, 'Efeitos nos cartões'),
