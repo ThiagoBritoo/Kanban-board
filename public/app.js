@@ -143,7 +143,7 @@ const THEMES = [
   ['meialuz', 'Meia-luz', 'painéis claros e escuros', 'Únicos', false],
   ['camara', 'Câmara Escura', 'breu quente, creme, tracejado', 'Únicos', false],
 ];
-const DEFAULT_PREFS = { theme: 'minimal', mode: 'system', accent: null, font: 'auto', radius: null, density: 'comfortable', motion: true, autoAssign: true, hideOldDone: true, view: 'board', bg: 'theme', bgUrl: '', notify: false,
+const DEFAULT_PREFS = { fxBg: '#05060f', fxC1: '#7c9cff', fxC2: '#ff5fd2', fxSp: 100, fxAmt: 100, pulse: 'off', cardLight: false, theme: 'minimal', mode: 'system', accent: null, font: 'auto', radius: null, density: 'comfortable', motion: true, autoAssign: true, hideOldDone: true, view: 'board', bg: 'theme', bgUrl: '', notify: false,
   shType: 'plane', shC1: '#52ff89', shC2: '#dbba95', shC3: '#d0bce1', shSpeed: 40, shStrength: 50, shDensity: 40, shGrain: 4, shDim: 0,
   trType: 'linhas', trBg: '#f1ecdf', trLine: '#4a5a4c', trAccent: '#c8522e', trSun: 170, trRelief: 100, trDensity: 110, trSpeed: 40, trCam: 100, trHover: 40, trInterval: 5, trSoft: 0,
   sidebar: true, fx: true, fxSpeed: 100, fxIntensity: 100, cardStyle: 'theme', border: 'theme', shadow: 'theme', size: 'normal' };
@@ -188,6 +188,9 @@ function applyPrefs() {
   }
   window.KBShader && window.KBShader.update(p, resolvedMode());
   window.KBTerrain && window.KBTerrain.update(p, resolvedMode(), p.theme);
+  window.KBFx && window.KBFx.update(p);
+  r.dataset.pulse = p.pulse || 'off';
+  r.dataset.cardlight = p.cardLight ? 'on' : 'off';
   const bg = bgCss(p, resolvedMode());
   if (bg) { r.style.setProperty('--bg-user', bg); r.dataset.bg = 'user'; } else { r.style.removeProperty('--bg-user'); delete r.dataset.bg; }
   p.font && p.font !== 'auto' ? (r.dataset.font = p.font) : delete r.dataset.font;
@@ -985,6 +988,20 @@ function benchRow(api) {
     out.textContent = r ? `≈ ${r.ms.toFixed(1)} ms por quadro (${r.w}×${r.h}). Ideal: abaixo de 16 ms; o fundo roda a 30 fps, então até 33 ms é tranquilo.` : 'Ative o fundo para medir.';
   } }, 'Medir desempenho neste aparelho'), out);
 }
+function fxControls(p) {
+  const slider = (key, label, min, max, fmt = (v) => v) => h('div', { class: 'range-row' }, h('span', { class: 'help', style: { width: '96px' } }, label),
+    h('input', { type: 'range', min, max, value: p[key], oninput: (e) => { setPrefs({ [key]: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = fmt(e.target.value); } }), h('output', null, fmt(p[key])));
+  const color = (key, label) => h('label', { class: 'color-pick', title: label }, h('input', { type: 'color', value: p[key], oninput: (e) => setPrefs({ [key]: e.target.value }, { refreshSettings: false }), onchange: () => S.refreshSettings && S.refreshSettings() }), h('span', null, label));
+  const PR = (window.KBFx && window.KBFx.PRESETS) || {};
+  const names = { neon: 'Neon', ambar: 'Âmbar', gelo: 'Gelo', mono: 'Mono' };
+  return h('div', { class: 'shader-box' },
+    h('div', { class: 'swatches' }, Object.entries(PR).map(([k, v]) => h('button', { type: 'button', class: 'preset-chip' + (p.fxBg === v.fxBg && p.fxC1 === v.fxC1 && p.fxC2 === v.fxC2 ? ' on' : ''), title: names[k], onclick: () => setPrefs({ ...v }),
+      style: { background: `linear-gradient(135deg,${v.fxBg} 40%,${v.fxC2} 41%,${v.fxC1})` } }, h('span', null, names[k])))),
+    h('div', { class: 'field' }, h('label', null, 'Cores'), h('div', { class: 'swatches' }, color('fxBg', 'Fundo'), color('fxC1', 'Cor 1'), color('fxC2', 'Cor 2'))),
+    slider('fxSp', 'Velocidade', 10, 250, (v) => v + '%'), slider('fxAmt', 'Intensidade', 20, 200, (v) => v + '%'),
+    benchRow(window.KBFx),
+    h('div', { class: 'help' }, 'Mexa o mouse: o efeito reage. Com “Fundo animado” desligado (ou movimento reduzido no sistema) fica parado. No Parallax, role o quadro.'));
+}
 function terrainControls(p) {
   const slider = (key, label, min, max, fmt = (v) => v) => h('div', { class: 'range-row' }, h('span', { class: 'help', style: { width: '96px' } }, label),
     h('input', { type: 'range', min, max, value: p[key], oninput: (e) => { setPrefs({ [key]: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = fmt(e.target.value); } }), h('output', null, fmt(p[key])));
@@ -1063,9 +1080,11 @@ function viewLook() {
         h('div', { class: 'bg-grid' }, BGS.map(([id, name, l, d]) => h('button', { type: 'button', class: 'bg-tile' + (p.bg === id ? ' on' : ''), title: name, onclick: () => setPrefs({ bg: id }),
           style: l ? { background: mode === 'dark' ? d : l } : null }, h('span', null, name))),
           h('button', { type: 'button', class: 'bg-tile' + (p.bg === 'custom' ? ' on' : ''), title: 'Imagem (link)', onclick: () => setPrefs({ bg: 'custom' }) }, h('span', null, 'Imagem')),
+          [['lightfall', 'Lightfall (luz caindo)', 'linear-gradient(180deg,#05060f,#1d2a6b 60%,#ff5fd2)'], ['gridhole', 'Grid Hole (buraco na grade)', 'radial-gradient(circle at 50% 50%,#05060f 0 18%,#7c9cff 19% 22%,#0b1030 24%)'], ['ink', 'Ink Flow (tinta em fluxo)', 'conic-gradient(from 200deg,#05060f,#7c9cff,#ff5fd2,#05060f)'], ['parallax', 'Parallax vertical (cristas)', 'linear-gradient(180deg,#05060f 30%,#3a3f8f 55%,#7c9cff 56%,#1a1d4a 75%,#ff5fd2 76%)']].map(([id, name, bgc]) => h('button', { type: 'button', class: 'bg-tile' + (p.bg === id ? ' on' : ''), title: name, onclick: () => setPrefs({ bg: id }), style: { background: bgc } }, h('span', null, name.split(' (')[0]))),
           h('button', { type: 'button', class: 'bg-tile' + (p.bg === 'terrain' ? ' on' : ''), title: 'Terreno de arame (curvas de nível em 3D)', onclick: () => setPrefs({ bg: 'terrain' }), style: { background: `linear-gradient(180deg,${p.trBg} 55%,${p.trAccent} 56%,${p.trLine})` } }, h('span', null, 'Terreno')),
         h('button', { type: 'button', class: 'bg-tile' + (p.bg === 'shader' ? ' on' : ''), title: 'Gradiente shader (WebGL)', onclick: () => setPrefs({ bg: 'shader' }), style: { background: `linear-gradient(135deg,${p.shC1},${p.shC2},${p.shC3})` } }, h('span', null, 'Shader'))),
         p.bg === 'terrain' && terrainControls(p),
+        ['lightfall', 'gridhole', 'ink', 'parallax'].includes(p.bg) && fxControls(p),
       p.bg === 'shader' && shaderControls(p),
         p.bg === 'custom' && h('input', { class: 'input', placeholder: 'https://…/imagem.jpg (link https)', value: p.bgUrl || '', onchange: (e) => setPrefs({ bgUrl: e.target.value.trim() }) })),
       h('div', { class: 'field' }, h('label', null, 'Efeitos de fundo'),
@@ -1074,6 +1093,9 @@ function viewLook() {
         h('div', { class: 'range-row' }, h('span', { class: 'help', style: { width: '90px' } }, 'Intensidade'), h('input', { type: 'range', min: 0, max: 100, step: 5, value: p.fxIntensity ?? 100, oninput: (e) => { setPrefs({ fxIntensity: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = e.target.value + '%'; } }), h('output', null, (p.fxIntensity ?? 100) + '%'))),
     ],
     cartoes: [
+      h('div', { class: 'field' }, h('label', null, 'Efeitos nos cartões'),
+        seg('pulse', [['off', 'Sem borda pulsante'], ['high', 'Pulsar: alta e urgente'], ['urgent', 'Pulsar: só urgente']]),
+        toggle('cardLight', 'Luz caindo no cartão ao passar o mouse')),
       h('div', { class: 'row' },
         h('div', { class: 'field' }, h('label', null, 'Cartões'), seg('cardStyle', [['theme', 'Do tema'], ['solid', 'Sólido'], ['glass', 'Vidro'], ['outline', 'Contorno'], ['fold', 'Dobrado']])),
         h('div', { class: 'field' }, h('label', null, 'Bordas'), seg('border', [['theme', 'Do tema'], ['none', 'Sem'], ['thin', 'Finas'], ['thick', 'Grossas']]))),
