@@ -1208,6 +1208,17 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   if (!S.me || modalStack.length || e.ctrlKey || e.metaKey || e.altKey) return;
+  // setas navegam entre cartões (Enter abre, como já era)
+  const cur = document.activeElement;
+  if (cur && cur.classList && cur.classList.contains('card') && /^Arrow(Up|Down|Left|Right)$/.test(e.key)) {
+    const col = cur.closest('.column'); if (!col) return;
+    const cards = [...col.querySelectorAll('.col-body > .card')], i = cards.indexOf(cur); let next = null;
+    if (e.key === 'ArrowDown') next = cards[i + 1]; else if (e.key === 'ArrowUp') next = cards[i - 1];
+    else { let c = col; do { c = e.key === 'ArrowRight' ? c.nextElementSibling : c.previousElementSibling; } while (c && !(c.classList.contains('column') && c.querySelector('.col-body > .card')));
+      if (c) { const cs = c.querySelectorAll('.col-body > .card'); next = cs[Math.min(i, cs.length - 1)]; } }
+    if (next) { e.preventDefault(); next.focus(); next.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+    return;
+  }
   const tag = (document.activeElement && document.activeElement.tagName) || '';
   if (/INPUT|TEXTAREA|SELECT/.test(tag)) return;
   if (e.key === 'n' || e.key === 'c') { e.preventDefault(); openQuickAdd(); }
@@ -1215,7 +1226,7 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === '?') { e.preventDefault(); openShortcuts(); }
 });
 function openShortcuts() {
-  const rows = [['N ou C', 'Nova task'], ['/', 'Buscar'], ['Ctrl+K', 'Paleta de comandos'], ['?', 'Esta lista'], ['Esc', 'Fechar janela ou menu'], ['Enter', 'Abrir a task em foco / criar (nos campos)'], ['Ctrl+Enter', 'Criar e continuar · enviar comentário'], ['Ctrl+V', 'Colar print como anexo (dentro da task)']];
+  const rows = [['N ou C', 'Nova task'], ['/', 'Buscar'], ['← ↑ ↓ →', 'Navegar entre os cartões (com um cartão em foco)'], ['Ctrl+K', 'Paleta de comandos'], ['?', 'Esta lista'], ['Esc', 'Fechar janela ou menu'], ['Enter', 'Abrir a task em foco / criar (nos campos)'], ['Ctrl+Enter', 'Criar e continuar · enviar comentário'], ['Ctrl+V', 'Colar print como anexo (dentro da task)']];
   const close = openModal([modalHead('Atalhos do teclado', () => close()), h('div', { class: 'modal-body' }, h('div', { class: 'kbd-list' }, rows.map(([k, d]) => h('div', { class: 'kbd-row' }, h('span', { class: 'kbd' }, k), h('span', null, d)))))]);
 }
 

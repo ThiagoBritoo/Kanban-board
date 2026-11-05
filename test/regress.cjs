@@ -62,6 +62,9 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   await p.evaluate(() => KBApp.openTrash()); await p.waitForSelector('.trash-row'); ok((await p.locator('.trash-row').count()) === 1, 'lixeira lista a task excluída');
   await p.click('.trash-row .btn'); await p.waitForTimeout(600); ok((await p.locator('.card').count()) === n0, 'restaurar devolve o cartão ao quadro');
   await p.keyboard.press('Escape'); await p.waitForTimeout(250);
+  // setas navegam entre cartões
+  await p.locator('.column:nth-child(1) .card').first().focus(); await p.keyboard.press('ArrowDown'); await p.waitForTimeout(100);
+  ok(await p.evaluate(() => document.activeElement.classList.contains('card') && document.activeElement === document.querySelectorAll('.column:nth-child(1) .col-body > .card')[1]), 'seta para baixo vai para o próximo cartão');
   // 2) sessão sobrevive a recarregar, mesmo se a leitura do perfil falhar na 1ª vez
   let n = 0;
   await p.route('**/rest/v1/profiles?*', (r) => { if (n++ < 1) return r.abort(); return fake.handle(r); });
