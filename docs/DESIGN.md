@@ -29,6 +29,14 @@ Overrides do usuário têm especificidade maior que o tema (`html[data-x][data-t
 - Fonte: não confiar só em Inter; cada tema escolhe títulos (Fraunces, Orbitron, Garamond, Space Grotesk, Nunito…) quando combina com o caráter.
 - Ícones em um único traço (24px, stroke 2); sem emoji como ícone.
 
+## 4b. Estrutura da interface (aprendida vendo as referências)
+- **Navegação:** topo enxuto (busca, vistas, ações) + **barra lateral** com filtros, prazos, equipe e etiquetas **com contadores** (OriginKit). Em telas estreitas a barra vira uma linha de chips rolável.
+- **Cartão:** conteúdo → linha fina → rodapé (rótulos à esquerda; indicadores e dono à direita). Rodapé some se estiver vazio (Cult UI).
+- **Detalhe da task:** duas colunas — conteúdo à esquerda (descrição, checklist, anexos, comentários) e **propriedades à direita**; no celular as propriedades vão para o topo, compactas.
+- **Configurações:** painel lateral que **não escurece o quadro** (mudanças ao vivo, como os controles do Shader Gradient), agrupadas (Tema · Cores · Fundo · Cartões · Geral), com "salvo automaticamente" e **Restaurar padrões com desfazer** (Refero: settings).
+- **Estados:** sempre carregando (esqueleto), vazio (com a próxima ação), erro (com "tentar de novo") e sem conexão (faixa).
+- **Entrada:** tela de login com hero tipográfico sobre gradiente, sem controles de tema (Skiper).
+
 ## 5. Como criar um tema novo
 1. Escolha a família/inspiração (`docs/REFERENCIAS_DESIGN.md` §5) e, se possível, **leia o estilo real** (Refero) em vez de lembrar.
 2. Duas linhas em `themes.css`: `[data-theme="x"]{…claro…}` e `[data-theme="x"][data-mode="dark"]{…escuro…}`. `--bw`, `--font`, `--pad` só no bloco claro.
@@ -41,6 +49,8 @@ Overrides do usuário têm especificidade maior que o tema (`html[data-x][data-t
 - [ ] Contraste ok nos dois modos? (`test/themes-check.cjs`)
 - [ ] Testes de interface passam? (`test/e2e.cjs`, e `test/shader.cjs` se mexeu no fundo)
 - [ ] Vi a captura (claro e escuro, desktop e celular) e não só o código?
+- [ ] Hierarquia primeiro: dá para dizer em 3 segundos para que serve a tela? Títulos longos, botões apertados e cartões grandes não quebram no celular?
+- [ ] Tem estados de carregando, vazio e erro?
 - [ ] Animações respeitam reduzir movimento e têm saída mais sutil que a entrada?
 - [ ] O que eu adicionei é o que a ocasião pede? (cortar o resto)
 

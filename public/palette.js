@@ -16,6 +16,7 @@
       ['Ir para o Painel (bento)', 'bento', view('painel')],
       ['Filtrar: minhas tasks', 'take', filt({ who: 'me' })], ['Filtrar: sem dono', 'take', filt({ who: 'none' })],
       ['Filtrar: atrasadas', 'calendar', filt({ due: 'late' })], ['Filtrar: vencem hoje', 'calendar', filt({ due: 'today' })], ['Limpar filtros', 'x', filt({})],
+      ['Alternar barra lateral', 'menu', run(() => A.setPrefs({ sidebar: A.S.prefs.sidebar === false }, { refreshSettings: false }))],
       ['Alternar claro / escuro', 'moon', run(() => A.setPrefs({ mode: A.resolvedMode() === 'dark' ? 'light' : 'dark' }))],
       ['Personalizar aparência', 'palette', run(() => A.openSettings('look'))], ['Minha conta', 'edit', run(() => A.openSettings('account'))],
       ['Exportar tasks (CSV)', 'download', run(() => A.exportCsv())], ['Backup completo (JSON)', 'download', run(() => A.exportJson())],

@@ -10,7 +10,7 @@ const srv = http.createServer((q, r) => { let u = new URL(q.url, 'http://x').pat
   await p.route('https://cdn.jsdelivr.net/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: UMD })); await p.route('https://fonts.g*/**', (r) => r.abort()); await p.route('**/*.supabase.co/**', fake.handle);
   await p.goto('http://localhost:3226/'); await p.fill('input[type=email]', 't@x.com'); await p.fill('input[type=password]', 'senha123'); await p.click('button[type=submit]'); await p.waitForSelector('.column');
   ok(await p.evaluate(() => window.KBShader.supported()), 'WebGL disponível');
-  await p.click('button[title="Personalizar"]'); await p.waitForSelector('.bg-grid'); await p.click('.bg-tile[title^="Gradiente shader"]'); await p.waitForSelector('.shader-box'); await p.waitForTimeout(500);
+  await p.click('button[title="Personalizar"]'); await p.waitForSelector('.look-tabs'); await p.click('.look-tabs button:has-text("Fundo")'); await p.waitForSelector('.bg-grid'); await p.click('.bg-tile[title^="Gradiente shader"]'); await p.waitForSelector('.shader-box'); await p.waitForTimeout(500);
   ok((await p.evaluate(() => document.documentElement.dataset.shader)) === 'on' && (await p.evaluate(() => !!document.getElementById('shaderbg'))), 'shader ligado com canvas');
   await p.screenshot({ path: OUT + '/shader-settings.png' }); await p.keyboard.press('Escape'); await p.waitForTimeout(300);
   const pix = async () => p.evaluate(() => { const c = document.getElementById('shaderbg'); const t = document.createElement('canvas'); t.width = 8; t.height = 8; const x = t.getContext('2d'); x.drawImage(c, 0, 0, 8, 8); return [...x.getImageData(0, 0, 8, 8).data].join(','); });

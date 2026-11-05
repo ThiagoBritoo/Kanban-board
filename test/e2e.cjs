@@ -74,7 +74,7 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   // filtros
   await p.locator('.card .tag-btn').first().click(); await p.waitForTimeout(200);
   ok((await p.locator('.card').count()) === 1, 'clicar na etiqueta filtra o quadro');
-  await p.click('button:has-text("Limpar")'); await p.waitForTimeout(200);
+  await p.click('button:visible:has-text("Limpar")'); await p.waitForTimeout(200);
   ok((await p.locator('.card').count()) === 3, 'limpar filtros');
 
   // cor da coluna
@@ -167,7 +167,7 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   ok((await p.locator('.column:nth-child(1) .card .card-title').first().textContent()).startsWith('Início'), 'ordenar coluna por mais recentes');
 
   // fundo personalizado
-  await p.click('button[title="Personalizar"]'); await p.waitForSelector('.bg-grid');
+  await p.click('button[title="Personalizar"]'); await p.waitForSelector('.look-tabs'); await p.click('.look-tabs button:has-text("Fundo")'); await p.waitForSelector('.bg-grid');
   await p.click('.bg-tile[title="Aurora"]'); await p.waitForTimeout(200);
   ok(await p.evaluate(() => document.documentElement.dataset.bg === 'user' && getComputedStyle(document.documentElement).getPropertyValue('--bg-user').includes('gradient')), 'fundo Aurora aplicado');
   await p.screenshot({ path: OUT + 'v3-fundo.png' });
@@ -191,12 +191,35 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   await p.evaluate(() => window.KBApp.setPrefs({ bg: 'theme' }, { refreshSettings: false })); await p.waitForTimeout(150);
   ok(await p.evaluate(() => document.documentElement.dataset.shader === 'off'), 'fundo shader desligado volta ao tema');
 
+  // estrutura nova: barra lateral, modal em duas colunas, configurações agrupadas, sem conexão
+  await p.click('.sb-item:has-text("Minhas")'); await p.waitForTimeout(250);
+  ok((await p.locator('.card').count()) === 2, 'barra lateral: "Minhas" filtra as tasks do usuário');
+  await p.click('.sb-item:has-text("Todas")'); await p.waitForTimeout(250);
+  ok((await p.locator('.card').count()) === 3, 'barra lateral: "Todas" limpa o filtro');
+  ok(await p.locator('.sb-item .sb-count').first().isVisible(), 'barra lateral mostra contadores');
+  await p.locator('.column:nth-child(2) .card').first().click(); await p.waitForSelector('.task-grid');
+  ok((await p.locator('.task-main').count()) === 1 && (await p.locator('.task-side .field').count()) === 7, 'modal da task em duas colunas (7 propriedades à direita)');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(250);
+  await p.evaluate(() => window.KBApp.setPrefs({ theme: 'brasa' }, { refreshSettings: false }));
+  await p.click('button[title="Personalizar"]'); await p.waitForSelector('.look-tabs');
+  ok((await p.locator('.look-tabs button').count()) === 5, 'Personalizar agrupado em 5 abas');
+  ok(await p.locator('.drawer-panel').count() === 1 && (await p.locator('.column').first().isVisible()), 'Personalizar é um painel lateral e o quadro continua visível');
+  await p.click('button:has-text("Restaurar padrões")'); await p.click('.modal:has-text("Restaurar toda a aparência") button:has-text("Restaurar")'); await p.waitForTimeout(350);
+  ok(await p.evaluate(() => document.documentElement.dataset.theme === 'minimal'), 'restaurar padrões volta ao tema padrão');
+  await p.click('.toast:has-text("restaurada") .toast-act'); await p.waitForTimeout(300);
+  ok(await p.evaluate(() => document.documentElement.dataset.theme === 'brasa'), 'desfazer devolve a aparência anterior');
+  await p.evaluate(() => window.KBApp.setPrefs({ theme: 'minimal' }, { refreshSettings: false })); await p.keyboard.press('Escape'); await p.waitForTimeout(250);
+  await p.evaluate(() => window.dispatchEvent(new Event('offline'))); await p.waitForTimeout(150);
+  ok((await p.locator('#netbar').count()) === 1, 'faixa de "sem conexão" aparece');
+  await p.evaluate(() => window.dispatchEvent(new Event('online'))); await p.waitForTimeout(400);
+  ok((await p.locator('#netbar').count()) === 0, 'faixa de "sem conexão" some ao voltar');
+
   // arrastar com o dedo (tablet/celular)
   const tctx = await b.newContext({ viewport: { width: 1100, height: 800 }, hasTouch: true, isMobile: false });
   const tp = await tctx.newPage();
   await tp.route('https://cdn.jsdelivr.net/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: UMD }));
   await tp.route('https://fonts.g*/**', (r) => r.abort()); await tp.route('**/*.supabase.co/**', fake.handle);
-  await tp.goto('http://localhost:3222/'); await tp.fill('input[type=email]', 't@x.com'); await tp.fill('input[type=password]', 'senha123'); await tp.click('button[type=submit]');
+  await tp.goto('http://localhost:3222/'); await tp.evaluate(() => localStorage.setItem('kb-prefs', JSON.stringify({ sidebar: false }))); await tp.fill('input[type=email]', 't@x.com'); await tp.fill('input[type=password]', 'senha123'); await tp.click('button[type=submit]');
   await tp.waitForSelector('.card'); await tp.waitForTimeout(400);
   const cdp = await tctx.newCDPSession(tp);
   const mover = fake.db.tasks.find((t) => t.title.startsWith('Início')), fromCol = mover.column_id;
