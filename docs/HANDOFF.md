@@ -1,6 +1,6 @@
 # HANDOFF — estado do projeto para a próxima sessão
 
-> Atualizado em 05/11/2026. Serve para **limpar o contexto** e continuar sem perder nada: uma sessão nova lê `CLAUDE.md` → este arquivo.
+> Atualizado em 05/11/2026. Serve para **limpar o contexto** e continuar sem perder nada: uma sessão nova lê `AGENTS.md` → este arquivo.
 > Não há segredos aqui. A chave `anon` do Supabase é pública por desenho e está em `public/config.js`.
 
 ## 1. O que é
@@ -70,4 +70,4 @@ estrutura: barra lateral com contadores, modal da task em 2 colunas, cartão com
 - Primeira abertura **real** das versões novas no site de produção ainda não foi vista por mim (só por testes com API falsa e capturas).
 
 ## 10. Mapa de documentos
-`CLAUDE.md` (entrada) · `docs/HANDOFF.md` (este) · `docs/DESIGN.md` (design system) · `docs/REFERENCIAS_DESIGN.md` (referências, o que foi aplicado de cada, como a IA vê sites) · `README.md` (uso) · `supabase/migrations/` · `test/` · `scripts/browse-sites.cjs`.
+`AGENTS.md` (entrada; `CLAUDE.md` só importa ele) · `docs/HANDOFF.md` (este) · `docs/DESIGN.md` (design system) · `docs/REFERENCIAS_DESIGN.md` (referências, o que foi aplicado de cada, como a IA vê sites) · `README.md` (uso) · `supabase/migrations/` · `test/` · `scripts/browse-sites.cjs`.

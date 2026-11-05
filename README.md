@@ -59,5 +59,5 @@ Também serve Cloudflare Pages ou Netlify: conecte este repositório. **Sem coma
 - `public/` site estático: `themes.css` (os 33 temas e efeitos de fundo), `shader.js` (fundo WebGL), `terrain.js` (terreno de arame), `island.js` (ilha do cronômetro), `app.js` (núcleo), `views.js` (lista, calendário, resumo, exportar), `palette.js`, `touch.js`, `backend.js` (camada Supabase), `app.css` (temas)
 - `vercel.json` cabeçalhos de segurança (CSP etc.); `public/_headers` é o equivalente para Netlify/Cloudflare
 - `supabase/migrations/` esquema, RLS, gatilhos de histórico e funções (rode na ordem, no SQL Editor, num projeto novo)
-- `CLAUDE.md` + `docs/DESIGN.md` design system do projeto (o `CLAUDE.md` manda ler o DESIGN.md antes de mexer na interface) · `scripts/browse-sites.cjs` abre sites num Chromium para a IA "ver" referências · `docs/REFERENCIAS_DESIGN.md` referências e o que foi aplicado de cada uma
+- `AGENTS.md` + `docs/DESIGN.md` design system do projeto (o `AGENTS.md` manda ler o DESIGN.md antes de mexer na interface) · `scripts/browse-sites.cjs` abre sites num Chromium para a IA "ver" referências · `docs/REFERENCIAS_DESIGN.md` referências e o que foi aplicado de cada uma
 - `test/` teste de interface com uma API Supabase falsa (instruções no topo de `test/e2e.cjs`)
