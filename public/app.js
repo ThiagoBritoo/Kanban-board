@@ -28,6 +28,7 @@ const ICONS = {
   chart: '<path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/>',
   pulse: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
   download: '<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
+  down: '<path d="m6 9 6 6 6-6"/>',
   command: '<path d="M9 9h6v6H9zM9 9V6a3 3 0 1 0-3 3h3zm6 0V6a3 3 0 1 1 3 3h-3zM9 15v3a3 3 0 1 1-3-3h3zm6 0v3a3 3 0 1 0 3-3h-3z"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
   bento: '<rect x="3" y="3" width="8" height="10" rx="2"/><rect x="13" y="3" width="8" height="6" rx="2"/><rect x="13" y="11" width="8" height="10" rx="2"/><rect x="3" y="15" width="8" height="6" rx="2"/>',
@@ -156,7 +157,7 @@ const THEMES = [
   ['meialuz', 'Meia-luz', 'painéis claros e escuros', 'Únicos', false],
   ['camara', 'Câmara Escura', 'breu quente, creme, tracejado', 'Únicos', false],
 ];
-const DEFAULT_PREFS = { fxBg: '#05060f', fxC1: '#7c9cff', fxC2: '#ff5fd2', fxSp: 100, fxAmt: 100, pulse: 'off', cardLight: false, theme: 'minimal', mode: 'system', accent: null, font: 'auto', radius: null, density: 'comfortable', motion: true, autoAssign: true, hideOldDone: true, view: 'board', bg: 'theme', bgUrl: '', notify: false,
+const DEFAULT_PREFS = { fxBg: '#05060f', fxC1: '#7c9cff', fxC2: '#ff5fd2', fxSp: 100, fxAmt: 100, pulse: 'off', beam: 'off', cardLight: false, theme: 'minimal', mode: 'system', accent: null, font: 'auto', radius: null, density: 'comfortable', motion: true, autoAssign: true, hideOldDone: true, view: 'board', bg: 'theme', bgUrl: '', notify: false,
   shType: 'plane', shC1: '#52ff89', shC2: '#dbba95', shC3: '#d0bce1', shSpeed: 40, shStrength: 50, shDensity: 40, shGrain: 4, shDim: 0,
   trType: 'linhas', trBg: '#f1ecdf', trLine: '#4a5a4c', trAccent: '#c8522e', trSun: 170, trRelief: 100, trDensity: 110, trSpeed: 40, trCam: 100, trHover: 40, trInterval: 5, trSoft: 0,
   sidebar: true, fx: true, fxSpeed: 100, fxIntensity: 100, cardStyle: 'theme', border: 'theme', shadow: 'theme', size: 'normal' };
@@ -203,7 +204,7 @@ function applyPrefs() {
   window.KBShader && window.KBShader.update(p, resolvedMode());
   window.KBTerrain && window.KBTerrain.update(p, resolvedMode(), p.theme);
   window.KBFx && window.KBFx.update(p, resolvedMode(), p.theme);
-  r.dataset.pulse = p.pulse || 'off';
+  r.dataset.pulse = p.pulse || 'off'; r.dataset.beam = p.beam || 'off';
   r.dataset.cardlight = p.cardLight ? 'on' : 'off';
   const bg = bgCss(p, resolvedMode());
   if (bg) { r.style.setProperty('--bg-user', bg); r.dataset.bg = 'user'; } else { r.style.removeProperty('--bg-user'); delete r.dataset.bg; }
@@ -763,12 +764,13 @@ function renderColumn(col) {
       if (e.key === 'Escape') { add.value = ''; S.drafts[col.id] = ''; add.blur(); }
       if (e.key !== 'Enter' || !add.value.trim()) return;
       const text = add.value; add.value = ''; S.drafts[col.id] = '';
-      try { await createFromText(text, col.id); const el = $(`.add-input[data-col="${col.id}"]`); el && el.focus(); } catch (x) { add.value = text; S.drafts[col.id] = text; throw x; }
+      try { await createFromText(text, col.id); const el = $(`.add-input[data-col="${col.id}"]`); el && el.focus({ preventScroll: true }); } catch (x) { add.value = text; S.drafts[col.id] = text; throw x; }
     }) });
 
   const menuBtn = h('button', { class: 'btn ghost icon sm', title: 'Opções da coluna', onclick: (e) => popover(e.currentTarget, columnMenu(col, e.currentTarget)) }, icon('more'));
+  const quickBtn = h('button', { class: 'btn ghost icon sm col-quick', title: 'Nova task nesta coluna (formulário)', 'aria-label': 'Nova task em ' + col.name, onclick: (e) => { e.stopPropagation(); openQuickForm(e.currentTarget, col); } }, icon('plus'));
   const el = h('section', { class: 'column' + (col.color ? ' has-color' : ''), style: col.color ? { '--col-color': col.color } : null, dataset: { id: col.id, kind: col.kind } },
-    h('div', { class: 'col-head' }, h('span', { class: 'col-dot' }), h('div', { class: 'col-title', title: col.name }, col.name), h('span', { class: 'col-count' + (col.wip_limit && all.length > col.wip_limit ? ' over' : ''), title: col.wip_limit ? `Limite: ${col.wip_limit} tasks` : '' }, col.wip_limit ? `${all.length}/${col.wip_limit}` : all.length), menuBtn),
+    h('div', { class: 'col-head' }, h('span', { class: 'col-dot' }), h('div', { class: 'col-title', title: col.name }, col.name), h('span', { class: 'col-count' + (col.wip_limit && all.length > col.wip_limit ? ' over' : ''), title: col.wip_limit ? `Limite: ${col.wip_limit} tasks` : '' }, col.wip_limit ? `${all.length}/${col.wip_limit}` : all.length), quickBtn, menuBtn),
     body, h('div', { class: 'col-foot' }, add));
 
   // arrastar e soltar
@@ -796,6 +798,33 @@ const COL_SORTS = [
   ['Mais antigas primeiro', (a, b) => a.created_at - b.created_at],
 ];
 const COL_COLORS = [['Padrão', null], ['Cinza', '#71717a'], ['Vermelho', '#ef4444'], ['Laranja', '#f97316'], ['Amarelo', '#eab308'], ['Verde', '#22c55e'], ['Azul', '#3b82f6'], ['Roxo', '#8b5cf6'], ['Rosa', '#ec4899']];
+// Popover Form (ideia do Cult UI, código próprio): o botão "+" da coluna vira um mini formulário que cresce do gatilho
+let quickEl = null;
+function closeQuickForm() { if (!quickEl) return; const el = quickEl; quickEl = null; el.classList.add('out'); setTimeout(() => el.remove(), 110); document.removeEventListener('mousedown', quickOutside, true); }
+function quickOutside(e) { if (quickEl && !quickEl.contains(e.target) && !e.target.closest('.col-quick')) closeQuickForm(); }
+function openQuickForm(anchor, col) {
+  closeQuickForm(); closePopover();
+  let prio = 1;
+  const title = h('input', { class: 'input', placeholder: 'O que precisa ser feito?', maxLength: 300, 'aria-label': 'Título da task' });
+  const due = h('input', { class: 'input', type: 'date', 'aria-label': 'Prazo' });
+  const prioBtns = PRIO_NAME.map((n, i) => h('button', { type: 'button', class: i === prio ? 'on' : '', onclick: () => { prio = i; prioBtns.forEach((b, k) => b.classList.toggle('on', k === i)); } }, n));
+  const form = h('div', { class: 'qform-body' }, title, h('div', { class: 'seg' }, prioBtns), h('label', { class: 'when' }, h('span', { class: 'help' }, 'Prazo (opcional)'), due),
+    h('div', { class: 'qform-foot' }, h('button', { type: 'button', class: 'btn sm', onclick: closeQuickForm }, 'Cancelar'), h('button', { type: 'button', class: 'btn sm primary', onclick: () => create() }, 'Criar')));
+  const el = h('div', { class: 'qform', role: 'dialog', 'aria-label': 'Nova task em ' + col.name }, h('div', { class: 'qform-head' }, 'Nova task em ', h('b', null, col.name)), form);
+  const create = guard(async () => {
+    const t = title.value.trim(); if (!t) { title.focus(); return; }
+    const made = await api('POST', '/api/tasks', { title: t, column_id: col.id, priority: prio, due_date: due.value || null, ...(S.me && col.kind === 'doing' ? { assignee_id: S.me.id } : {}) });
+    upsertTask(made); renderBoard();
+    form.replaceChildren(h('div', { class: 'qform-ok', role: 'status' }, icon('check'), 'Task criada')); form.querySelectorAll('svg').forEach((v) => Object.assign(v.style, { width: '16px', height: '16px' }));
+    setTimeout(closeQuickForm, 650);
+  });
+  el.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); closeQuickForm(); anchor.focus && anchor.focus(); } else if (e.key === 'Enter' && (e.target === title || e.target === due)) { e.preventDefault(); create(); } });
+  document.body.append(el); quickEl = el;
+  const a = anchor.getBoundingClientRect(), w = el.offsetWidth, hh = el.offsetHeight;
+  const left = Math.max(8, Math.min(innerWidth - w - 8, a.right - w)), top = a.bottom + hh + 12 > innerHeight ? Math.max(8, a.top - hh - 6) : a.bottom + 6;
+  el.style.left = left + 'px'; el.style.top = top + 'px'; el.style.transformOrigin = `${Math.round(a.left + a.width / 2 - left)}px ${top < a.top ? '100%' : '0'}`;
+  document.addEventListener('mousedown', quickOutside, true); title.focus();
+}
 function columnMenu(col, anchor) {
   const idx = S.columns.findIndex((c) => c.id === col.id);
   const kinds = [['todo', 'A fazer'], ['doing', 'Em andamento'], ['done', 'Concluída']];
@@ -898,15 +927,41 @@ async function deleteTask(t) {
   toast('Task excluída', false, { label: 'Desfazer', onClick: guard(async () => { await api('POST', `/api/tasks/${t.id}/restore`); await loadBoard(); toast('Task restaurada'); }) });
 }
 
+// Expandable Card (ideia do Cult UI, código próprio): o cartão abre no lugar e mostra descrição inteira e checklist marcável
+const expandedIds = new Set();
+function expandBtn(t, getCard) {
+  const on = expandedIds.has(t.id);
+  return h('button', { class: 'card-exp btn ghost icon sm', type: 'button', title: on ? 'Recolher' : 'Ver detalhes', 'aria-label': on ? 'Recolher detalhes' : 'Ver detalhes', 'aria-expanded': String(on),
+    onclick: (e) => {
+      e.stopPropagation(); const card = getCard(), now = !card.classList.contains('expanded');
+      card.classList.toggle('expanded', now); now ? expandedIds.add(t.id) : expandedIds.delete(t.id);
+      const more = card.querySelector('.card-more'); if (more) { more.inert = !now; more.setAttribute('aria-hidden', String(!now)); }
+      e.currentTarget.setAttribute('aria-expanded', String(now)); e.currentTarget.title = now ? 'Recolher' : 'Ver detalhes';
+    } }, icon('down'));
+}
+function moreBlock(t) {
+  const on = expandedIds.has(t.id), cl = t.checklist || [];
+  const box = h('div', { class: 'card-more', 'aria-hidden': String(!on) },
+    h('div', { class: 'card-more-in' },
+      t.description && h('div', { class: 'cm-desc' }, t.description),
+      cl.length > 0 && h('div', { class: 'cm-check' }, cl.map((it, i) => h('label', { class: 'check mini' + (it.done ? ' done' : ''), onclick: (e) => e.stopPropagation() },
+        h('input', { type: 'checkbox', checked: it.done, onchange: guard(async (e) => {
+          const next = cl.map((x, k) => (k === i ? { ...x, done: e.target.checked } : x));
+          upsertTask(await api('PATCH', `/api/tasks/${t.id}`, { checklist: next })); renderBoard();
+        }) }), h('span', null, it.text))))));
+  box.inert = !on; return box;
+}
 function renderCard(t, col) {
   const owner = userById(t.assignee_id);
   const ds = dueState(t);
   const cl = t.checklist || [], clDone = cl.filter((i) => i.done).length;
-  const card = h('article', { class: 'card' + (col.kind === 'done' ? ' done' : '') + (S.seen && !S.seen.has(t.id) ? ' enter' : ''), draggable: true, tabIndex: 0, dataset: { id: t.id, p: t.priority },
+  const card = h('article', { class: 'card' + (expandedIds.has(t.id) ? ' expanded' : '') + (col.kind === 'done' ? ' done' : '') + (S.seen && !S.seen.has(t.id) ? ' enter' : ''), draggable: true, tabIndex: 0, dataset: { id: t.id, p: t.priority },
     onclick: () => openTask(t.id), onkeydown: (e) => { if (e.key === 'Enter' && e.target === card) openTask(t.id); } },
     h('button', { class: 'card-menu btn ghost icon sm', title: 'Opções da task', 'aria-label': 'Opções da task', onclick: (e) => { e.stopPropagation(); popover(e.currentTarget, cardMenu(t)); } }, icon('more')),
     h('div', { class: 'card-title' }, t.title),
     t.description && h('div', { class: 'card-desc' }, t.description),
+    (t.description || cl.length > 0) && expandBtn(t, () => card),
+    (t.description || cl.length > 0) && moreBlock(t),
     h('div', { class: 'card-meta' },
       h('div', { class: 'cm-left' }, t.labels.map((l) => h('span', { class: 'tag tag-btn', style: { '--h': hueOf(l) }, title: 'Filtrar por #' + l, onclick: (e) => { e.stopPropagation(); S.filter.label = S.filter.label && S.filter.label.toLowerCase() === l.toLowerCase() ? null : l; renderBoard(); } }, l))),
       h('div', { class: 'cm-right' },
@@ -1305,6 +1360,7 @@ function viewLook() {
     cartoes: [
       h('div', { class: 'field' }, h('label', null, 'Efeitos nos cartões'),
         seg('pulse', [['off', 'Sem borda pulsante'], ['high', 'Pulsar: alta e urgente'], ['urgent', 'Pulsar: só urgente']]),
+        seg('beam', [['off', 'Sem feixe de luz'], ['high', 'Feixe: alta e urgente'], ['urgent', 'Feixe: só urgente']]),
         toggle('cardLight', 'Luz caindo no cartão ao passar o mouse')),
       h('div', { class: 'row' },
         h('div', { class: 'field' }, h('label', null, 'Cartões'), seg('cardStyle', [['theme', 'Do tema'], ['solid', 'Sólido'], ['glass', 'Vidro'], ['outline', 'Contorno'], ['fold', 'Dobrado']])),

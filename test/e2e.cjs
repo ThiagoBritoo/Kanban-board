@@ -78,7 +78,7 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   ok((await p.locator('.card').count()) === 3, 'limpar filtros');
 
   // cor da coluna
-  await mclick(p, p.locator('.column:nth-child(1) .col-head .btn')); await p.click('.popover button:has-text("Cor da coluna")');
+  await mclick(p, p.locator('.column:nth-child(1) .col-head button[title="Opções da coluna"]')); await p.click('.popover button:has-text("Cor da coluna")');
   await p.click('.popover button:has-text("Azul")'); await p.waitForTimeout(500);
   ok(await p.locator('.column.has-color').count() === 1, 'coluna recebe cor');
 
@@ -163,10 +163,10 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   ok((await p.locator('.column:nth-child(2) .card .due[title="Anexos"]').count()) === 1, 'card mostra contagem de anexos');
 
   // limite de tasks (WIP) + ordenar coluna
-  await mclick(p, p.locator('.column:nth-child(1) .col-head .btn'));
+  await mclick(p, p.locator('.column:nth-child(1) .col-head button[title="Opções da coluna"]'));
   await p.click('.popover button:has-text("Definir limite")'); await p.fill('.modal input', '1'); await p.keyboard.press('Enter'); await p.waitForTimeout(500);
   ok((await p.locator('.column:nth-child(1) .col-count.over').textContent()) === '2/1', 'limite da coluna excedido aparece em vermelho (2/1)');
-  await mclick(p, p.locator('.column:nth-child(1) .col-head .btn'));
+  await mclick(p, p.locator('.column:nth-child(1) .col-head button[title="Opções da coluna"]'));
   await p.click('.popover button:has-text("Ordenar por")'); await p.click('.popover button:has-text("Mais recentes")'); await p.waitForTimeout(600);
   ok((await p.locator('.column:nth-child(1) .card .card-title').first().textContent()).startsWith('Início'), 'ordenar coluna por mais recentes');
 
