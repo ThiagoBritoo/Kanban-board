@@ -29,6 +29,7 @@ const ICONS = {
   pulse: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
   download: '<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
   command: '<path d="M9 9h6v6H9zM9 9V6a3 3 0 1 0-3 3h3zm6 0V6a3 3 0 1 1 3 3h-3zM9 15v3a3 3 0 1 1-3-3h3zm6 0v3a3 3 0 1 0 3-3h-3z"/>',
+  menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
   bento: '<rect x="3" y="3" width="8" height="10" rx="2"/><rect x="13" y="3" width="8" height="6" rx="2"/><rect x="13" y="11" width="8" height="10" rx="2"/><rect x="3" y="15" width="8" height="6" rx="2"/>',
   table: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/>',
   undo: '<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/>',
@@ -77,8 +78,9 @@ const hueOf = (s) => { let x = 0; for (const c of norm(s)) x = (x * 31 + c.charC
 
 const api = async (method, url, body) => {
   if (method !== 'GET') S.lastWrite = Date.now();
-  try { return await KB.api(method, url, body); }
+  try { const r = await KB.api(method, url, body); if (S.offline) setOffline(false); return r; }
   catch (e) {
+    if (/Sem conexão|Failed to fetch|NetworkError/i.test(e.message)) setOffline(true);
     if (/JWT|token is expired|not authenticated|invalid claim/i.test(e.message)) { try { await KB.signOut(); } catch { /* ok */ } location.reload(); }
     throw e;
   }
@@ -92,6 +94,16 @@ function toast(msg, err = false, action = null) {
   $('#toasts').append(el);
   setTimeout(dismiss, err ? 4200 : action ? 6500 : 2200);
 }
+function setOffline(off) {
+  S.offline = off; let bar = document.getElementById('netbar');
+  if (!off) { bar && bar.remove(); return; }
+  if (bar) return;
+  bar = h('div', { id: 'netbar', class: 'netbar', role: 'alert' }, h('span', null, 'Sem conexão com o servidor. Suas mudanças só serão salvas quando voltar.'),
+    h('button', { class: 'btn sm', onclick: () => { loadBoard().catch(() => {}); } }, 'Tentar de novo'));
+  const top = document.querySelector('.topbar'); top ? top.after(bar) : document.body.prepend(bar);
+}
+addEventListener('offline', () => setOffline(true));
+addEventListener('online', () => { setOffline(false); if (S.me) loadBoard().catch(() => {}); });
 const guard = (fn) => async (...a) => { try { return await fn(...a); } catch (e) { toast(e.message, true); } };
 
 /* ================= estado e preferências ================= */
@@ -132,7 +144,7 @@ const THEMES = [
 ];
 const DEFAULT_PREFS = { theme: 'minimal', mode: 'system', accent: null, font: 'auto', radius: null, density: 'comfortable', motion: true, autoAssign: true, hideOldDone: true, view: 'board', bg: 'theme', bgUrl: '', notify: false,
   shType: 'plane', shC1: '#52ff89', shC2: '#dbba95', shC3: '#d0bce1', shSpeed: 40, shStrength: 50, shDensity: 40, shGrain: 4, shDim: 0,
-  fx: true, fxSpeed: 100, fxIntensity: 100, cardStyle: 'theme', border: 'theme', shadow: 'theme', size: 'normal' };
+  sidebar: true, fx: true, fxSpeed: 100, fxIntensity: 100, cardStyle: 'theme', border: 'theme', shadow: 'theme', size: 'normal' };
 const S = { me: null, users: [], columns: [], tasks: [], prefs: { ...DEFAULT_PREFS }, filter: { q: '', who: 'all', due: null, label: null }, drafts: {}, drag: null, seen: null, showAllDone: false, online: new Set(), lastWrite: 0, loadedOnce: false };
 
 const SHADER_PRESETS = [
@@ -166,6 +178,7 @@ function applyPrefs() {
   r.dataset.theme = p.theme; r.dataset.mode = resolvedMode(); r.dataset.density = p.density;
   r.dataset.motion = p.motion ? 'on' : 'off';
   r.dataset.fx = p.fx === false ? 'off' : 'on';
+  r.dataset.sidebar = p.sidebar === false ? 'off' : 'on';
   r.style.setProperty('--fx-speed', String((Number(p.fxSpeed) || 100) / 100));
   r.style.setProperty('--deco-o', String((p.fxIntensity == null ? 100 : Number(p.fxIntensity)) / 100));
   for (const [key, attr] of [['cardStyle', 'card'], ['border', 'bw'], ['shadow', 'shadow'], ['size', 'size']]) {
@@ -204,20 +217,20 @@ function avatar(user, size = 26) {
 
 /* ================= modais, popovers, diálogos ================= */
 const modalStack = [];
-function openModal(content, { wide = false, onClose } = {}) {
+function openModal(content, { wide = false, xwide = false, drawer = false, onClose } = {}) {
   let downOnOverlay = false;
-  const overlay = h('div', { class: 'overlay',
+  const overlay = h('div', { class: 'overlay' + (drawer ? ' drawer' : ''),
     onmousedown: (e) => { downOnOverlay = e.target === overlay; },
     onmouseup: (e) => { if (downOnOverlay && e.target === overlay) close(); } },
-    h('div', { class: 'modal' + (wide ? ' wide' : ''), role: 'dialog', 'aria-modal': 'true' }, content));
+    h('div', { class: 'modal' + (wide ? ' wide' : '') + (xwide ? ' xwide' : '') + (drawer ? ' drawer-panel' : ''), role: 'dialog', 'aria-modal': 'true' }, content));
   function close() {
     const i = modalStack.indexOf(entry); if (i < 0) return;
     modalStack.splice(i, 1); overlay.classList.add('out'); setTimeout(() => overlay.remove(), 130); onClose && onClose();
-    if (!modalStack.length) document.body.style.overflow = '';
+    if (modalStack.every((e) => e.drawer)) document.body.style.overflow = '';
   }
-  const entry = { close };
+  const entry = { close, drawer };
   modalStack.push(entry);
-  document.body.style.overflow = 'hidden';
+  if (!drawer) document.body.style.overflow = 'hidden';
   document.body.append(overlay);
   return close;
 }
@@ -362,12 +375,18 @@ function openQuickAdd(prefill = '') {
 }
 
 /* ================= login, cadastro e aprovação ================= */
-function themeDots() {
-  return h('div', { class: 'row', style: { justifyContent: 'center', gap: '6px' } }, THEMES.map(([id]) => h('button', { type: 'button', class: 'swatch', title: id, style: { background: 'var(--accent)', flex: '0 0 auto' }, 'data-theme': id, 'data-mode': resolvedMode(), onclick: () => setPrefs({ theme: id }, { refreshSettings: false }) })));
+function authBackdrop() { // gradiente shader atrás do login; some quando o app inicia (applyPrefs)
+  if (!window.KBShader || !window.KBShader.supported()) return;
+  const dark = resolvedMode() === 'dark';
+  window.KBShader.update({ ...S.prefs, bg: 'shader', shType: 'plane', shC1: dark ? '#3b2bd6' : '#8f9bff', shC2: dark ? '#c0267f' : '#ffc2e2', shC3: dark ? '#0e7490' : '#a5ecff', shSpeed: 35, shStrength: 60, shDensity: 35, shGrain: 5, shDim: 0 }, resolvedMode());
 }
 function authShell(...kids) {
-  const app = $('#app'); app.replaceChildren(h('div', { class: 'auth' }, h('div', { class: 'auth-card' },
-    h('div', { class: 'brand' }, h('span', { class: 'logo' }, icon('grid')), 'Kanban'), ...kids, themeDots())));
+  const app = $('#app');
+  app.replaceChildren(h('div', { class: 'auth split' },
+    h('div', { class: 'auth-hero' }, h('div', { class: 'auth-kicker' }, 'Kanban da equipe'), h('h2', null, 'Organize o trabalho.', h('br'), 'Registre o dia.'),
+      h('p', null, 'Tasks, quem pegou o quê e um diário pronto no fim do expediente.')),
+    h('div', { class: 'auth-card' }, h('div', { class: 'brand' }, h('span', { class: 'logo' }, icon('grid')), 'Kanban'), ...kids)));
+  authBackdrop();
 }
 async function start() {
   const s = await KB.getSession();
@@ -454,6 +473,7 @@ function renderShell() {
   const search = h('input', { id: 'search', placeholder: 'Buscar tasks', autocomplete: 'off', value: S.filter.q,
     oninput: () => { S.filter.q = search.value; renderBoard(); }, onkeydown: (e) => { if (e.key === 'Escape') { search.value = ''; S.filter.q = ''; search.blur(); renderBoard(); } } });
   const top = h('header', { class: 'topbar' },
+    h('button', { class: 'btn ghost icon hide-m', id: 'sbToggle', title: 'Mostrar ou ocultar a barra lateral', 'aria-label': 'Alternar barra lateral', onclick: () => setPrefs({ sidebar: S.prefs.sidebar === false }, { refreshSettings: false }) }, icon('menu')),
     h('div', { class: 'brand' }, h('span', { class: 'logo' }, icon('grid')), h('span', null, 'Kanban')),
     h('label', { class: 'search' }, icon('search'), search, h('kbd', null, '/')),
     h('div', { class: 'seg view-seg', id: 'viewSeg', role: 'tablist' }, [['board', 'grid', 'Quadro'], ['list', 'table', 'Lista'], ['calendar', 'calendar', 'Calendário'], ['painel', 'bento', 'Painel']].map(([k, ic, l]) =>
@@ -468,7 +488,8 @@ function renderShell() {
       { label: 'Minha conta', icon: 'edit', onClick: () => openSettings('account') },
       ...(S.me.role === 'admin' ? [{ label: 'Equipe', icon: 'take', onClick: () => openSettings('team') }] : []),
       'hr', { label: 'Sair', icon: 'logout', onClick: guard(async () => { await KB.signOut(); location.reload(); }) }]) }, avatar(S.me, 30)));
-  app.append(top, h('div', { id: 'toolbar', class: 'toolbar' }), h('main', { id: 'board', class: 'board' }));
+  app.append(top, h('div', { class: 'layout' }, h('aside', { id: 'sidebar', class: 'sidebar', 'aria-label': 'Filtros' }),
+    h('div', { class: 'content' }, h('div', { id: 'toolbar', class: 'toolbar' }), h('main', { id: 'board', class: 'board' }))));
   renderTopbarMode();
 }
 
@@ -518,9 +539,45 @@ function renderToolbar() {
   tb.querySelectorAll('svg').forEach((v) => Object.assign(v.style, { width: '13px', height: '13px' }));
 }
 
+function renderSidebar() {
+  const sb = $('#sidebar'); if (!sb) return;
+  const f = S.filter, open = S.tasks.filter((t) => (colById(t.column_id) || {}).kind !== 'done');
+  const n = (fn) => open.filter(fn).length;
+  const none = !f.q && f.who === 'all' && !f.due && !f.label;
+  const item = (label, count, active, onclick, lead, cls = '') => h('button', { type: 'button', class: 'sb-item' + (active ? ' on' : '') + (cls ? ' ' + cls : ''), 'aria-pressed': String(!!active), onclick },
+    lead, h('span', { class: 'sb-label' }, label), count != null && h('span', { class: 'sb-count' }, count));
+  const who = (v) => () => { f.who = f.who === v && v !== 'all' ? 'all' : v; renderBoard(); };
+  const due = (v) => () => { f.due = f.due === v ? null : v; renderBoard(); };
+  const labels = [...new Map(S.tasks.flatMap((t) => t.labels).map((l) => [l.toLowerCase(), l])).values()].sort((a, b) => a.localeCompare(b, 'pt-BR')).slice(0, 14);
+  const dot = (css) => h('i', { class: 'sb-dot', style: css });
+  sb.replaceChildren(
+    h('div', { class: 'sb-sec' }, h('div', { class: 'sb-h' }, 'Tasks'),
+      item('Todas', open.length, none, clearFilters, icon('list')),
+      item('Minhas', n((t) => t.assignee_id === S.me.id), f.who === 'me', who('me'), avatar(S.me, 18)),
+      item('Sem dono', n((t) => t.assignee_id == null), f.who === 'none', who('none'), avatar(null, 18))),
+    h('div', { class: 'sb-sec' }, h('div', { class: 'sb-h' }, 'Prazos'),
+      item('Atrasadas', n((t) => dueState(t) === 'late'), f.due === 'late', due('late'), dot({ background: 'var(--p3)' }), 'late'),
+      item('Vencem hoje', n((t) => dueState(t) === 'today'), f.due === 'today', due('today'), dot({ background: 'var(--p2)' }))),
+    S.users.length > 1 && h('div', { class: 'sb-sec' }, h('div', { class: 'sb-h' }, 'Equipe'),
+      ...S.users.filter((u) => u.id !== S.me.id).map((u) => item(u.name.split(' ')[0], n((t) => t.assignee_id === u.id), f.who === u.id, who(u.id), h('span', { class: 'av-wrap' + (S.online.has(u.id) ? ' online' : '') }, avatar(u, 18))))),
+    labels.length > 0 && h('div', { class: 'sb-sec' }, h('div', { class: 'sb-h' }, 'Etiquetas'),
+      ...labels.map((l) => item(l, n((t) => t.labels.some((x) => x.toLowerCase() === l.toLowerCase())), f.label && f.label.toLowerCase() === l.toLowerCase(), () => { f.label = f.label && f.label.toLowerCase() === l.toLowerCase() ? null : l; renderBoard(); }, dot({ background: `hsl(${hueOf(l)} 65% 55%)` })))),
+    h('div', { class: 'sb-foot' }, !none && h('button', { class: 'btn sm', onclick: clearFilters }, icon('x'), 'Limpar filtros'),
+      h('div', { class: 'help' }, h('span', { class: 'kbd' }, 'N'), ' nova · ', h('span', { class: 'kbd' }, '/'), ' buscar · ', h('span', { class: 'kbd' }, 'Ctrl+K'))));
+  sb.querySelectorAll('svg').forEach((v) => Object.assign(v.style, { width: '14px', height: '14px' }));
+}
+
+// esqueleto de carregamento (some quando o quadro chega)
+function renderSkeleton() {
+  const board = $('#board'); if (!board) return;
+  board.className = 'board';
+  board.replaceChildren(...[2, 3, 1, 2].map((n) => h('section', { class: 'column skeleton', 'aria-hidden': 'true' },
+    h('div', { class: 'col-head' }, h('span', { class: 'sk sk-title' })),
+    h('div', { class: 'col-body' }, Array.from({ length: n }, () => h('div', { class: 'card sk-card' }, h('span', { class: 'sk sk-line' }), h('span', { class: 'sk sk-line short' })))))));
+}
 function renderBoard() {
   const board = $('#board'); if (!board) return;
-  renderToolbar(); syncViewSeg(); window.KBApp.updateIsland && window.KBApp.updateIsland();
+  renderToolbar(); renderSidebar(); syncViewSeg(); window.KBApp.updateIsland && window.KBApp.updateIsland();
   const view = S.prefs.view || 'board';
   if (view !== 'board' && window.KBApp.views[view]) {
     board.className = 'board alt view-' + view;
@@ -656,13 +713,14 @@ function renderCard(t, col) {
     h('div', { class: 'card-title' }, t.title),
     t.description && h('div', { class: 'card-desc' }, t.description),
     h('div', { class: 'card-meta' },
-      t.labels.map((l) => h('span', { class: 'tag tag-btn', style: { '--h': hueOf(l) }, title: 'Filtrar por #' + l, onclick: (e) => { e.stopPropagation(); S.filter.label = S.filter.label && S.filter.label.toLowerCase() === l.toLowerCase() ? null : l; renderBoard(); } }, l)),
-      cl.length > 0 && h('span', { class: 'due' + (clDone === cl.length ? ' ok' : '') }, icon('list'), `${clDone}/${cl.length}`),
-      t.attachments > 0 && h('span', { class: 'due', title: 'Anexos' }, icon('clip'), t.attachments),
-      (t.timer_started_at || t.time_spent > 0) && h('span', { class: 'due' + (t.timer_started_at ? ' timer-live running' : ''), title: t.timer_started_at ? 'Cronômetro rodando' : 'Tempo registrado',
-        dataset: t.timer_started_at ? { since: t.timer_started_at, base: t.time_spent } : {} }, icon('timer'), fmtDur(totalSecs(t))),
-      t.due_date && h('span', { class: 'due' + (ds === 'late' ? ' late' : ds === 'today' ? ' today' : '') }, icon('calendar'), fmtDay(t.due_date)),
-      owner ? avatar(owner, 24) : h('button', { class: 'btn sm take', title: 'Pegar esta task', onclick: guard(async (e) => { e.stopPropagation(); upsertTask(await api('PATCH', `/api/tasks/${t.id}`, { assignee_id: S.me.id })); renderBoard(); toast('Task é sua'); }) }, icon('take'), 'Pegar')));
+      h('div', { class: 'cm-left' }, t.labels.map((l) => h('span', { class: 'tag tag-btn', style: { '--h': hueOf(l) }, title: 'Filtrar por #' + l, onclick: (e) => { e.stopPropagation(); S.filter.label = S.filter.label && S.filter.label.toLowerCase() === l.toLowerCase() ? null : l; renderBoard(); } }, l))),
+      h('div', { class: 'cm-right' },
+        cl.length > 0 && h('span', { class: 'due' + (clDone === cl.length ? ' ok' : '') }, icon('list'), `${clDone}/${cl.length}`),
+        t.attachments > 0 && h('span', { class: 'due', title: 'Anexos' }, icon('clip'), t.attachments),
+        (t.timer_started_at || t.time_spent > 0) && h('span', { class: 'due' + (t.timer_started_at ? ' timer-live running' : ''), title: t.timer_started_at ? 'Cronômetro rodando' : 'Tempo registrado',
+          dataset: t.timer_started_at ? { since: t.timer_started_at, base: t.time_spent } : {} }, icon('timer'), fmtDur(totalSecs(t))),
+        t.due_date && h('span', { class: 'due' + (ds === 'late' ? ' late' : ds === 'today' ? ' today' : '') }, icon('calendar'), fmtDay(t.due_date)),
+        owner ? avatar(owner, 24) : h('button', { class: 'btn sm take', title: 'Pegar esta task', onclick: guard(async (e) => { e.stopPropagation(); upsertTask(await api('PATCH', `/api/tasks/${t.id}`, { assignee_id: S.me.id })); renderBoard(); toast('Task é sua'); }) }, icon('take'), 'Pegar'))));
   card.addEventListener('dragstart', (e) => { S.drag = t.id; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(t.id)); requestAnimationFrame(() => card.classList.add('dragging')); });
   card.addEventListener('dragend', () => {
     S.drag = null; card.classList.remove('dragging'); document.querySelectorAll('.drop-line').forEach((l) => l.remove()); document.querySelectorAll('.column.over').forEach((c) => c.classList.remove('over'));
@@ -797,23 +855,19 @@ function openTask(id) {
   }
   const worked = h('button', { class: 'btn sm', title: 'Marca esta task como trabalhada hoje (entra no diário)', onclick: guard(async () => { await api('POST', `/api/tasks/${id}/worked`); toast('Registrado no diário de hoje'); loadEvents(); }) }, icon('check'), 'Trabalhei hoje');
 
+  const propField = (label, el) => h('div', { class: 'field' }, h('label', null, label), el);
   const close = openModal([
-    h('div', { class: 'modal-head' }, h('div', { class: 'grow' }, title), h('button', { class: 'btn ghost icon sm', 'aria-label': 'Fechar', onclick: () => { document.activeElement && document.activeElement.blur(); close(); } }, icon('x'))),
-    h('div', { class: 'modal-body' },
-      h('div', { class: 'row' }, h('div', { class: 'field' }, h('label', null, 'Status'), colSel),
-        h('div', { class: 'field' }, h('label', null, 'Responsável'), own)),
-      h('div', { class: 'row' }, h('div', { class: 'field' }, h('label', null, 'Prazo'), due),
-        h('div', { class: 'field' }, h('label', null, 'Prioridade'), h('div', { class: 'seg' }, prioBtns))),
-      h('div', { class: 'field' }, h('label', null, 'Etiquetas'), labelBox),
-      h('div', { class: 'field' }, h('label', null, 'Tempo'), timeBox),
-      h('div', { class: 'field' }, h('label', null, 'Checklist'), clBox),
-      h('div', { class: 'field' }, h('label', null, 'Anexos'), attBox),
-      h('div', { class: 'field' }, h('label', null, 'Descrição'), desc),
-      h('div', { class: 'field' }, h('label', null, 'Texto para o diário'), diary),
-      h('div', { class: 'field' }, h('label', null, 'Comentários e histórico'), comment, h('div', null, h('button', { class: 'btn sm', onclick: sendComment }, 'Comentar')), timeline)),
+    h('div', { class: 'modal-head task-head' }, h('div', { class: 'grow' }, title), h('button', { class: 'btn ghost icon sm', 'aria-label': 'Fechar', onclick: () => { document.activeElement && document.activeElement.blur(); close(); } }, icon('x'))),
+    h('div', { class: 'task-grid' },
+      h('div', { class: 'task-main' },
+        propField('Descrição', desc), propField('Checklist', clBox), propField('Anexos', attBox),
+        h('div', { class: 'field' }, h('label', null, 'Comentários e histórico'), comment, h('div', null, h('button', { class: 'btn sm', onclick: sendComment }, 'Comentar')), timeline)),
+      h('aside', { class: 'task-side', 'aria-label': 'Propriedades da task' },
+        propField('Status', colSel), propField('Responsável', own), propField('Prazo', due), propField('Prioridade', h('div', { class: 'seg' }, prioBtns)),
+        propField('Etiquetas', labelBox), propField('Tempo', timeBox), propField('Texto para o diário', diary))),
     h('div', { class: 'modal-foot' },
       h('button', { class: 'btn danger', onclick: guard(async () => { close(); await deleteTask(t); }) }, icon('trash'), 'Excluir'),
-      h('span', { class: 'grow' }), t.assignee_id !== S.me.id && takeBtn, worked)], { wide: false });
+      h('span', { class: 'grow' }), t.assignee_id !== S.me.id && takeBtn, worked)], { xwide: true });
   loadEvents();
   const mEl = timeline.closest('.modal');
   if (mEl) {
@@ -904,8 +958,8 @@ function openSettings(tab = 'look') {
     tabsEl.replaceChildren(...tabs.map(([k, l]) => h('button', { class: tab === k ? 'on' : '', onclick: () => { tab = k; draw(); } }, l)));
     content.replaceChildren(({ look: viewLook, account: viewAccount, team: viewTeam })[tab]());
   };
-  S.refreshSettings = () => { if (tab === 'look') { const y = $('.overlay:last-of-type')?.scrollTop; draw(); const ov = $('.overlay:last-of-type'); if (ov && y) ov.scrollTop = y; } };
-  const close = openModal([modalHead('Personalizar', () => close()), tabsEl, content], { wide: true, onClose: () => { S.refreshSettings = null; } });
+  S.refreshSettings = () => { if (tab === 'look') { const pn = () => $('.drawer-panel'); const y = pn() ? pn().scrollTop : 0; draw(); if (pn() && y) pn().scrollTop = y; } };
+  const close = openModal([modalHead('Personalizar', () => close()), tabsEl, content], { drawer: true, onClose: () => { S.refreshSettings = null; } });
   draw();
 }
 
@@ -937,60 +991,84 @@ function shaderControls(p) {
     slider('shDensity', 'Densidade', 0, 100, (v) => v + '%'), slider('shGrain', 'Grão', 0, 30, (v) => v + '%'), slider('shDim', 'Escurecer', 0, 80, (v) => v + '%'),
     h('div', { class: 'help' }, 'Dica: no modo escuro o fundo escurece sozinho. Com “Fundo animado” desligado (ou movimento reduzido no sistema) ele fica parado.'));
 }
+async function resetPrefs() {
+  if (!(await confirmBox('Restaurar toda a aparência para o padrão? Logo em seguida você poderá desfazer.', 'Restaurar', false))) return;
+  const prev = { ...S.prefs };
+  setPrefs({ ...DEFAULT_PREFS });
+  toast('Aparência restaurada', false, { label: 'Desfazer', onClick: () => setPrefs(prev) });
+}
 function viewLook() {
   const p = S.prefs, mode = resolvedMode();
   const seg = (key, opts) => h('div', { class: 'seg' }, opts.map(([v, l]) => h('button', { type: 'button', class: p[key] === v ? 'on' : '', onclick: () => setPrefs({ [key]: v }) }, l)));
   const toggle = (key, label) => h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !!p[key], onchange: (e) => setPrefs({ [key]: e.target.checked }) }), label);
   const swatchColors = ['#6366f1', '#2563eb', '#0ea5e9', '#14b8a6', '#22c55e', '#eab308', '#f97316', '#ef4444', '#ec4899', '#a855f7'];
+  themeFilterState.q = ''; themeFilterState.fx = 'all';
+  const G = {
+    tema: [
+      h('div', { class: 'field' }, h('label', null, `Tema (${THEMES.length})`),
+        h('div', { class: 'theme-tools' },
+          h('input', { class: 'input', style: { maxWidth: '220px' }, placeholder: 'Buscar tema…', type: 'search', 'aria-label': 'Buscar tema', oninput: (e) => filterThemes(e.target.closest('.field'), { q: e.target.value }) }),
+          h('div', { class: 'seg theme-filter' }, [['all', 'Todos'], ['fx', 'Animados'], ['static', 'Estáticos']].map(([k, l]) => h('button', { type: 'button', class: k === 'all' ? 'on' : '', onclick: (e) => { const f = e.target.closest('.field'); f.querySelectorAll('.theme-filter button').forEach((b) => b.classList.toggle('on', b === e.target)); filterThemes(f, { fx: k }); } }, l))),
+          h('button', { class: 'btn sm', onclick: () => { const others = THEMES.filter((t) => t[0] !== p.theme); setPrefs({ theme: others[Math.floor(Math.random() * others.length)][0] }); } }, 'Surpreenda-me')),
+        h('span', { class: 'help' }, 'Todos têm modo claro e escuro. “Animado” = tem efeito de fundo (dá para desligar ou ajustar abaixo).'),
+        [...new Set(THEMES.map((t) => t[3]))].map((cat) => h('div', { class: 'theme-group' }, h('div', { class: 'theme-cat' }, cat),
+          h('div', { class: 'theme-grid' }, THEMES.filter((t) => t[3] === cat).map(([id, name, sub, , fx]) => h('button', { class: 'theme-tile' + (p.theme === id ? ' on' : ''), dataset: { theme: id, mode, search: norm(name + ' ' + sub + ' ' + cat), fx: fx ? '1' : '0' }, title: name, onclick: () => setPrefs({ theme: id }) },
+            h('div', { class: 'theme-prev' }, h('i', null, h('b'), h('b')), h('i', null, h('b'), h('b'), h('b')), h('i', null, h('b'))),
+            h('div', { class: 'theme-name' }, h('b', null, name, fx && h('span', { class: 'fx-badge' }, 'animado')), h('span', null, sub))))))),
+        h('div', { class: 'help theme-empty hidden' }, 'Nenhum tema encontrado.')),
+    ],
+    cores: [
+      h('div', { class: 'row' },
+        h('div', { class: 'field' }, h('label', null, 'Modo'), seg('mode', [['light', 'Claro'], ['dark', 'Escuro'], ['system', 'Sistema']])),
+        h('div', { class: 'field' }, h('label', null, 'Densidade'), seg('density', [['compact', 'Compacta'], ['comfortable', 'Normal'], ['roomy', 'Ampla']]))),
+      h('div', { class: 'field' }, h('label', null, 'Cor de destaque'),
+        h('div', { class: 'swatches' }, h('button', { class: 'btn sm' + (p.accent ? '' : ' primary'), onclick: () => setPrefs({ accent: null }) }, 'Do tema'),
+          swatchColors.map((c) => h('button', { class: 'swatch' + (p.accent === c ? ' on' : ''), style: { background: c }, title: c, 'aria-label': c, onclick: () => setPrefs({ accent: c }) })),
+          h('input', { type: 'color', value: p.accent || '#6366f1', title: 'Cor personalizada', oninput: (e) => setPrefs({ accent: e.target.value }, { refreshSettings: false }) }))),
+      h('div', { class: 'field' }, h('label', null, 'Fonte'), seg('font', [['auto', 'Do tema'], ['sans', 'Inter'], ['serif', 'Serif'], ['grotesk', 'Grotesk'], ['rounded', 'Redonda'], ['hand', 'Manual'], ['mono', 'Mono']])),
+        h('div', { class: 'field' }, h('label', null, `Cantos arredondados${p.radius == null ? ' (do tema)' : ': ' + p.radius + 'px'}`),
+          h('input', { type: 'range', min: 0, max: 28, value: p.radius ?? 12, oninput: (e) => { setPrefs({ radius: Number(e.target.value) }, { refreshSettings: false }); e.target.previousSibling.textContent = `Cantos arredondados: ${e.target.value}px`; } }),
+          p.radius != null && h('button', { class: 'btn sm ghost', style: { alignSelf: 'flex-start' }, onclick: () => setPrefs({ radius: null }) }, 'Voltar ao do tema')),
+    ],
+    fundo: [
+      h('div', { class: 'field' }, h('label', null, 'Fundo'),
+        h('div', { class: 'bg-grid' }, BGS.map(([id, name, l, d]) => h('button', { type: 'button', class: 'bg-tile' + (p.bg === id ? ' on' : ''), title: name, onclick: () => setPrefs({ bg: id }),
+          style: l ? { background: mode === 'dark' ? d : l } : null }, h('span', null, name))),
+          h('button', { type: 'button', class: 'bg-tile' + (p.bg === 'custom' ? ' on' : ''), title: 'Imagem (link)', onclick: () => setPrefs({ bg: 'custom' }) }, h('span', null, 'Imagem')),
+          h('button', { type: 'button', class: 'bg-tile' + (p.bg === 'shader' ? ' on' : ''), title: 'Gradiente shader (WebGL)', onclick: () => setPrefs({ bg: 'shader' }), style: { background: `linear-gradient(135deg,${p.shC1},${p.shC2},${p.shC3})` } }, h('span', null, 'Shader'))),
+        p.bg === 'shader' && shaderControls(p),
+        p.bg === 'custom' && h('input', { class: 'input', placeholder: 'https://…/imagem.jpg (link https)', value: p.bgUrl || '', onchange: (e) => setPrefs({ bgUrl: e.target.value.trim() }) })),
+      h('div', { class: 'field' }, h('label', null, 'Efeitos de fundo'),
+        toggle('fx', 'Fundo animado (estrelas, lava, grade…) — desligue para ficar estático'),
+        h('div', { class: 'range-row' }, h('span', { class: 'help', style: { width: '90px' } }, 'Velocidade'), h('input', { type: 'range', min: 40, max: 250, step: 10, value: p.fxSpeed ?? 100, oninput: (e) => { setPrefs({ fxSpeed: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = (e.target.value / 100).toFixed(1).replace('.', ',') + '×'; } }), h('output', null, ((p.fxSpeed ?? 100) / 100).toFixed(1).replace('.', ',') + '×')),
+        h('div', { class: 'range-row' }, h('span', { class: 'help', style: { width: '90px' } }, 'Intensidade'), h('input', { type: 'range', min: 0, max: 100, step: 5, value: p.fxIntensity ?? 100, oninput: (e) => { setPrefs({ fxIntensity: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = e.target.value + '%'; } }), h('output', null, (p.fxIntensity ?? 100) + '%'))),
+    ],
+    cartoes: [
+      h('div', { class: 'row' },
+        h('div', { class: 'field' }, h('label', null, 'Cartões'), seg('cardStyle', [['theme', 'Do tema'], ['solid', 'Sólido'], ['glass', 'Vidro'], ['outline', 'Contorno'], ['fold', 'Dobrado']])),
+        h('div', { class: 'field' }, h('label', null, 'Bordas'), seg('border', [['theme', 'Do tema'], ['none', 'Sem'], ['thin', 'Finas'], ['thick', 'Grossas']]))),
+      h('div', { class: 'row' },
+        h('div', { class: 'field' }, h('label', null, 'Sombras'), seg('shadow', [['theme', 'Do tema'], ['none', 'Sem'], ['soft', 'Suaves'], ['hard', 'Duras']])),
+        h('div', { class: 'field' }, h('label', null, 'Tamanho do texto'), seg('size', [['small', 'Pequeno'], ['normal', 'Normal'], ['large', 'Grande']]))),
+    ],
+    comportamento: [
+      h('div', { class: 'field' }, h('label', null, 'Comportamento'),
+        toggle('motion', 'Animações da interface (transições, entradas)'), toggle('autoAssign', 'Novas tasks já ficam comigo'), toggle('hideOldDone', 'Esconder concluídas com mais de 14 dias'),
+        h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !!p.notify, onchange: async (e) => {
+          if (e.target.checked && typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
+            const r = await Notification.requestPermission();
+            if (r !== 'granted') { e.target.checked = false; return toast('Permissão de notificação negada no navegador', true); }
+          }
+          setPrefs({ notify: e.target.checked });
+        } }), 'Avisar no sistema quando alguém me atribuir uma task (com o app em segundo plano)'))
+    ],
+  };
+  const tabs = [['tema', 'Tema'], ['cores', 'Cores'], ['fundo', 'Fundo'], ['cartoes', 'Cartões'], ['comportamento', 'Geral']];
+  const cur = G[S.lookTab] ? S.lookTab : 'tema';
   return h('div', { class: 'modal-body' },
-    h('div', { class: 'field' }, h('label', null, `Tema (${THEMES.length})`),
-      h('div', { class: 'theme-tools' },
-        h('input', { class: 'input', style: { maxWidth: '220px' }, placeholder: 'Buscar tema…', type: 'search', 'aria-label': 'Buscar tema', oninput: (e) => filterThemes(e.target.closest('.field'), { q: e.target.value }) }),
-        h('div', { class: 'seg theme-filter' }, [['all', 'Todos'], ['fx', 'Animados'], ['static', 'Estáticos']].map(([k, l]) => h('button', { type: 'button', class: k === 'all' ? 'on' : '', onclick: (e) => { const f = e.target.closest('.field'); f.querySelectorAll('.theme-filter button').forEach((b) => b.classList.toggle('on', b === e.target)); filterThemes(f, { fx: k }); } }, l))),
-        h('button', { class: 'btn sm', onclick: () => { const others = THEMES.filter((t) => t[0] !== p.theme); setPrefs({ theme: others[Math.floor(Math.random() * others.length)][0] }); } }, 'Surpreenda-me')),
-      h('span', { class: 'help' }, 'Todos têm modo claro e escuro. “Animado” = tem efeito de fundo (dá para desligar ou ajustar abaixo).'),
-      [...new Set(THEMES.map((t) => t[3]))].map((cat) => h('div', { class: 'theme-group' }, h('div', { class: 'theme-cat' }, cat),
-        h('div', { class: 'theme-grid' }, THEMES.filter((t) => t[3] === cat).map(([id, name, sub, , fx]) => h('button', { class: 'theme-tile' + (p.theme === id ? ' on' : ''), dataset: { theme: id, mode, search: norm(name + ' ' + sub + ' ' + cat), fx: fx ? '1' : '0' }, title: name, onclick: () => setPrefs({ theme: id }) },
-          h('div', { class: 'theme-prev' }, h('i', null, h('b'), h('b')), h('i', null, h('b'), h('b'), h('b')), h('i', null, h('b'))),
-          h('div', { class: 'theme-name' }, h('b', null, name, fx && h('span', { class: 'fx-badge' }, 'animado')), h('span', null, sub))))))),
-      h('div', { class: 'help theme-empty hidden' }, 'Nenhum tema encontrado.')),
-    h('div', { class: 'row' },
-      h('div', { class: 'field' }, h('label', null, 'Modo'), seg('mode', [['light', 'Claro'], ['dark', 'Escuro'], ['system', 'Sistema']])),
-      h('div', { class: 'field' }, h('label', null, 'Densidade'), seg('density', [['compact', 'Compacta'], ['comfortable', 'Normal'], ['roomy', 'Ampla']]))),
-    h('div', { class: 'field' }, h('label', null, 'Cor de destaque'),
-      h('div', { class: 'swatches' }, h('button', { class: 'btn sm' + (p.accent ? '' : ' primary'), onclick: () => setPrefs({ accent: null }) }, 'Do tema'),
-        swatchColors.map((c) => h('button', { class: 'swatch' + (p.accent === c ? ' on' : ''), style: { background: c }, title: c, 'aria-label': c, onclick: () => setPrefs({ accent: c }) })),
-        h('input', { type: 'color', value: p.accent || '#6366f1', title: 'Cor personalizada', oninput: (e) => setPrefs({ accent: e.target.value }, { refreshSettings: false }) }))),
-    h('div', { class: 'field' }, h('label', null, 'Fonte'), seg('font', [['auto', 'Do tema'], ['sans', 'Inter'], ['serif', 'Serif'], ['grotesk', 'Grotesk'], ['rounded', 'Redonda'], ['hand', 'Manual'], ['mono', 'Mono']])),
-      h('div', { class: 'field' }, h('label', null, `Cantos arredondados${p.radius == null ? ' (do tema)' : ': ' + p.radius + 'px'}`),
-        h('input', { type: 'range', min: 0, max: 28, value: p.radius ?? 12, oninput: (e) => { setPrefs({ radius: Number(e.target.value) }, { refreshSettings: false }); e.target.previousSibling.textContent = `Cantos arredondados: ${e.target.value}px`; } }),
-        p.radius != null && h('button', { class: 'btn sm ghost', style: { alignSelf: 'flex-start' }, onclick: () => setPrefs({ radius: null }) }, 'Voltar ao do tema')),
-    h('div', { class: 'field' }, h('label', null, 'Fundo'),
-      h('div', { class: 'bg-grid' }, BGS.map(([id, name, l, d]) => h('button', { type: 'button', class: 'bg-tile' + (p.bg === id ? ' on' : ''), title: name, onclick: () => setPrefs({ bg: id }),
-        style: l ? { background: mode === 'dark' ? d : l } : null }, h('span', null, name))),
-        h('button', { type: 'button', class: 'bg-tile' + (p.bg === 'custom' ? ' on' : ''), title: 'Imagem (link)', onclick: () => setPrefs({ bg: 'custom' }) }, h('span', null, 'Imagem')),
-        h('button', { type: 'button', class: 'bg-tile' + (p.bg === 'shader' ? ' on' : ''), title: 'Gradiente shader (WebGL)', onclick: () => setPrefs({ bg: 'shader' }), style: { background: `linear-gradient(135deg,${p.shC1},${p.shC2},${p.shC3})` } }, h('span', null, 'Shader'))),
-      p.bg === 'shader' && shaderControls(p),
-      p.bg === 'custom' && h('input', { class: 'input', placeholder: 'https://…/imagem.jpg (link https)', value: p.bgUrl || '', onchange: (e) => setPrefs({ bgUrl: e.target.value.trim() }) })),
-    h('div', { class: 'field' }, h('label', null, 'Efeitos de fundo'),
-      toggle('fx', 'Fundo animado (estrelas, lava, grade…) — desligue para ficar estático'),
-      h('div', { class: 'range-row' }, h('span', { class: 'help', style: { width: '90px' } }, 'Velocidade'), h('input', { type: 'range', min: 40, max: 250, step: 10, value: p.fxSpeed ?? 100, oninput: (e) => { setPrefs({ fxSpeed: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = (e.target.value / 100).toFixed(1).replace('.', ',') + '×'; } }), h('output', null, ((p.fxSpeed ?? 100) / 100).toFixed(1).replace('.', ',') + '×')),
-      h('div', { class: 'range-row' }, h('span', { class: 'help', style: { width: '90px' } }, 'Intensidade'), h('input', { type: 'range', min: 0, max: 100, step: 5, value: p.fxIntensity ?? 100, oninput: (e) => { setPrefs({ fxIntensity: Number(e.target.value) }, { refreshSettings: false }); e.target.nextSibling.textContent = e.target.value + '%'; } }), h('output', null, (p.fxIntensity ?? 100) + '%'))),
-    h('div', { class: 'row' },
-      h('div', { class: 'field' }, h('label', null, 'Cartões'), seg('cardStyle', [['theme', 'Do tema'], ['solid', 'Sólido'], ['glass', 'Vidro'], ['outline', 'Contorno'], ['fold', 'Dobrado']])),
-      h('div', { class: 'field' }, h('label', null, 'Bordas'), seg('border', [['theme', 'Do tema'], ['none', 'Sem'], ['thin', 'Finas'], ['thick', 'Grossas']]))),
-    h('div', { class: 'row' },
-      h('div', { class: 'field' }, h('label', null, 'Sombras'), seg('shadow', [['theme', 'Do tema'], ['none', 'Sem'], ['soft', 'Suaves'], ['hard', 'Duras']])),
-      h('div', { class: 'field' }, h('label', null, 'Tamanho do texto'), seg('size', [['small', 'Pequeno'], ['normal', 'Normal'], ['large', 'Grande']]))),
-    h('div', { class: 'field' }, h('label', null, 'Comportamento'),
-      toggle('motion', 'Animações da interface (transições, entradas)'), toggle('autoAssign', 'Novas tasks já ficam comigo'), toggle('hideOldDone', 'Esconder concluídas com mais de 14 dias'),
-      h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !!p.notify, onchange: async (e) => {
-        if (e.target.checked && typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
-          const r = await Notification.requestPermission();
-          if (r !== 'granted') { e.target.checked = false; return toast('Permissão de notificação negada no navegador', true); }
-        }
-        setPrefs({ notify: e.target.checked });
-      } }), 'Avisar no sistema quando alguém me atribuir uma task (com o app em segundo plano)')));
+    h('div', { class: 'seg look-tabs', role: 'tablist' }, tabs.map(([k, l]) => h('button', { type: 'button', role: 'tab', 'aria-selected': String(k === cur), class: k === cur ? 'on' : '', onclick: () => { S.lookTab = k; S.refreshSettings && S.refreshSettings(); } }, l))),
+    ...G[cur],
+    h('div', { class: 'set-foot' }, h('span', { class: 'help save-note' }, icon('check'), 'Salvo automaticamente na sua conta'), h('button', { class: 'btn sm', onclick: resetPrefs }, 'Restaurar padrões')));
 }
 
 function viewAccount() {
@@ -1049,7 +1127,13 @@ async function boot(user) {
   applyPrefs();
   try { localStorage.setItem('kb-prefs', JSON.stringify(S.prefs)); } catch { /* ok */ }
   renderShell();
-  await loadBoard();
+  renderSkeleton();
+  try { await loadBoard(); }
+  catch (e) {
+    $('#board').replaceChildren(h('div', { class: 'state-error' }, icon('x'), h('b', null, 'Não foi possível carregar o quadro'), h('p', null, e.message),
+      h('button', { class: 'btn primary', onclick: () => boot(user) }, 'Tentar de novo')));
+    return;
+  }
   connectStream();
 }
 window.KBApp = {

@@ -36,6 +36,7 @@ Também serve Cloudflare Pages ou Netlify: conecte este repositório. **Sem coma
 - **Criar task**: `N` abre a criação rápida; ou digite direto no campo no fim de cada coluna.
   Atalhos no texto: `#etiqueta` `@nome` `!alta` (`!baixa` `!urgente`) `^amanhã` `^25/12`. `Ctrl+Enter` cria e continua.
 - **Menu do card** (`⋯`): mover de coluna, pegar/soltar, excluir. É a forma de mover tasks no celular.
+- **Barra lateral** (desktop) com filtros, prazos, equipe e etiquetas, cada um com contador; no celular vira uma linha de chips. O botão ☰ do topo oculta a barra.
 - **Vistas**: Quadro, Lista (ordenável), Calendário e **Painel** (bento: o que importa agora) (arraste a task para outro dia para mudar o prazo). Botões ao lado da busca.
 - **Paleta de comandos** (`Ctrl+K`): busca tasks e roda comandos (trocar tema, filtrar, ir para uma vista…). O menu `⋯` do topo tem Resumo, Atividade e exportações.
 - **Cronômetro** por task (só um rodando por pessoa; uma **ilha** flutuante mostra o que está rodando), **anexos** (até 10 MB; cole um print com `Ctrl+V` ou arraste arquivos) e **limite de tasks por coluna** (menu `⋯` da coluna, também ordena a coluna).
@@ -58,5 +59,5 @@ Também serve Cloudflare Pages ou Netlify: conecte este repositório. **Sem coma
 - `public/` site estático: `themes.css` (os 33 temas e efeitos de fundo), `shader.js` (fundo WebGL), `island.js` (ilha do cronômetro), `app.js` (núcleo), `views.js` (lista, calendário, resumo, exportar), `palette.js`, `touch.js`, `backend.js` (camada Supabase), `app.css` (temas)
 - `vercel.json` cabeçalhos de segurança (CSP etc.); `public/_headers` é o equivalente para Netlify/Cloudflare
 - `supabase/migrations/` esquema, RLS, gatilhos de histórico e funções (rode na ordem, no SQL Editor, num projeto novo)
-- `docs/DESIGN.md` design system do projeto · `docs/REFERENCIAS_DESIGN.md` referências e o que foi aplicado de cada uma
+- `CLAUDE.md` + `docs/DESIGN.md` design system do projeto (o `CLAUDE.md` manda ler o DESIGN.md antes de mexer na interface) · `scripts/browse-sites.cjs` abre sites num Chromium para a IA "ver" referências · `docs/REFERENCIAS_DESIGN.md` referências e o que foi aplicado de cada uma
 - `test/` teste de interface com uma API Supabase falsa (instruções no topo de `test/e2e.cjs`)
