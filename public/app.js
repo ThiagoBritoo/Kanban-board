@@ -1052,7 +1052,11 @@ function openTask(id) {
   const items = (t.checklist || []).map((i) => ({ ...i }));
   const clBox = h('div', { class: 'checklist' });
   const saveCl = () => save({ checklist: items });
-  const fitCl = (el) => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; };
+  // ajusta a altura do campo ao texto. Se o modal ainda não está na tela (altura 0), espera aparecer, senão o texto fica cortado
+  const fitCl = (el, n = 0) => {
+    if (!el.isConnected || !el.offsetParent) { if (n < 40) requestAnimationFrame(() => fitCl(el, n + 1)); return; }
+    el.style.height = 'auto'; el.style.height = Math.max(26, el.scrollHeight) + 'px';
+  };
   const drawCl = () => {
     const done = items.filter((i) => i.done).length;
     clBox.replaceChildren(
@@ -1088,7 +1092,7 @@ function openTask(id) {
         if (e.key === 'Enter' && !e.shiftKey && e.target.value.trim()) { e.preventDefault(); items.push({ text: e.target.value.trim().slice(0, 2000), done: false }); drawCl(); saveCl(); const n = clBox.querySelector('.cl-add'); n && n.focus(); }
       } }));
     clBox.querySelectorAll('.btn svg').forEach((v) => Object.assign(v.style, { width: '14px', height: '14px' }));
-    clBox.querySelectorAll('.cl-text').forEach(fitCl);
+    clBox.querySelectorAll('.cl-text').forEach((e) => fitCl(e));
   };
   drawCl();
 
