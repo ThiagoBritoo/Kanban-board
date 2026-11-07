@@ -23,7 +23,7 @@
     col.classList.add('over');
     const body = col.querySelector('.col-body');
     const after = [...body.querySelectorAll('.card:not(.dragging)')].find((c) => { const r = c.getBoundingClientRect(); return y < r.top + r.height / 2; });
-    after ? body.insertBefore(line, after) : body.append(line);
+    if (line.parentNode !== body || (after ? line.nextElementSibling !== after : line !== body.lastElementChild)) after ? body.insertBefore(line, after) : body.append(line); // só se mudou (senão a linha pisca)
   };
   // Rolagem automática nas bordas: devagar e com espera. Só começa depois de ~0,35 s com o dedo na borda e acelera aos poucos
   // (antes passava direto da coluna que você queria). Velocidade máx.: 360 px/s na horizontal, 380 px/s na vertical.

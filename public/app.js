@@ -817,7 +817,9 @@ function renderColumn(col) {
   const afterEl = (y) => [...body.querySelectorAll('.card:not(.dragging)')].find((c) => { const r = c.getBoundingClientRect(); return y < r.top + r.height / 2; });
   body.addEventListener('dragover', (e) => {
     if (S.drag == null) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; el.classList.add('over');
-    const a = afterEl(e.clientY); a ? body.insertBefore(line, a) : body.append(line);
+    // só move a linha se o lugar mudou: reinserir a cada dragover reiniciava a animação e a linha piscava sem parar
+    const a = afterEl(e.clientY);
+    if (line.parentNode !== body || (a ? line.nextElementSibling !== a : line !== body.lastElementChild)) a ? body.insertBefore(line, a) : body.append(line);
   });
   el.addEventListener('dragleave', (e) => { if (!el.contains(e.relatedTarget)) { el.classList.remove('over'); line.remove(); } });
   body.addEventListener('drop', guard(async (e) => {

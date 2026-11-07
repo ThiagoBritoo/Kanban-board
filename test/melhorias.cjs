@@ -55,6 +55,18 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   const before = await card.evaluate((c) => getComputedStyle(c, '::before').content);
   ok(before === 'none' || before === 'normal', 'sem faixa lateral (::before vazio)');
   await p.screenshot({ path: OUT + 'quadro-selo.png' });
+  // #51 linha de soltura não pisca: arrastar parado sobre o mesmo lugar não reinsere a linha
+  await p.fill('.column:nth-child(1) .add-input', 'Segunda'); await p.press('.column:nth-child(1) .add-input', 'Enter'); await p.waitForTimeout(400);
+  await p.evaluate(() => { window.__ins = 0; new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach((n) => { if (n.classList && n.classList.contains('drop-line')) window.__ins++; }))).observe(document.body, { childList: true, subtree: true }); });
+  const src = p.locator('.column:nth-child(1) .card').first(), bb = await src.boundingBox();
+  const dt = await p.evaluateHandle(() => new DataTransfer());
+  await src.dispatchEvent('dragstart', { dataTransfer: dt });
+  const body1 = p.locator('.column:nth-child(1) .col-body');
+  for (let i = 0; i < 25; i++) { await body1.dispatchEvent('dragover', { dataTransfer: dt, clientX: bb.x + 20, clientY: bb.y + 4 }); await p.waitForTimeout(20); }
+  const ins = await p.evaluate(() => window.__ins);
+  ok(ins <= 1, `25 dragover no mesmo lugar = linha inserida ${ins}x (antes: 25x)`);
+  await body1.dispatchEvent('drop', { dataTransfer: dt, clientX: bb.x + 20, clientY: bb.y + 4 }); await src.dispatchEvent('dragend', { dataTransfer: dt }).catch(() => {}); await p.waitForTimeout(500);
+  ok(await p.locator('.drop-line').count() === 0 && await p.locator('.card.dragging').count() === 0, 'soltar no mesmo lugar não deixa linha nem cartão "arrastando"');
   // celular: criar não abre o card
   const m = await open({ width: 390, height: 800 });
   await m.fill('input[type=email]', 't@x.com'); await m.fill('input[type=password]', 'senha123'); await m.click('button[type=submit]');
