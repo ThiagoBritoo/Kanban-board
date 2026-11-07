@@ -80,8 +80,8 @@ html[data-density="compact"] .column{flex-basis:280px}
 .card:hover{border-color:var(--accent);transform:translateY(-1px)}
 .card.dragging{opacity:.35;transform:scale(.98)}
 /* prioridade alta/urgente: selo no rodapé (padrão), fundo tingido ou nada — sem faixa lateral */
-html[data-prio="tint"] .card .prio-badge,html[data-prio="off"] .card .prio-badge{display:none}
-html[data-prio="tint"] .card[data-p="2"]{background-color:color-mix(in srgb,var(--p2) 9%,var(--card))}
+html:not([data-prio="chip"]) .card .prio-badge,html[data-prio-who="urgent"] .card .prio-badge.p2{display:none}
+html[data-prio="tint"]:not([data-prio-who="urgent"]) .card[data-p="2"]{background-color:color-mix(in srgb,var(--p2) 9%,var(--card))}
 html[data-prio="tint"] .card[data-p="3"]{background-color:color-mix(in srgb,var(--p3) 10%,var(--card))}
 .card .prio-badge{font-size:11px;padding:0 7px;line-height:18px}
 .card-title{font-weight:550;word-break:break-word;margin-bottom:2px}
@@ -553,6 +553,8 @@ html[data-fxbg]:not([data-fxbg="off"]) #deco::before,html[data-fxbg]:not([data-f
 html[data-pulse="high"] .card[data-p="2"],html[data-pulse="high"] .card[data-p="3"],html[data-pulse="urgent"] .card[data-p="3"]{outline:2px solid color-mix(in srgb,var(--p3) 55%,transparent);outline-offset:0}
 html[data-pulse="high"][data-fx="on"][data-motion="on"] .card[data-p="2"],html[data-pulse="high"][data-fx="on"][data-motion="on"] .card[data-p="3"],html[data-pulse="urgent"][data-fx="on"][data-motion="on"] .card[data-p="3"]{animation:ring 2.6s var(--ease,cubic-bezier(.23,1,.32,1)) infinite}
 html[data-pulse="high"] .card[data-p="2"]{--p3:var(--p2)}
+/* alta e urgente nunca iguais: além da cor (âmbar × vermelho), urgente pulsa mais rápido e mais forte */
+html[data-pulse][data-fx="on"][data-motion="on"] .card[data-p="3"]{animation-duration:1.5s;outline-width:2.5px}
 /* luz caindo no cartão (só no hover; 4 fios em velocidades diferentes) */
 @keyframes cardfall{to{background-position:14% 104px,38% 140px,62% 88px,86% 180px}}
 html[data-cardlight="on"][data-fx="on"][data-motion="on"] .card:hover{background-image:
@@ -720,6 +722,7 @@ html[data-beam="urgent"] .card[data-p="3"]::after,html[data-beam="high"] .card[d
 html[data-beam] .card[data-p="3"]{--beam-c:var(--p3)}
 html[data-beam="high"][data-fx="on"][data-motion="on"] .card[data-p="2"]::after,html[data-beam="high"][data-fx="on"][data-motion="on"] .card[data-p="3"]::after,html[data-beam="urgent"][data-fx="on"][data-motion="on"] .card[data-p="3"]::after{animation:beam-spin calc(5s / var(--fx-speed,1)) linear infinite}
 @keyframes beam-spin{to{--beam-a:360deg}}
+html[data-beam][data-fx="on"][data-motion="on"] .card[data-p="3"]::after{animation-duration:calc(2.6s / var(--fx-speed,1))}
 @media (prefers-reduced-motion:reduce){html[data-beam] .card::after{animation:none!important}}
 html[data-add="inline"] .col-quick{display:none}
 html[data-add="popover"] .col-foot{display:none}

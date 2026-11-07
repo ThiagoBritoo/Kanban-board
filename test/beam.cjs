@@ -34,7 +34,7 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
 
 
   for (const t of ['Fechar contrato !urgente', 'Revisar API !alta']) { await p.fill('.column:nth-child(1) .add-input', t); await p.press('.column:nth-child(1) .add-input', 'Enter'); await p.waitForTimeout(250); }
-  await p.evaluate(() => KBApp.setPrefs({ beam: 'high' }, { refreshSettings: false })); await p.waitForTimeout(300);
+  await p.evaluate(() => KBApp.setPrefs({ prioMark: 'beam', prioWho: 'high' }, { refreshSettings: false })); await p.waitForTimeout(300);
   console.log(JSON.stringify(await p.evaluate(() => { const c = document.querySelector('.card[data-p="3"]'); const a = getComputedStyle(c, '::after'); return { beam: document.documentElement.dataset.beam, fx: document.documentElement.dataset.fx, motion: document.documentElement.dataset.motion, content: a.content, bg: a.backgroundImage.slice(0, 80), w: a.width, h: a.height, pos: a.position, mask: a.webkitMask || a.mask, anim: a.animationName, card: c.className }; })));
   await p.locator('.card[data-p="3"]').screenshot({ path: OUT + 'beam.png' }); console.log(OUT); await b.close(); srv.close();
 })();

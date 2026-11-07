@@ -126,9 +126,9 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   await p.locator('.card.expanded .cm-check input').first().check(); await p.waitForTimeout(500);
   ok(fake.db.tasks.some((t) => (t.checklist || []).filter((i) => i.done).length === 2), 'marcar item no cartão expandido salva');
   // Border Beam: opt-in
-  await p.evaluate(() => KBApp.setPrefs({ beam: 'high' }, { refreshSettings: false })); await p.waitForTimeout(200);
+  await p.evaluate(() => KBApp.setPrefs({ prioMark: 'beam', prioWho: 'high' }, { refreshSettings: false })); await p.waitForTimeout(200);
   ok(await p.evaluate(() => { const c = document.querySelector('.card[data-p="2"], .card[data-p="3"]'); if (!c) return true; const st = getComputedStyle(c, '::after'); return st.backgroundImage.includes('conic-gradient') && parseFloat(st.width) > 100 && parseFloat(st.height) > 20; }), 'Border Beam desenha o feixe nos cartões de prioridade alta');
-  await p.evaluate(() => KBApp.setPrefs({ beam: 'off' }, { refreshSettings: false }));
+  await p.evaluate(() => KBApp.setPrefs({ prioMark: 'chip' }, { refreshSettings: false }));
   // app instalado: compartilhar para o Runtime e atalho Nova task
   await p.goto('http://localhost:3222/?title=Ler&text=artigo%20sobre%20kanban&url=https://x.com/a'); await p.waitForSelector('.big-input', { timeout: 8000 });
   ok((await p.inputValue('.big-input')).includes('Ler') && (await p.inputValue('.big-input')).includes('artigo sobre kanban'), 'compartilhar para o Runtime abre "Nova task" já preenchida');

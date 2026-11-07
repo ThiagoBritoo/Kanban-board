@@ -55,6 +55,15 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   const before = await card.evaluate((c) => getComputedStyle(c, '::before').content);
   ok(before === 'none' || before === 'normal', 'sem faixa lateral (::before vazio)');
   await p.screenshot({ path: OUT + 'quadro-selo.png' });
+  // #52 um destaque só: escolher "Borda pulsante" tira o selo; urgente pulsa diferente de alta
+  await p.evaluate(() => KBApp.setPrefs({ prioMark: 'pulse', prioWho: 'high' })); await p.waitForTimeout(200);
+  ok(await p.evaluate(() => document.documentElement.dataset.pulse) === 'high' && await card.locator('.prio-badge').isHidden(), 'Borda pulsante liga o pulso e esconde o selo (um indicador só)');
+  ok(await p.evaluate(() => document.documentElement.dataset.beam) === 'off', 'feixe fica desligado quando o destaque é o pulso');
+  const dur = await card.evaluate((c) => getComputedStyle(c).animationDuration);
+  ok(dur === '1.5s', 'urgente pulsa mais rápido que alta (' + dur + ')');
+  await p.evaluate(() => KBApp.setPrefs({ prioMark: 'chip', prioWho: 'urgent' })); await p.waitForTimeout(200);
+  ok(await card.locator('.prio-badge').isVisible(), '"Só urgente" mantém o selo do urgente');
+  await p.evaluate(() => KBApp.setPrefs({ prioMark: 'chip', prioWho: 'high' }));
   // #51 linha de soltura não pisca: arrastar parado sobre o mesmo lugar não reinsere a linha
   await p.fill('.column:nth-child(1) .add-input', 'Segunda'); await p.press('.column:nth-child(1) .add-input', 'Enter'); await p.waitForTimeout(400);
   await p.evaluate(() => { window.__ins = 0; new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach((n) => { if (n.classList && n.classList.contains('drop-line')) window.__ins++; }))).observe(document.body, { childList: true, subtree: true }); });
