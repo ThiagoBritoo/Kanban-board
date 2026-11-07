@@ -35,7 +35,9 @@ const ok = (c, msg) => { console.log((c ? 'PASS ' : 'FAIL ') + msg); if (!c) fai
   // criar tasks
   await p.keyboard.press('n');
   await p.fill('.big-input', 'Ajustes na função do espelho de ponto #ponto !alta ^hoje'); await p.keyboard.press('Control+Enter'); await p.waitForTimeout(400);
-  await p.fill('.big-input', 'Cadastro de postos de combustível #mobile @maria'); await p.keyboard.press('Enter'); await p.waitForSelector('.overlay', { state: 'detached' });
+  await p.fill('.big-input', 'Cadastro de postos de combustível #mobile @maria'); await p.keyboard.press('Enter');
+  await p.waitForSelector('.task-side', { timeout: 5000 }).catch(() => {}); ok(await p.locator('.task-side').count() === 1, 'no computador, "Nova task" + Enter abre o card inteiro');
+  await p.keyboard.press('Escape'); await p.waitForSelector('.overlay', { state: 'detached' });
   await p.fill('.column:nth-child(1) .add-input', 'Início do módulo financeiro #financeiro'); await p.press('.column:nth-child(1) .add-input', 'Enter'); await p.waitForTimeout(500);
   ok((await p.locator('.card').count()) === 3, '3 tasks criadas (modal rápido + inline)');
   ok(await p.locator('.chip.today').count() === 1, 'chip "Vencem hoje" aparece');

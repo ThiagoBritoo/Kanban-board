@@ -23,7 +23,7 @@ Overrides do usuário têm especificidade maior que o tema (`html[data-x][data-t
 - **Nunca:** indicador pulsando, stagger em listas utilitárias, animar conteúdo estático, animar ações de teclado.
 
 ## 4. Anti-slop (regras deste projeto)
-- Faixa colorida à esquerda do card = **só prioridade alta/urgente**.
+- **Nada de faixa colorida à esquerda do card** (o Thiago vetou). Prioridade alta/urgente = selo no rodapé (padrão), fundo tingido ou nada (pref `prioMark`), além de borda pulsante/feixe opcionais.
 - Contêineres: no máximo 2 níveis (coluna → card). Chips e tags não viram caixas dentro de caixas.
 - Sem acento ciano/teal "padrão": cada tema define o próprio acento.
 - Fonte: não confiar só em Inter; cada tema escolhe títulos (Fraunces, Orbitron, Garamond, Space Grotesk, Nunito…) quando combina com o caráter.

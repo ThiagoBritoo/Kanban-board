@@ -35,6 +35,8 @@ const ICONS = {
   table: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/>',
   undo: '<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/>',
   list: '<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>',
+  eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  eyeoff: '<path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-2.2 3.1M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2M2 2l20 20"/>',
   move: '<path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/>',
 };
 function icon(name) {
@@ -159,7 +161,7 @@ const THEMES = [
 ];
 // temas mais "suaves" nascem com o botão + (formulário que cresce); os demais com o campo de texto no rodapé. Dá para trocar em Personalizar → Cartões.
 const POPOVER_THEMES = new Set(['ocean', 'aurora', 'sunset', 'argila', 'adesivo', 'canelado', 'espacial', 'limao', 'geist', 'prisma', 'warp', 'gelo', 'sage']);
-const DEFAULT_PREFS = { fxBg: '#05060f', fxC1: '#7c9cff', fxC2: '#ff5fd2', fxSp: 100, fxAmt: 100, pulse: 'off', beam: 'off', addStyle: 'auto', cardLight: false, theme: 'minimal', mode: 'system', accent: null, font: 'auto', radius: null, density: 'comfortable', motion: true, autoAssign: true, hideOldDone: true, view: 'board', bg: 'theme', bgUrl: '', notify: false,
+const DEFAULT_PREFS = { fxBg: '#05060f', fxC1: '#7c9cff', fxC2: '#ff5fd2', fxSp: 100, fxAmt: 100, pulse: 'off', beam: 'off', addStyle: 'auto', addOpen: 'auto', prioMark: 'chip', cardLight: false, theme: 'minimal', mode: 'system', accent: null, font: 'auto', radius: null, density: 'comfortable', motion: true, autoAssign: true, hideOldDone: true, view: 'board', bg: 'theme', bgUrl: '', notify: false,
   shType: 'plane', shC1: '#52ff89', shC2: '#dbba95', shC3: '#d0bce1', shSpeed: 40, shStrength: 50, shDensity: 40, shGrain: 4, shDim: 0,
   trType: 'linhas', trBg: '#f1ecdf', trLine: '#4a5a4c', trAccent: '#c8522e', trSun: 170, trRelief: 100, trDensity: 110, trSpeed: 40, trCam: 100, trHover: 40, trInterval: 5, trSoft: 0,
   sidebar: true, fx: true, fxSpeed: 100, fxIntensity: 100, cardStyle: 'theme', border: 'theme', shadow: 'theme', size: 'normal' };
@@ -213,6 +215,7 @@ function applyPrefs() {
     const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/.exec(rgb);
     if (m && m[4] !== '0') document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#' + [m[1], m[2], m[3]].map((x) => Number(x).toString(16).padStart(2, '0')).join(''));
   } catch { /* ok */ }
+  r.dataset.prio = p.prioMark || 'chip';
   r.dataset.add = (p.addStyle && p.addStyle !== 'auto') ? p.addStyle : (POPOVER_THEMES.has(p.theme) ? 'popover' : 'inline');
   r.dataset.cardlight = p.cardLight ? 'on' : 'off';
   const bg = bgCss(p, resolvedMode());
@@ -268,12 +271,30 @@ function openModal(content, { wide = false, xwide = false, drawer = false, onClo
 }
 const modalHead = (title, close, extra) => h('div', { class: 'modal-head' }, h('h2', null, title), extra, h('button', { class: 'btn ghost icon sm', title: 'Fechar', 'aria-label': 'Fechar', onclick: close }, icon('x')));
 
+// campo de senha com botão "olho" para mostrar/ocultar o que foi digitado
+function pwField(input) {
+  const btn = h('button', { type: 'button', class: 'pw-eye', 'aria-label': 'Mostrar senha', title: 'Mostrar senha', 'aria-pressed': 'false' }, icon('eye'));
+  btn.onmousedown = (e) => e.preventDefault(); // não tira o foco do campo
+  btn.onclick = () => {
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    btn.replaceChildren(icon(show ? 'eyeoff' : 'eye'));
+    const l = show ? 'Ocultar senha' : 'Mostrar senha';
+    btn.setAttribute('aria-label', l); btn.title = l; btn.setAttribute('aria-pressed', String(show));
+  };
+  return h('div', { class: 'pw-wrap' }, input, btn);
+}
+// "Nova task" (botão/N): no computador abre o card inteiro depois de criar (checklist, descrição…); no celular fica o rápido
+function openFullOnCreate() {
+  const v = S.prefs.addOpen || 'auto';
+  return v === 'full' || (v === 'auto' && !matchMedia('(max-width: 760px), (pointer: coarse)').matches);
+}
 function askText(title, value = '', { placeholder = '', ok = 'Salvar', type = 'text' } = {}) {
   return new Promise((resolve) => {
     let done = false;
     const finish = (v) => { if (done) return; done = true; close(); resolve(v); };
     const input = h('input', { class: 'input', value, placeholder, type, onkeydown: (e) => { if (e.key === 'Enter') finish(input.value.trim() || null); } });
-    const close = openModal([modalHead(title, () => finish(null)), h('div', { class: 'modal-body' }, input),
+    const close = openModal([modalHead(title, () => finish(null)), h('div', { class: 'modal-body' }, type === 'password' ? pwField(input) : input),
       h('div', { class: 'modal-foot' }, h('button', { class: 'btn', onclick: () => finish(null) }, 'Cancelar'), h('button', { class: 'btn primary', onclick: () => finish(input.value.trim() || null) }, ok))], { onClose: () => finish(null) });
     setTimeout(() => { input.focus(); input.select(); }, 20);
   });
@@ -386,10 +407,14 @@ async function createFromText(text, columnId) {
   return t;
 }
 
+function defaultAddColumn() {
+  return S.columns.find((c) => norm(c.name).trim() === 'a fazer') || S.columns.find((c) => c.kind === 'todo' && !/backlog|arquiv/.test(norm(c.name))) || S.columns[0];
+}
 function openQuickAdd(prefill = '') {
   const first = S.columns[0]; if (!first) return;
   const input = h('input', { class: 'input big-input', placeholder: 'O que precisa ser feito?', autocomplete: 'off', maxLength: 300 });
   const colSel = h('select', { class: 'select' }, S.columns.map((c) => h('option', { value: c.id }, c.name)));
+  colSel.value = String(defaultAddColumn().id); // "A fazer" (e não Backlog) é onde quase toda task nasce
   const mine = h('input', { type: 'checkbox', checked: S.prefs.autoAssign, onchange: () => setPrefs({ autoAssign: mine.checked }, { refreshSettings: false }) });
   const preview = h('div', { class: 'card-meta', style: { margin: 0, minHeight: '24px' } });
   const updatePreview = () => {
@@ -400,7 +425,8 @@ function openQuickAdd(prefill = '') {
     if (q.due_date) preview.append(h('span', { class: 'due' }, icon('calendar'), fmtDay(q.due_date)));
   };
   input.addEventListener('input', updatePreview);
-  const submit = guard(async (keepOpen) => {
+  const submit = guard(async (how) => {
+    const keepOpen = how === true; // Ctrl+Enter: cria e continua; 'open'/'quick': escolha explícita do botão
     const text = input.value;
     if (!text.trim()) return;
     const q = parseQuick(text);
@@ -410,18 +436,23 @@ function openQuickAdd(prefill = '') {
     if (q.due_date) body.due_date = q.due_date;
     body.assignee_id = q.assignee_id !== undefined ? q.assignee_id : (mine.checked ? S.me.id : null);
     if (keepOpen) { input.value = ''; updatePreview(); input.focus(); }
-    try { upsertTask(await api('POST', '/api/tasks', body)); } catch (x) { if (keepOpen) { input.value = text; updatePreview(); } throw x; }
-    renderBoard(); toast('Task criada');
-    if (!keepOpen) close();
+    let made;
+    try { made = await api('POST', '/api/tasks', body); upsertTask(made); } catch (x) { if (keepOpen) { input.value = text; updatePreview(); } throw x; }
+    renderBoard();
+    if (keepOpen) { toast('Task criada'); return; }
+    close();
+    if (how === 'open' || (how !== 'quick' && openFullOnCreate())) openTask(made.id); else toast('Task criada');
   });
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submit(e.ctrlKey || e.metaKey); } });
+  const full = openFullOnCreate();
   const close = openModal([modalHead('Nova task', () => close()),
     h('div', { class: 'modal-body' }, input, preview,
       h('div', { class: 'row' }, h('div', { class: 'field' }, h('label', null, 'Coluna'), colSel),
         h('div', { class: 'field', style: { justifyContent: 'flex-end' } }, h('label', { class: 'check' }, mine, 'Pegar pra mim'))),
       h('div', { class: 'help' }, 'Atalhos no texto: ', h('span', { class: 'kbd' }, '#etiqueta'), ' ', h('span', { class: 'kbd' }, '@nome'), ' ', h('span', { class: 'kbd' }, '!alta'), ' ', h('span', { class: 'kbd' }, '^amanhã'), ' ', h('span', { class: 'kbd' }, '^25/12'))),
-    h('div', { class: 'modal-foot' }, h('span', { class: 'help grow' }, h('span', { class: 'kbd' }, 'Enter'), ' cria · ', h('span', { class: 'kbd' }, 'Ctrl+Enter'), ' cria e continua'),
-      h('button', { class: 'btn primary', onclick: () => submit(false) }, icon('plus'), 'Criar'))]);
+    h('div', { class: 'modal-foot' }, h('span', { class: 'help grow' }, h('span', { class: 'kbd' }, 'Enter'), full ? ' cria e abre o card · ' : ' cria · ', h('span', { class: 'kbd' }, 'Ctrl+Enter'), ' cria e continua'),
+      full ? h('button', { class: 'btn', onclick: () => submit('quick') }, 'Só criar') : h('button', { class: 'btn', onclick: () => submit('open') }, 'Criar e abrir'),
+      h('button', { class: 'btn primary', onclick: () => submit(false) }, icon('plus'), full ? 'Criar e abrir' : 'Criar'))]);
   if (typeof prefill === 'string' && prefill) { input.value = prefill; updatePreview(); }
   setTimeout(() => input.focus(), 20);
 }
@@ -476,7 +507,7 @@ function renderAuth(mode = 'login') {
     h('p', null, signup ? 'A primeira conta criada vira administradora. As demais precisam ser aprovadas por ela.' : forgot ? 'Informe o e-mail da conta.' : 'Acesse o quadro da equipe.'),
     signup && h('div', { class: 'field' }, h('label', null, 'Nome'), name),
     h('div', { class: 'field' }, h('label', null, 'E-mail'), email),
-    !forgot && h('div', { class: 'field' }, h('label', null, 'Senha'), pass),
+    !forgot && h('div', { class: 'field' }, h('label', null, 'Senha'), pwField(pass)),
     err, info,
     h('button', { class: 'btn primary', type: 'submit', style: { padding: '11px' } }, signup ? 'Criar conta' : forgot ? 'Enviar link' : 'Entrar'),
     h('div', { class: 'row', style: { justifyContent: 'center', gap: '4px', flexWrap: 'wrap' } },
@@ -972,7 +1003,7 @@ function renderCard(t, col) {
     (t.description || cl.length > 0) && expandBtn(t, () => card),
     (t.description || cl.length > 0) && moreBlock(t),
     h('div', { class: 'card-meta' },
-      h('div', { class: 'cm-left' }, t.labels.map((l) => h('span', { class: 'tag tag-btn', style: { '--h': hueOf(l) }, title: 'Filtrar por #' + l, onclick: (e) => { e.stopPropagation(); S.filter.label = S.filter.label && S.filter.label.toLowerCase() === l.toLowerCase() ? null : l; renderBoard(); } }, l))),
+      h('div', { class: 'cm-left' }, t.priority >= 2 && h('span', { class: 'prio-badge p' + t.priority, title: 'Prioridade ' + PRIO_NAME[t.priority] }, PRIO_NAME[t.priority]), t.labels.map((l) => h('span', { class: 'tag tag-btn', style: { '--h': hueOf(l) }, title: 'Filtrar por #' + l, onclick: (e) => { e.stopPropagation(); S.filter.label = S.filter.label && S.filter.label.toLowerCase() === l.toLowerCase() ? null : l; renderBoard(); } }, l))),
       h('div', { class: 'cm-right' },
         cl.length > 0 && h('span', { class: 'due' + (clDone === cl.length ? ' ok' : '') }, icon('list'), `${clDone}/${cl.length}`),
         t.attachments > 0 && h('span', { class: 'due', title: 'Anexos' }, icon('clip'), t.attachments),
@@ -1266,7 +1297,10 @@ function slideIn(els) {
   const dir = S.tabDir || 1; S.tabDir = 0;
   els.forEach((e) => { e.style.setProperty('--dx', dir * 22 + 'px'); e.classList.remove('slide-in'); void e.offsetWidth; e.classList.add('slide-in'); });
 }
+let settingsOpen = null; // painel Personalizar aberto: { tab, close, go }
 function openSettings(tab = 'look') {
+  // clicar de novo no mesmo botão fecha o painel; outro botão só troca a aba (nunca abre um segundo painel)
+  if (settingsOpen && settingsOpen.panel.isConnected) { if (settingsOpen.tab() === tab) settingsOpen.close(); else settingsOpen.go(tab); return; }
   const content = h('div'), tabsEl = h('div', { class: 'tabs' });
   const tabs = [['look', 'Aparência'], ['account', 'Conta'], ...(S.me.role === 'admin' ? [['team', 'Equipe']] : [])];
   const draw = () => {
@@ -1274,7 +1308,8 @@ function openSettings(tab = 'look') {
     content.replaceChildren(({ look: viewLook, account: viewAccount, team: viewTeam })[tab]());
   };
   S.refreshSettings = () => { if (tab === 'look') { const pn = () => $('.drawer-panel'); const y = pn() ? pn().scrollTop : 0; draw(); if (pn() && y) pn().scrollTop = y; } };
-  const close = openModal([modalHead('Personalizar', () => close()), tabsEl, content], { drawer: true, onClose: () => { S.refreshSettings = null; } });
+  const close = openModal([modalHead('Personalizar', () => close()), tabsEl, content], { drawer: true, onClose: () => { S.refreshSettings = null; settingsOpen = null; } });
+  settingsOpen = { tab: () => tab, close, go: (k) => { tab = k; draw(); }, panel: tabsEl };
   draw();
 }
 
@@ -1404,8 +1439,12 @@ function viewLook() {
       h('div', { class: 'field' }, h('label', null, 'Efeitos nos cartões'),
         seg('pulse', [['off', 'Sem borda pulsante'], ['high', 'Pulsar: alta e urgente'], ['urgent', 'Pulsar: só urgente']]),
         seg('beam', [['off', 'Sem feixe de luz'], ['high', 'Feixe: alta e urgente'], ['urgent', 'Feixe: só urgente']]),
+        h('label', { class: 'help' }, 'Marcar prioridade alta e urgente'),
+        seg('prioMark', [['chip', 'Selo no rodapé'], ['tint', 'Fundo tingido'], ['off', 'Nada']]),
         h('label', { class: 'help' }, 'Como adicionar task na coluna'),
         seg('addStyle', [['auto', 'Pelo tema'], ['inline', 'Campo no rodapé'], ['popover', 'Botão + (formulário)'], ['both', 'Os dois']]),
+        h('label', { class: 'help' }, 'Botão "Nova task" (e tecla N), depois de criar'),
+        seg('addOpen', [['auto', 'Computador abre o card; celular não'], ['full', 'Sempre abrir o card'], ['quick', 'Só criar']]),
         toggle('cardLight', 'Luz caindo no cartão ao passar o mouse')),
       h('div', { class: 'row' },
         h('div', { class: 'field' }, h('label', null, 'Cartões'), seg('cardStyle', [['theme', 'Do tema'], ['solid', 'Sólido'], ['glass', 'Vidro'], ['outline', 'Contorno'], ['fold', 'Dobrado']])),
@@ -1503,7 +1542,7 @@ function viewAccount() {
     h('div', { class: 'field' }, h('label', null, 'Foto de perfil'), photo, pick),
     h('div', { class: 'field' }, h('label', null, 'Nome'), h('div', { class: 'row' }, name, h('button', { class: 'btn', style: { flex: '0 0 auto' }, onclick: guard(async () => { if (!name.value.trim()) return; await api('PATCH', '/api/me', { name: name.value }); S.me.name = name.value.trim(); await loadBoard(); toast('Nome atualizado'); }) }, 'Salvar'))),
     h('div', { class: 'field' }, h('label', null, 'E-mail'), h('div', { class: 'help' }, S.me.email)),
-    h('div', { class: 'row' }, h('div', { class: 'field' }, h('label', null, 'Senha atual'), cur), h('div', { class: 'field' }, h('label', null, 'Nova senha'), nw)),
+    h('div', { class: 'row' }, h('div', { class: 'field' }, h('label', null, 'Senha atual'), pwField(cur)), h('div', { class: 'field' }, h('label', null, 'Nova senha'), pwField(nw))),
     h('div', null, h('button', { class: 'btn', onclick: guard(async () => { await api('PATCH', '/api/me', { current_password: cur.value, new_password: nw.value }); cur.value = nw.value = ''; toast('Senha alterada'); }) }, 'Trocar senha')),
     tokenBox());
 }
@@ -1538,6 +1577,8 @@ document.addEventListener('keydown', (e) => {
     if (top) { document.activeElement && document.activeElement.blur(); top.close(); }
     return;
   }
+  // Ctrl+Enter (fora de campos de texto e sem janela aberta): nova task direto na coluna "A fazer"
+  if (S.me && !modalStack.length && (e.ctrlKey || e.metaKey) && e.key === 'Enter' && !/INPUT|TEXTAREA|SELECT/.test((document.activeElement && document.activeElement.tagName) || '')) { e.preventDefault(); openQuickAdd(); return; }
   if (!S.me || modalStack.length || e.ctrlKey || e.metaKey || e.altKey) return;
   // setas navegam entre cartões (Enter abre, como já era)
   const cur = document.activeElement;
@@ -1557,7 +1598,7 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === '?') { e.preventDefault(); openShortcuts(); }
 });
 function openShortcuts() {
-  const rows = [['N ou C', 'Nova task'], ['/', 'Buscar'], ['← ↑ ↓ →', 'Navegar entre os cartões (com um cartão em foco)'], ['Ctrl+K', 'Paleta de comandos'], ['?', 'Esta lista'], ['Esc', 'Fechar janela ou menu'], ['Enter', 'Abrir a task em foco / criar (nos campos)'], ['Ctrl+Enter', 'Criar e continuar · enviar comentário'], ['Ctrl+V', 'Colar print como anexo (dentro da task)']];
+  const rows = [['N ou C', 'Nova task'], ['Ctrl+Enter', 'Nova task na coluna A fazer'], ['/', 'Buscar'], ['← ↑ ↓ →', 'Navegar entre os cartões (com um cartão em foco)'], ['Ctrl+K', 'Paleta de comandos'], ['?', 'Esta lista'], ['Esc', 'Fechar janela ou menu'], ['Enter', 'Abrir a task em foco / criar (nos campos)'], ['Ctrl+Enter', 'Criar e continuar · enviar comentário'], ['Ctrl+V', 'Colar print como anexo (dentro da task)']];
   const close = openModal([modalHead('Atalhos do teclado', () => close()), h('div', { class: 'modal-body' }, h('div', { class: 'kbd-list' }, rows.map(([k, d]) => h('div', { class: 'kbd-row' }, h('span', { class: 'kbd' }, k), h('span', null, d)))))]);
 }
 
